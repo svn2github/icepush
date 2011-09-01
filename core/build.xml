@@ -28,9 +28,6 @@
     <property name="root.offset" value=".."/>
     <property name="java.dir" location="src/main/java"/>
     <property name="push.product" value="ICEpush"/>
-    <property name="version.primary" value="2"/>
-    <property name="version.secondary" value="0"/>
-    <property name="version.tertiary" value="0"/>
     <property file="${root.offset}/build.properties"/>
     <property name="product.info" value="org/icepush/ProductInfo.java"/>
 
