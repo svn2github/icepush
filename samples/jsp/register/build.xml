@@ -22,31 +22,19 @@
  *
 -->
 
-<project name="icepush-jsp-register" default="war">
+<project name="register" default="war">
 
-	<property file="local.properties"/>
-	<property file="../samples.properties"/>
-	<property file="${root.offset}/build.properties"/>
+	<property file="build.properties" />
+	<property file="${root.offset}/build.properties" />
+
+	<import file="${root.offset}/build-common.xml" />
 	
-	<import file="${root.offset}/build-common.xml"/>
-	
-    <target name="compile" depends="pre.compile" description="compile web application source">
-		<icepush.jsp.available/>
-		<compile>
-			<add.classpath.elements>
-				<fileset refid="icepush.jsp.dist"/>
-			</add.classpath.elements>
-		</compile>
-
-    </target>
-
-    <target name="war" depends="compile" description="generate .war file">
-        <build.war>
-			<add.libs>
-				<fileset refid="icepush.jsp.dist" />
-			</add.libs>
+	<target name="war" depends="compile">
+		
+		<build.war>
 		</build.war>
+        		
     </target>
-	
+
 </project>
 

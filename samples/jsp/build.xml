@@ -24,17 +24,14 @@
 
 <project name="icepush-jsp-samples" default="bin-samples">
     
-    <property file="../../../build.properties"/>
-    <import file="../../../build-common.xml"/>
-    <property name="icechat.dir" value="../../../samples/icechat"/>
+    <property file="../../build.properties"/>
+    <import file="../../build-common.xml" />
+
 
     <target name="bin-samples" depends="clean">
-        <echo>Building ICEpush jQuery integration samples</echo>
+        <echo>Building ICEpush JSP integration samples</echo>
 
         <ant dir="./push" target="war"/>
-        <copy.dist.wars fromdir="./push/${dist.dir}"/>
-        
-        <ant dir="./icepushplace-jsp" target="war"/>
         <copy.dist.wars fromdir="./push/${dist.dir}"/>
         
         <ant dir="./region" target="war"/>
@@ -43,15 +40,11 @@
         <ant dir="./register" target="war"/>
         <copy.dist.wars fromdir="./register/${dist.dir}"/>
         
-        <ant dir="${icechat.dir}" target="jsp"/>
-        <copy.dist.wars fromdir="${icechat.dir}/jsp/${dist.dir}"/>
-                
     </target>
     
     <target name="clean">
         <clean/>
         <ant dir="./push" target="clean"/>
-        <ant dir="./icepushplace-jsp" target="clean"/>
         <ant dir="./region" target="clean"/>
         <ant dir="./register" target="clean"/>
     </target>

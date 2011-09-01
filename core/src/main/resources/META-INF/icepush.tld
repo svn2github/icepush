@@ -28,7 +28,7 @@
 	<display-name>JSP tag library for ICEpush</display-name>
     <tlib-version>2.0.0</tlib-version>
     <short-name>icepush</short-name>
-    <uri>http://icefaces.org/tld/icepush</uri>
+    <uri>http://www.icepush.org/icepush/jsp/icepush.tld</uri>
     <listener>
         <listener-class>org.icepush.util.ExtensionRegistry</listener-class>
     </listener>
