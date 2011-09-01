@@ -1,0 +1,60 @@
+<!--
+ *
+ * Version: MPL 1.1
+ *
+ * "The contents of this file are subject to the Mozilla Public License
+ * Version 1.1 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific language governing rights and limitations under
+ * the License.
+ *
+ * The Original Code is ICEfaces 1.5 open source software code, released
+ * November 5, 2006. The Initial Developer of the Original Code is ICEsoft
+ * Technologies Canada, Corp. Portions created by ICEsoft are Copyright (C)
+ * 2004-2009 ICEsoft Technologies Canada, Corp. All Rights Reserved.
+ *
+ * Contributor(s): _____________________.
+ *
+ *
+  -->
+
+<project name="icepush-jsp-samples" default="bin-samples">
+    
+    <property file="../../../build.properties"/>
+    <import file="../../../build-common.xml"/>
+    <property name="icechat.dir" value="../../../samples/icechat"/>
+
+    <target name="bin-samples" depends="clean">
+        <echo>Building ICEpush jQuery integration samples</echo>
+
+        <ant dir="./push" target="war"/>
+        <copy.dist.wars fromdir="./push/${dist.dir}"/>
+        
+        <ant dir="./icepushplace-jsp" target="war"/>
+        <copy.dist.wars fromdir="./push/${dist.dir}"/>
+        
+        <ant dir="./region" target="war"/>
+        <copy.dist.wars fromdir="./region/${dist.dir}"/>
+        
+        <ant dir="./register" target="war"/>
+        <copy.dist.wars fromdir="./register/${dist.dir}"/>
+        
+        <ant dir="${icechat.dir}" target="jsp"/>
+        <copy.dist.wars fromdir="${icechat.dir}/jsp/${dist.dir}"/>
+                
+    </target>
+    
+    <target name="clean">
+        <clean/>
+        <ant dir="./push" target="clean"/>
+        <ant dir="./icepushplace-jsp" target="clean"/>
+        <ant dir="./region" target="clean"/>
+        <ant dir="./register" target="clean"/>
+    </target>
+
+    
+</project>

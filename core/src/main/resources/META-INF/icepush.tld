@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Version: MPL 1.1
+  ~
+  ~ "The contents of this file are subject to the Mozilla Public License
+  ~ Version 1.1 (the "License"); you may not use this file except in
+  ~ compliance with the License. You may obtain a copy of the License at
+  ~ http://www.mozilla.org/MPL/
+  ~
+  ~ Software distributed under the License is distributed on an "AS IS"
+  ~ basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+  ~ License for the specific language governing rights and limitations under
+  ~ the License.
+  ~
+  ~ The Original Code is ICEfaces 1.5 open source software code, released
+  ~ November 5, 2006. The Initial Developer of the Original Code is ICEsoft
+  ~ Technologies Canada, Corp. Portions created by ICEsoft are Copyright (C)
+  ~ 2004-2010 ICEsoft Technologies Canada, Corp. All Rights Reserved.
+  ~
+  ~ Contributor(s): _____________________.
+  ~
+  -->
+<taglib xmlns="http://java.sun.com/xml/ns/javaee"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-jsptaglibrary_2_1.xsd"
+        version="2.1">
+	<description>ICEpush JSP Tag Library</description>
+	<display-name>JSP tag library for ICEpush</display-name>
+    <tlib-version>2.0.0</tlib-version>
+    <short-name>icepush</short-name>
+    <uri>http://icefaces.org/tld/icepush</uri>
+    <listener>
+        <listener-class>org.icepush.util.ExtensionRegistry</listener-class>
+    </listener>
+    <listener>
+        <listener-class>org.icepush.servlet.MainServlet$ExtensionRegistration</listener-class>
+    </listener>
+    <listener>
+        <listener-class>org.icepush.EmailNotificationProvider$AutoRegister</listener-class>
+    </listener>
+	<tag>
+		<description>Push notifications to a named group.</description>
+		<display-name>ICEpush register</display-name>
+		<name>push</name>
+		<tag-class>org.icepush.jsp.tags.PushTag</tag-class>
+		<body-content>empty</body-content>
+		<attribute>
+			<description>Name of the group to push notifications to.</description>
+			<name>group</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+	</tag>
+	<tag>
+		<description>Push notifications to a named group on a regular interval.</description>
+		<display-name>ICEpush pushPeriodic</display-name>
+		<name>pushPeriodic</name>
+		<tag-class>org.icepush.jsp.tags.PushPeriodicTag</tag-class>
+		<body-content>empty</body-content>
+		<attribute>
+			<description>Name of the group to push notifications to.</description>
+			<name>group</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>Time in milliseconds between notifications.</description>
+			<name>interval</name>
+			<required>true</required>
+			<rtexprvalue>false</rtexprvalue>
+			<type>java.lang.Long</type>
+		</attribute>
+	</tag>
+	<tag>
+		<description>Define a region (div) in the page where dynamic content is rendered when notifications occur.</description>
+		<display-name>ICEpush region</display-name>
+		<name>region</name>
+		<tag-class>org.icepush.jsp.tags.RegionTag</tag-class>
+		<body-content>empty</body-content>
+		<attribute>
+			<description>Unique id associated with div containing the region. Defaults to the assigned pushid.</description>
+			<name>id</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>Name of a notification group associated with this region. Defaults to the assigned pushid.</description>
+			<name>group</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>Name of notifier bean associated with this region. Bean must extend org.icepush.notify.Notifier, and be declared in the page.</description>
+			<name>notifier</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>The page containing the content to be rendered into the region.</description>
+			<name>page</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>Specifies whether scripts in the fetched content will be evaluated.</description>
+			<name>evalJS</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+	</tag>
+	<tag>
+		<description>Register a JavaScript callback for ICEpush notifications.</description>
+		<display-name>ICEpush register</display-name>
+		<name>register</name>
+		<tag-class>org.icepush.jsp.tags.RegisterTag</tag-class>
+		<body-content>empty</body-content>
+		<attribute>
+			<description>The JavaScript function to call when notifications occur.</description>
+			<name>callback</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>Name of a notification group associated with this registration. Defaults to the assigned pushid.</description>
+			<name>group</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>Name of notifier bean associated with this registration. Bean must extend org.icepush..notify.Notifier, and be declared in the page.</description>
+			<name>notifier</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+	</tag>
+</taglib>
