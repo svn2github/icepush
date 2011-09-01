@@ -23,6 +23,7 @@
 <project name="icepush" default="jar" basedir=".">
 
     <property file="local.properties"/>
+    <property file="../build.properties"/>
     <property file="build.properties"/>
     <property name="root.offset" value=".."/>
     <property name="java.dir" location="src/main/java"/>
