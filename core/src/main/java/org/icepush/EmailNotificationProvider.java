@@ -97,8 +97,9 @@ public class EmailNotificationProvider implements NotificationProvider {
                 String user = configuration.getAttribute("user", "");
                 String password = configuration.getAttribute("password", "");
                 ExtensionRegistry.addExtension(servletContext, 10, NotificationProvider.class.getName(), new EmailNotificationProvider(host, port, from, user, password));
+                LOGGER.info("ICEpush Email Notification Provider Registered.");
             } catch (ClassNotFoundException e) {
-                LOGGER.info("Could not setup the email notification provider, the mail.jar library is missing.");
+                LOGGER.fine("Could not setup the email notification provider, the mail.jar library is missing.");
             }
         }
 
