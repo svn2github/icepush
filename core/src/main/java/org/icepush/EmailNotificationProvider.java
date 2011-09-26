@@ -91,8 +91,8 @@ public class EmailNotificationProvider implements NotificationProvider {
                 //mail library present, start using it
                 ServletContext servletContext = servletContextEvent.getServletContext();
                 Configuration configuration = new ServletContextConfiguration("smtp", servletContext);
-                String host = configuration.getAttribute("host", "labs.icesoft.com");
-                String from = configuration.getAttribute("from", "tomcat@icesoft.com");
+                String host = configuration.getAttribute("host", "localhost");
+                String from = configuration.getAttribute("from", "nobody@localhost");
                 int port = configuration.getAttributeAsInteger("port", 25);
                 String user = configuration.getAttribute("user", "");
                 String password = configuration.getAttribute("password", "");
