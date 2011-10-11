@@ -54,11 +54,6 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private final ServletContext context;
     private long lastScan = System.currentTimeMillis();
 
-    private final Observer confirmNotifications = new Observer() {
-        public void update(Observable observable, Object o) {
-            pendingNotifications.removeAll((List) o);
-        }
-    };
     private final Observer timeoutScanner = new Observer() {
         private Set<String> pushIDs = new HashSet<String>();
 
@@ -91,7 +86,6 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         this.pushIdTimeout = configuration.getAttributeAsLong("pushIdTimeout", 2 * 60 * 1000);
         context = servletContext;
         inboundNotifier.addObserver(timeoutScanner);
-        inboundNotifier.addObserver(confirmNotifications);
     }
 
     public void addMember(final String groupName, final String id) {
@@ -143,6 +137,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         while (i.hasNext()) {
             parkedPushIDs.remove(i.next());
         }
+        pendingNotifications.removeAll(pushIdList);
         inboundNotifier.notifyObservers(pushIdList);
     }
 
@@ -178,8 +173,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
             if (!uris.isEmpty()) {
                 getOutOfBandNotifier().broadcast(
-                        (PushNotification) config, 
-                        (String[]) uris.toArray(STRINGS) );
+                        (PushNotification) config,
+                        (String[]) uris.toArray(STRINGS));
             }
 
             //invoke normal push after the verification for park push IDs to avoid interfering with the blocking connection
