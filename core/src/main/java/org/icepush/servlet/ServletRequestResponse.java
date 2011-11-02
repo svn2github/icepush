@@ -83,6 +83,10 @@ public class ServletRequestResponse implements Request, Response {
         requestURI = (query == null ? uri : URI.create(uri + "?" + query));
     }
 
+    public Cookie[] getCookies(){
+        return request.getCookies();
+    }
+
     public String getMethod() {
         return request.getMethod();
     }

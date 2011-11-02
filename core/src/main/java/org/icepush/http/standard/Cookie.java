@@ -29,8 +29,13 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Cookie {
+
+    private final static Logger log = Logger.getLogger(Cookie.class.getName());
+
     private final static DateFormat DATE_FORMAT = new SimpleDateFormat("EEE, dd-MMM-yyyy HH:mm:ss zzz");
 
     static {
@@ -97,16 +102,29 @@ public class Cookie {
 
     public static Cookie readCookie(Request request, String cookieName) {
         String cookies = request.getHeader("Cookie");
-        if (null == cookies)  {
-            return null;
-        }
-        String[] cookieString = cookies.split("; ");
-        for (int i = 0; i < cookieString.length; i++) {
-            String[] nameValue = cookieString[i].split("=");
-            String name = nameValue[0];
-            if (cookieName.equals(name)) {
-                return new Cookie(name, nameValue.length > 1 ? nameValue[1] : "");
+        if (null != cookies) {
+            String[] cookieString = cookies.split("; ");
+            for (int i = 0; i < cookieString.length; i++) {
+                String[] nameValue = cookieString[i].split("=");
+                String name = nameValue[0];
+                if (cookieName.equals(name)) {
+                    return new Cookie(name, nameValue.length > 1 ? nameValue[1] : "");
+                }
             }
+        }
+
+        //PUSH-144: as the Cookie header may not always be available (e.g. portlets) we try an
+        //alternate approach
+        javax.servlet.http.Cookie[] treats = request.getCookies();
+        for (int i = 0; i < treats.length; i++) {
+            javax.servlet.http.Cookie treat = treats[i];
+            if (treat.getName().equalsIgnoreCase(cookieName)) {
+                return new Cookie(treat.getName(), treat.getValue());
+            }
+        }
+
+        if (log.isLoggable(Level.FINE)) {
+            log.log(Level.FINE, "could not get cookie " + cookieName);
         }
 
         return null;

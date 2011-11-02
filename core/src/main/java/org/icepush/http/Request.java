@@ -22,6 +22,7 @@
 
 package org.icepush.http;
 
+import javax.servlet.http.Cookie;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,6 +30,8 @@ import java.net.URI;
 import java.util.Date;
 
 public interface Request {
+
+    Cookie[] getCookies();
 
     String getMethod();
 

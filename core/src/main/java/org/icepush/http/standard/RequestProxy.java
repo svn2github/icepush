@@ -39,6 +39,10 @@ public class RequestProxy implements Request {
         this.request = request;
     }
 
+    public javax.servlet.http.Cookie[] getCookies() {
+        return request.getCookies();
+    }
+
     public String getMethod() {
         return request.getMethod();
     }
