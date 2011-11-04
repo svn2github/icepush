@@ -39,7 +39,7 @@ public class EnvironmentAdaptingServlet implements PseudoServlet {
         this.server = server;
         if (configuration.getAttributeAsBoolean("useAsyncContext", isAsyncARPAvailable())) {
             log.log(Level.INFO, "Adapting to Servlet 3.0 AsyncContext environment");
-            servlet = new AsyncAdaptingServlet(server);
+            servlet = new AsyncAdaptingServlet(server, configuration);
         } else {
             log.log(Level.INFO, "Adapting to Thread Blocking environment");
             servlet = new ThreadBlockingAdaptingServlet(server);
