@@ -22,10 +22,10 @@
 
 package org.icepush.servlet;
 
-import org.icepush.*;
-import org.icepush.http.standard.CacheControlledServer;
-import org.icepush.http.standard.CompressingServer;
-import org.icepush.util.ExtensionRegistry;
+import java.net.SocketException;
+import java.util.Timer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
@@ -33,10 +33,16 @@ import javax.servlet.ServletContextListener;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.net.SocketException;
-import java.util.Timer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.icepush.CodeServer;
+import org.icepush.Configuration;
+import org.icepush.ProductInfo;
+import org.icepush.PushContext;
+import org.icepush.PushGroupManager;
+import org.icepush.PushGroupManagerFactory;
+import org.icepush.http.standard.CacheControlledServer;
+import org.icepush.http.standard.CompressingServer;
+import org.icepush.util.ExtensionRegistry;
 
 public class MainServlet implements PseudoServlet {
     private static final Logger log = Logger.getLogger(MainServlet.class.getName());
@@ -68,7 +74,7 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected void addDispatches() {
-        dispatchOn(".*code\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(new CodeServer("icepush.js")))));
+        dispatchOn(".*code\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(new CodeServer("icepush.js"))), configuration));
         dispatchOn(".*", new BrowserDispatcher(configuration) {
             protected PseudoServlet newServer(String browserID) {
                 return createBrowserBoundServlet(browserID);

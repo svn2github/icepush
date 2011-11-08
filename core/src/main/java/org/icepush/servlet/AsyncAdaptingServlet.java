@@ -22,15 +22,16 @@
 
 package org.icepush.servlet;
 
-import org.icepush.Configuration;
-import org.icepush.http.ResponseHandler;
-import org.icepush.http.Server;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.icepush.Configuration;
+import org.icepush.http.ResponseHandler;
+import org.icepush.http.Server;
 
 public class AsyncAdaptingServlet implements PseudoServlet {
     private final static Logger log = Logger.getLogger(AsyncAdaptingServlet.class.getName());
@@ -47,7 +48,7 @@ public class AsyncAdaptingServlet implements PseudoServlet {
         if (!request.isAsyncSupported()) {
             throw new EnvironmentAdaptingException();
         }
-        AsyncRequestResponse requestResponse = new AsyncRequestResponse(request, response);
+        AsyncRequestResponse requestResponse = new AsyncRequestResponse(request, response, configuration);
         server.service(requestResponse);
     }
 
@@ -58,8 +59,8 @@ public class AsyncAdaptingServlet implements PseudoServlet {
     private class AsyncRequestResponse extends ServletRequestResponse {
         private AsyncContext asyncContext;
 
-        public AsyncRequestResponse(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
-            super(request, response);
+        public AsyncRequestResponse(final HttpServletRequest request, final HttpServletResponse response, final Configuration configuration) throws Exception {
+            super(request, response, configuration);
             asyncContext = request.isAsyncStarted() ? request.getAsyncContext() : request.startAsync();
             asyncContext.setTimeout(configuration.getAttributeAsLong("heartbeatTimeout", 15000) * 2);
         }

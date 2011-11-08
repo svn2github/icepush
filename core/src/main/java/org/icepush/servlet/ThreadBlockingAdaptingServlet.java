@@ -22,28 +22,32 @@
 
 package org.icepush.servlet;
 
-import org.icepush.http.ResponseHandler;
-import org.icepush.http.Server;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.ServletRequest;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
+
+import org.icepush.Configuration;
+import org.icepush.http.ResponseHandler;
+import org.icepush.http.Server;
 
 public class ThreadBlockingAdaptingServlet implements PseudoServlet {
     private static final Logger LOG = Logger.getLogger(ThreadBlockingAdaptingServlet.class.getName());
     private static final int TIMEOUT = 600; // seconds
 
     private Server server;
+    private Configuration configuration;
 
-    public ThreadBlockingAdaptingServlet(Server server) {
+    public ThreadBlockingAdaptingServlet(final Server server, final Configuration configuration) {
         this.server = server;
+        this.configuration = configuration;
     }
 
-    public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        ThreadBlockingRequestResponse requestResponse = new ThreadBlockingRequestResponse(request, response);
+    public void service(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
+        ThreadBlockingRequestResponse requestResponse = new ThreadBlockingRequestResponse(request, response, configuration);
         server.service(requestResponse);
         requestResponse.blockUntilRespond();
     }
@@ -55,8 +59,8 @@ public class ThreadBlockingAdaptingServlet implements PseudoServlet {
     private class ThreadBlockingRequestResponse extends ServletRequestResponse {
         private final Semaphore semaphore;
 
-        public ThreadBlockingRequestResponse(HttpServletRequest request, HttpServletResponse response) throws Exception {
-            super(request, response);
+        public ThreadBlockingRequestResponse(final HttpServletRequest request, final HttpServletResponse response, final Configuration configuration) throws Exception {
+            super(request, response, configuration);
             semaphore = new Semaphore(1);
             //Acquire semaphore hoping to have it released by a call to respondWith() method.
             semaphore.acquire();

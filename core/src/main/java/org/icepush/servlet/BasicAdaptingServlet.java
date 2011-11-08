@@ -22,20 +22,23 @@
 
 package org.icepush.servlet;
 
-import org.icepush.http.Server;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.icepush.Configuration;
+import org.icepush.http.Server;
+
 public class BasicAdaptingServlet implements PseudoServlet {
     private Server server;
+    private Configuration configuration;
 
-    public BasicAdaptingServlet(Server server) {
+    public BasicAdaptingServlet(final Server server, final Configuration configuration) {
         this.server = server;
+        this.configuration = configuration;
     }
 
-    public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        server.service(new ServletRequestResponse(request, response));
+    public void service(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
+        server.service(new ServletRequestResponse(request, response, configuration));
     }
 
     public void shutdown() {

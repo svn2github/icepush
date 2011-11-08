@@ -22,13 +22,6 @@
 
 package org.icepush.servlet;
 
-import org.icepush.http.Request;
-import org.icepush.http.Response;
-import org.icepush.http.ResponseHandler;
-
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -46,6 +39,15 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.icepush.Configuration;
+import org.icepush.http.Request;
+import org.icepush.http.Response;
+import org.icepush.http.ResponseHandler;
+
 public class ServletRequestResponse implements Request, Response {
     private static Logger log = Logger.getLogger("org.icepushservlet");
     private final static DateFormat DATE_FORMAT = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
@@ -60,10 +62,12 @@ public class ServletRequestResponse implements Request, Response {
 
     protected HttpServletRequest request;
     protected HttpServletResponse response;
+    protected boolean disableRemoteHostLookup;
 
-    public ServletRequestResponse(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    public ServletRequestResponse(HttpServletRequest request, HttpServletResponse response, Configuration configuration) throws Exception {
         this.request = request;
         this.response = response;
+        this.disableRemoteHostLookup = configuration.getAttributeAsBoolean("disableRemoteHostLookup", false);
 
         HttpServletRequest req = (HttpServletRequest) request;
         String query = req.getQueryString();
@@ -191,7 +195,13 @@ public class ServletRequestResponse implements Request, Response {
     }
 
     public String getRemoteHost() {
-        return request.getRemoteHost();
+        if (!disableRemoteHostLookup) {
+            log.info("Remote Host: " + request.getRemoteHost());
+            return request.getRemoteHost();
+        } else {
+            log.info("Remote Host: " + request.getRemoteAddr());
+            return request.getRemoteAddr();
+        }
     }
 
     public String getServerName() {
@@ -279,7 +289,7 @@ public class ServletRequestResponse implements Request, Response {
             // This block is removable once we find out why sometimes the request
             // object appears a little corrupted.
 
-            String host = request.getRemoteHost();
+            String host = getRemoteHost();
             StringBuffer data = new StringBuffer("+ Request does not contain parameter '" + name + "' host: \n");
             data.append("  Originator: ").append(host).append("\n");
             data.append("  Path: ").append(requestURI.toString()).append("\n");

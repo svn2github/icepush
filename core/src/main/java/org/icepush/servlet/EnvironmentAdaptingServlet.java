@@ -22,27 +22,30 @@
 
 package org.icepush.servlet;
 
-import org.icepush.Configuration;
-import org.icepush.http.Server;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.icepush.Configuration;
+import org.icepush.http.Server;
 
 public class EnvironmentAdaptingServlet implements PseudoServlet {
     private static Logger log = Logger.getLogger(EnvironmentAdaptingServlet.class.getName());
     private PseudoServlet servlet;
     private Server server;
+    private Configuration configuration;
 
     public EnvironmentAdaptingServlet(final Server server, final Configuration configuration) {
         this.server = server;
+        this.configuration = configuration;
         if (configuration.getAttributeAsBoolean("useAsyncContext", isAsyncARPAvailable())) {
             log.log(Level.INFO, "Adapting to Servlet 3.0 AsyncContext environment");
-            servlet = new AsyncAdaptingServlet(server, configuration);
+            servlet = new AsyncAdaptingServlet(this.server, this.configuration);
         } else {
             log.log(Level.INFO, "Adapting to Thread Blocking environment");
-            servlet = new ThreadBlockingAdaptingServlet(server);
+            servlet = new ThreadBlockingAdaptingServlet(this.server, this.configuration);
         }
     }
 
@@ -51,7 +54,7 @@ public class EnvironmentAdaptingServlet implements PseudoServlet {
             servlet.service(request, response);
         } catch (EnvironmentAdaptingException exception) {
             log.log(Level.INFO, "Falling back to Thread Blocking environment");
-            servlet = new ThreadBlockingAdaptingServlet(server);
+            servlet = new ThreadBlockingAdaptingServlet(server, configuration);
             servlet.service(request, response);
         }
     }
