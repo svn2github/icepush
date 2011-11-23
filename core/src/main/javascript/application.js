@@ -269,7 +269,7 @@ if (!window.ice.icepush) {
 
             //choose between localStorage or cookie based inter-window communication
             var notificationBroadcaster = window.localStorage ?
-                    LocalStorageNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications) : CookieBasedNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications);
+                LocalStorageNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications) : CookieBasedNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications);
 
             //register command that handles the notified-pushids message
             register(commandDispatcher, 'notified-pushids', function(message) {
@@ -362,6 +362,21 @@ if (!window.ice.icepush) {
                     controlRequest(asyncConnection, addParameter, addHeader, responseCallback);
                 }
             };
+
+            //make public park push ID feature
+            var deviceURI;
+            namespace.push.parkInactivePushIds = function(url) {
+                deviceURI = url;
+                namespace.push.connection.pauseConnection();
+                namespace.push.connection.resumeConnection();
+            };
+
+            namespace.push.connection.onSend(function(header) {
+                if (deviceURI) {
+                    header('ice.parkids', 'true');
+                    header('ice.notifyBack', deviceURI)
+                }
+            });
 
             info(logger, 'bridge loaded!');
         }
