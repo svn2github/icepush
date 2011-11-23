@@ -119,6 +119,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         outboundNotifier.deleteObserver(observer);
     }
 
+    public void clearPendingNotifications(List pushIdList) {
+        pendingNotifications.removeAll(pushIdList);
+    }
+
     public String[] getPendingNotifications() {
         return pendingNotifications.toArray(STRINGS);
     }
@@ -137,7 +141,6 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         while (i.hasNext()) {
             parkedPushIDs.remove(i.next());
         }
-        pendingNotifications.removeAll(pushIdList);
         inboundNotifier.notifyObservers(pushIdList);
     }
 

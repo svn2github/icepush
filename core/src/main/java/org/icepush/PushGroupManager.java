@@ -37,6 +37,8 @@ public interface PushGroupManager {
 
     String[] getPendingNotifications();
 
+    void clearPendingNotifications(List pushIdList);
+
     Map<String, String[]> getGroupMap();
 
     void notifyObservers(List pushIdList);
@@ -52,5 +54,4 @@ public interface PushGroupManager {
     void removePushGroupListener(PushGroupListener listener);
 
     void shutdown();
-
 }

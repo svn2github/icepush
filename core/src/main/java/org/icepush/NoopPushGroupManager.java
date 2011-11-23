@@ -49,6 +49,9 @@ public class NoopPushGroupManager implements PushGroupManager {
         return new String[0];
     }
 
+    public void clearPendingNotifications(List pushIdList) {
+    }
+
     public Map<String, String[]> getGroupMap() {
         return Collections.EMPTY_MAP;
     }

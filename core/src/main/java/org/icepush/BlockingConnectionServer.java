@@ -119,8 +119,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Obser
                     if (log.isLoggable(Level.FINEST)) {
                         log.finest("Sending notifications for " + notifiedPushIDs + ".");
                     }
-
-                    pushGroupManager.notifyObservers(participatingPushIDs);
+                    pushGroupManager.clearPendingNotifications(participatingPushIDs);
                     notifiedPushIDs.removeAll(Arrays.asList(lastNotifications));
                 }
             });
@@ -216,6 +215,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Obser
                 if (log.isLoggable(Level.FINEST)) {
                     log.finest("Participating pushIds: " + participatingPushIDs + ".");
                 }
+                pushGroupManager.notifyObservers(participatingPushIDs);
 
                 if (!sendNotifications(pushGroupManager.getPendingNotifications())) {
                     if (resend) {
