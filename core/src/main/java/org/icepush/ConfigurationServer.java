@@ -35,7 +35,7 @@ import java.util.logging.Logger;
 
 public class ConfigurationServer implements Server {
     private static final Logger log = Logger.getLogger(ConfigurationServer.class.getName());
-    private static final int defaultServerErrorRetries = 3;
+    private static final String defaultServerErrorRetries = "1000 2000 4000";
     private static final int defaultBlockingConnectionTimeout = 10000;
     private static final String BrowserIDCookieName = "ice.push.browser";
 
@@ -51,12 +51,12 @@ public class ConfigurationServer implements Server {
         blockingConnectionServer = server;
         String contextPath = normalizeContextPath(configuration.getAttribute("contextPath", (String) servletContext.getAttribute("contextPath")));
         long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", defaultBlockingConnectionTimeout);
-        int serverErrorRetries = configuration.getAttributeAsInteger("serverErrorRetryTimeouts", defaultServerErrorRetries);
+        String serverErrorRetries = configuration.getAttribute("serverErrorRetryTimeouts", defaultServerErrorRetries);
 
         String configurationMessage = "<configuration" +
                 (heartbeatTimeout != defaultBlockingConnectionTimeout ?
                         " heartbeatTimeout=\"" + heartbeatTimeout + "\"" : "") +
-                (serverErrorRetries != defaultServerErrorRetries ?
+                (!serverErrorRetries.equals(defaultServerErrorRetries) ?
                         " serverErrorRetryTimeouts=\"" + serverErrorRetries + "\"" : "") +
                 (contextPath != null ?
                         " blockingConnectionURI=\"" + contextPath + "/listen.icepush\"" : "") +
