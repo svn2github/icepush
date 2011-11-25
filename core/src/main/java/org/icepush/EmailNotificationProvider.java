@@ -36,26 +36,55 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import java.net.URI;
-import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class EmailNotificationProvider implements NotificationProvider {
     private static final Logger log = Logger.getLogger(EmailNotificationProvider.class.getName());
+    private static final String SECURITY_NONE = "NONE";
+    private static final String SECURITY_SSL = "SSL";
+    private static final String SECURITY_TLS = "TLS";
     private Session session;
     private InternetAddress fromAddress;
 
-    public EmailNotificationProvider(String host, int port, String from, String user, String password) {
-        try {
-            Properties configuration = new Properties();
-            configuration.setProperty("mail.smtp.host", host);
-            configuration.setProperty("mail.smtp.port", String.valueOf(port));
-            configuration.setProperty("mail.smtp.from", from);
-            configuration.setProperty("mail.smtp.user", user);
-            configuration.setProperty("mail.smtp.password", password);
+    public EmailNotificationProvider(Configuration configuration) {
+        String host = configuration.getAttribute("host", "localhost");
+        String from = configuration.getAttribute("from", "nobody@localhost.com");
+        String user = configuration.getAttribute("user", "");
+        String password = configuration.getAttribute("password", "");
+        boolean verifyServerCertificate = configuration.getAttributeAsBoolean("verify-server-certificate", false);
+        boolean debugSMTP = configuration.getAttributeAsBoolean("debug", false);
 
-            session = Session.getDefaultInstance(configuration, null);
+        String securityType = configuration.getAttribute("security", SECURITY_NONE);
+        int defaultPort = SECURITY_TLS.equals(securityType) || SECURITY_SSL.equals(securityType) ? 465 : 25;
+        int port = configuration.getAttributeAsInteger("port", defaultPort);
+
+        try {
+            Properties properties = new Properties();
+            properties.setProperty("mail.smtp.host", host);
+            properties.setProperty("mail.smtp.port", String.valueOf(port));
+            properties.setProperty("mail.smtp.from", from);
+            properties.setProperty("mail.smtp.user", user);
+            properties.setProperty("mail.smtp.password", password);
+            //debug
+            if (debugSMTP) {
+                properties.setProperty("mail.debug", "true");
+            }
+            if (SECURITY_TLS.equals(securityType)) {
+                properties.put("mail.smtp.starttls.enable", "true");
+                properties.put("mail.smtp.ssl.protocols", "TLSv1");
+            }
+            if (SECURITY_SSL.equals(securityType)) {
+                properties.put("mail.smtp.ssl.enable", "true");
+                properties.put("mail.smtp.ssl.protocols", "SSLv3");
+            }
+            if (!verifyServerCertificate) {
+                properties.setProperty("mail.smtp.ssl.socketFactory.class", "org.icepush.DummySSLSocketFactory");
+                properties.setProperty("mail.smtp.ssl.socketFactory.fallback", "false");
+            }
+
+            session = Session.getDefaultInstance(properties, null);
             fromAddress = new InternetAddress(from);
         } catch (AddressException e) {
             throw new RuntimeException(e);
@@ -91,12 +120,7 @@ public class EmailNotificationProvider implements NotificationProvider {
                 //mail library present, start using it
                 ServletContext servletContext = servletContextEvent.getServletContext();
                 Configuration configuration = new ServletContextConfiguration("smtp", servletContext);
-                String host = configuration.getAttribute("host", "localhost");
-                String from = configuration.getAttribute("from", "nobody@localhost");
-                int port = configuration.getAttributeAsInteger("port", 25);
-                String user = configuration.getAttribute("user", "");
-                String password = configuration.getAttribute("password", "");
-                ExtensionRegistry.addExtension(servletContext, 10, NotificationProvider.class.getName(), new EmailNotificationProvider(host, port, from, user, password));
+                ExtensionRegistry.addExtension(servletContext, 10, NotificationProvider.class.getName(), new EmailNotificationProvider(configuration));
                 LOGGER.info("ICEpush Email Notification Provider Registered.");
             } catch (ClassNotFoundException e) {
                 LOGGER.fine("Could not setup the email notification provider, the mail.jar library is missing.");
