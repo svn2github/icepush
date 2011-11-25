@@ -57,7 +57,8 @@ public class BrowserBoundServlet extends PathDispatcher {
     protected Server createBlockingConnectionServer() {
         Slot heartbeatInterval = new Slot(configuration.getAttributeAsLong("heartbeatTimeout", 15000));
         return new ConfigurationServer(pushContext, context, configuration,
-                new BlockingConnectionServer(pushGroupManager, monitorRunner, heartbeatInterval, terminateBlockingConnectionOnShutdown));
+                new ParkIDsServer(pushGroupManager,
+                        new BlockingConnectionServer(pushGroupManager, monitorRunner, heartbeatInterval, terminateBlockingConnectionOnShutdown)));
     }
 
     private class CreatePushID extends AbstractPseudoServlet {

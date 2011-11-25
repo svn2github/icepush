@@ -22,10 +22,10 @@
 
 package org.icepush.servlet;
 
-import java.net.SocketException;
-import java.util.Timer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.icepush.*;
+import org.icepush.http.standard.CacheControlledServer;
+import org.icepush.http.standard.CompressingServer;
+import org.icepush.util.ExtensionRegistry;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
@@ -33,16 +33,12 @@ import javax.servlet.ServletContextListener;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import org.icepush.CodeServer;
-import org.icepush.Configuration;
-import org.icepush.ProductInfo;
-import org.icepush.PushContext;
-import org.icepush.PushGroupManager;
-import org.icepush.PushGroupManagerFactory;
-import org.icepush.http.standard.CacheControlledServer;
-import org.icepush.http.standard.CompressingServer;
-import org.icepush.util.ExtensionRegistry;
+import java.net.SocketException;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Timer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class MainServlet implements PseudoServlet {
     private static final Logger log = Logger.getLogger(MainServlet.class.getName());
@@ -69,6 +65,7 @@ public class MainServlet implements PseudoServlet {
         pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context);
         pushContext.setPushGroupManager(pushGroupManager);
         dispatcher = new PathDispatcher();
+        new DefaultOutOfBandNotifier(servletContext);
 
         addDispatches();
     }
@@ -132,6 +129,47 @@ public class MainServlet implements PseudoServlet {
         }
 
         public void contextDestroyed(ServletContextEvent servletContextEvent) {
+        }
+    }
+
+    private static class DefaultOutOfBandNotifier implements OutOfBandNotifier {
+        private final Logger log = Logger.getLogger(OutOfBandNotifier.class.getName());
+        private HashMap providers = new HashMap();
+
+        private DefaultOutOfBandNotifier(ServletContext context) {
+            context.setAttribute(OutOfBandNotifier.class.getName(), this);
+            Object[] extensions = ExtensionRegistry.getExtensions(context, NotificationProvider.class.getName());
+            if (extensions == null) {
+                MainServlet.log.warning("Could not find any out of band notification providers.");
+            } else {
+                for (int i = 0; i < extensions.length; i++) {
+                    NotificationProvider provider = (NotificationProvider) extensions[i];
+                    provider.registerWith(this);
+                }
+            }
+        }
+
+        public void broadcast(PushNotification notification, String[] uris) {
+            for (int i = 0; i < uris.length; i++) {
+                String notifyURI = uris[i];
+                URI uri = URI.create(notifyURI);
+                String protocol = uri.getScheme();
+                NotificationProvider provider = (NotificationProvider) providers.get(protocol);
+                if (provider == null) {
+                    log.warning("Cannot find notification provider for '" + uri + "' URI.");
+                } else {
+                    try {
+                        provider.send(notifyURI, notification);
+                    } catch (Throwable t) {
+                        log.log(Level.WARNING, "Failed to send message to " + notifyURI);
+                    }
+                }
+            }
+
+        }
+
+        public void registerProvider(String protocol, NotificationProvider provider) {
+            providers.put(protocol, provider);
         }
     }
 }
