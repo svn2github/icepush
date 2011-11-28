@@ -140,7 +140,7 @@ public class MainServlet implements PseudoServlet {
             context.setAttribute(OutOfBandNotifier.class.getName(), this);
             Object[] extensions = ExtensionRegistry.getExtensions(context, NotificationProvider.class.getName());
             if (extensions == null) {
-                MainServlet.log.warning("Could not find any out of band notification providers.");
+                MainServlet.log.fine("Could not find any out of band notification providers.");
             } else {
                 for (int i = 0; i < extensions.length; i++) {
                     NotificationProvider provider = (NotificationProvider) extensions[i];

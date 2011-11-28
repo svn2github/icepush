@@ -87,6 +87,9 @@ public class ExtensionRegistry implements ServletContextListener {
     public static Object[] getExtensions(ServletContext context, String name) {
         Map extensions = (Map) context.getAttribute(NAME);
         ArrayList<ExtensionEntry> namedExtensions = (ArrayList) extensions.get(name);
+        if (null == namedExtensions)  {
+            return null;
+        }
         int size = namedExtensions.size();
         Collections.sort(namedExtensions);
         Iterator it = namedExtensions.iterator();
