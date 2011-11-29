@@ -161,8 +161,21 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
-    public void push(String groupName, PushConfiguration config) {
+
+    public void push(final String groupName, final PushConfiguration config) {
         try {
+            //invoke normal push after the verification for park push IDs to avoid interfering with the blocking connection
+            push(groupName);
+
+            //todo: move the handling of blocking connection/parking into BlockingConnectionServer (this manager should
+            //todo: not care about the blocking connection handling)
+            //todo: handle correctly notification triggered during server-response > client-request gap
+            //wait for the connection to be re-established, in case it's not then the corresponding pushIds are parked
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                //ignore interrupt
+            }
             Group group = groupMap.get(groupName);
             String[] pushIDs = group.getPushIDs();
             HashSet uris = new HashSet();
@@ -179,9 +192,6 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                         (PushNotification) config,
                         (String[]) uris.toArray(STRINGS));
             }
-
-            //invoke normal push after the verification for park push IDs to avoid interfering with the blocking connection
-            push(groupName);
         } finally {
             scanForExpiry();
         }
