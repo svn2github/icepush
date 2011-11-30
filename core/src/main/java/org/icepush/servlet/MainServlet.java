@@ -60,6 +60,7 @@ public class MainServlet implements PseudoServlet {
         context = servletContext;
         terminateConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
         timer = new Timer(true);
+        context.setAttribute(Timer.class.getName(), timer);
         configuration = new ServletContextConfiguration("org.icepush", context);
         pushContext = new PushContext(context);
         pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context);
