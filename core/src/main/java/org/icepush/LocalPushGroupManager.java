@@ -22,13 +22,14 @@
 
 package org.icepush;
 
-import org.icepush.servlet.ReadyObservable;
-import org.icepush.servlet.ServletContextConfiguration;
-
-import javax.servlet.ServletContext;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.servlet.ServletContext;
+
+import org.icepush.servlet.ReadyObservable;
+import org.icepush.servlet.ServletContextConfiguration;
 
 public class LocalPushGroupManager extends AbstractPushGroupManager implements PushGroupManager {
     private static final Logger LOGGER = Logger.getLogger(LocalPushGroupManager.class.getName());
@@ -53,7 +54,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private final long pushIdTimeout;
     private final ServletContext context;
     private final Timer scheduler;
-    private long lastScan = System.currentTimeMillis();
+    private long lastTouchScan = System.currentTimeMillis();
+    private long lastExpiryScan = System.currentTimeMillis();
 
     private final Observer timeoutScanner = new Observer() {
         private Set<String> pushIDs = new HashSet<String>();
@@ -63,7 +65,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
             //accumulate pushIDs
             pushIDs.addAll((List) object);
             //avoid to scan/touch the groups on each notification
-            if (lastScan + GROUP_SCANNING_TIME_RESOLUTION < now) {
+            if (lastTouchScan + GROUP_SCANNING_TIME_RESOLUTION < now) {
                 try {
                     for (Group group : new ArrayList<Group>(groupMap.values())) {
                         group.touchIfMatching(pushIDs);
@@ -74,7 +76,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                         pushID.discardIfExpired();
                     }
                 } finally {
-                    lastScan = now;
+                    lastTouchScan = now;
+                    lastExpiryScan = now;
                     pushIDs = new HashSet();
                 }
             }
@@ -225,7 +228,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private void scanForExpiry() {
         long now = System.currentTimeMillis();
         //avoid to scan/touch the groups on each notification
-        if (lastScan + GROUP_SCANNING_TIME_RESOLUTION < now) {
+        if (lastExpiryScan + GROUP_SCANNING_TIME_RESOLUTION < now) {
             try {
                 for (Group group : new ArrayList<Group>(groupMap.values())) {
                     group.discardIfExpired();
@@ -234,7 +237,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                     pushID.discardIfExpired();
                 }
             } finally {
-                lastScan = now;
+                lastExpiryScan = now;
             }
         }
     }
