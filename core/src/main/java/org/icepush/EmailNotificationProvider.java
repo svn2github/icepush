@@ -95,19 +95,8 @@ public class EmailNotificationProvider implements NotificationProvider {
         outOfBandNotifier.registerProvider("mail", this);
     }
 
-    public void send(String uri, PushNotification notification) {
-        URI destinationURI = URI.create(uri);
-
-        MimeMessage mimeMessage = new MimeMessage(session);
-        try {
-            mimeMessage.setFrom(fromAddress);
-            mimeMessage.addRecipient(Message.RecipientType.TO, new InternetAddress(destinationURI.getSchemeSpecificPart()));
-            mimeMessage.setSubject(notification.getSubject());
-            mimeMessage.setText(notification.getDetail());
-            Transport.send(mimeMessage);
-        } catch (MessagingException ex) {
-            log.log(Level.WARNING, "Failed to send email message.", ex);
-        }
+    public void send(final String uri, final PushNotification notification) {
+        (new SendMessage(uri, notification)).start();
     }
 
     public static class AutoRegister implements ServletContextListener {
@@ -128,6 +117,31 @@ public class EmailNotificationProvider implements NotificationProvider {
         }
 
         public void contextDestroyed(ServletContextEvent servletContextEvent) {
+        }
+    }
+
+    private class SendMessage extends Thread {
+        private final String uri;
+        private final PushNotification notification;
+
+        public SendMessage(String uri, PushNotification notification) {
+            this.uri = uri;
+            this.notification = notification;
+        }
+
+        public void run() {
+            URI destinationURI = URI.create(uri);
+
+            MimeMessage mimeMessage = new MimeMessage(session);
+            try {
+                mimeMessage.setFrom(fromAddress);
+                mimeMessage.addRecipient(Message.RecipientType.TO, new InternetAddress(destinationURI.getSchemeSpecificPart()));
+                mimeMessage.setSubject(notification.getSubject());
+                mimeMessage.setText(notification.getDetail());
+                Transport.send(mimeMessage);
+            } catch (MessagingException ex) {
+                log.log(Level.WARNING, "Failed to send email message.", ex);
+            }
         }
     }
 }
