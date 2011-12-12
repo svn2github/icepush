@@ -27,7 +27,7 @@ import org.icepush.servlet.ServletContextConfiguration;
 import javax.servlet.ServletContext;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -147,7 +147,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         return groupMap;
     }
 
-    private BlockingQueue<Runnable> queue = new LinkedBlockingDeque<Runnable>(notificationQueueSize);
+    private BlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>(notificationQueueSize);
 
     public void push(final String groupName) {
         if (!queue.offer(new Notification(groupName))) {
