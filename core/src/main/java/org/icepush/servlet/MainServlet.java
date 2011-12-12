@@ -44,7 +44,8 @@ public class MainServlet implements PseudoServlet {
     private static final Logger log = Logger.getLogger(MainServlet.class.getName());
     protected PushGroupManager pushGroupManager;
     protected PathDispatcher dispatcher;
-    protected Timer timer;
+    protected Timer monitoringScheduler;
+    protected Timer timeoutScheduler;
     protected PushContext pushContext;
     protected ServletContext context;
     protected Configuration configuration;
@@ -59,8 +60,9 @@ public class MainServlet implements PseudoServlet {
 
         context = servletContext;
         terminateConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
-        timer = new Timer(true);
-        context.setAttribute(Timer.class.getName(), timer);
+        monitoringScheduler = new Timer("Monitoring scheduler", true);
+        timeoutScheduler = new Timer("Timeout scheduler", true);
+        context.setAttribute(Timer.class.getName(), monitoringScheduler);
         configuration = new ServletContextConfiguration("org.icepush", context);
         pushContext = new PushContext(context);
         pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context);
@@ -81,7 +83,7 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected PseudoServlet createBrowserBoundServlet(String browserID) {
-        return new BrowserBoundServlet(pushContext, context, pushGroupManager, timer, configuration, terminateConnectionOnShutdown);
+        return new BrowserBoundServlet(pushContext, context, pushGroupManager, monitoringScheduler, timeoutScheduler, configuration, terminateConnectionOnShutdown);
     }
 
     public void dispatchOn(String pattern, PseudoServlet servlet) {
@@ -121,7 +123,7 @@ public class MainServlet implements PseudoServlet {
 
     public void shutdown() {
         dispatcher.shutdown();
-        timer.cancel();
+        monitoringScheduler.cancel();
     }
 
     public static class ExtensionRegistration implements ServletContextListener {

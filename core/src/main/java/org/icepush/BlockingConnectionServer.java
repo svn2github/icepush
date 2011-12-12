@@ -39,13 +39,22 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class BlockingConnectionServer extends TimerTask implements Server, Observer {
+public class BlockingConnectionServer extends TimerTask implements Server, NotificationBroadcaster.Receiver {
     private static final Logger log = Logger.getLogger(BlockingConnectionServer.class.getName());
+    private static final String[] STRINGS = new String[0];
     private static final ResponseHandler CloseResponseDup = new CloseConnectionResponseHandler("duplicate");
     private static final ResponseHandler CloseResponseDown = new CloseConnectionResponseHandler("shutdown");
     //Define here to avoid classloading problems after application exit
     private static final ResponseHandler NoopResponse = new NoopResponseHandler();
     private static final Server AfterShutdown = new ResponseHandlerServer(CloseResponseDown);
+    private static final TimerTask NOOPTask = new TimerTask() {
+        public void run() {
+        }
+    };
+    private static final NotificationBroadcaster.Confirmation NOOPConfirmation = new NotificationBroadcaster.Confirmation() {
+        public void handlingConfirmed(String[] pushIds) {
+        }
+    };
 
     private final BlockingQueue pendingRequest = new LinkedBlockingQueue(1);
     private final Slot heartbeatInterval;
@@ -53,24 +62,27 @@ public class BlockingConnectionServer extends TimerTask implements Server, Obser
     private long responseTimeoutTime;
     private Server activeServer;
     private ConcurrentLinkedQueue notifiedPushIDs = new ConcurrentLinkedQueue();
-    private List participatingPushIDs = Collections.emptyList();
+    private List<String> participatingPushIDs = Collections.emptyList();
+    private TimerTask confirmationFailed = NOOPTask;
+    private NotificationBroadcaster.Confirmation confirmation = NOOPConfirmation;
 
     private String lastWindow = "";
     private String[] lastNotifications = new String[]{};
+    private String notifyBackURI;
+    private Timer timeoutScheduler;
+    private long connectionRecreationTimeout;
 
-    public BlockingConnectionServer(final PushGroupManager pushGroupManager, final Timer monitorRunner, Slot heartbeat, final boolean terminateBlockingConnectionOnShutdown) {
+    public BlockingConnectionServer(final PushGroupManager pushGroupManager, final Timer monitoringScheduler, Timer timeoutScheduler, Slot heartbeat, final boolean terminateBlockingConnectionOnShutdown, Configuration configuration) {
         this.heartbeatInterval = heartbeat;
         this.pushGroupManager = pushGroupManager;
+        this.timeoutScheduler = timeoutScheduler;
+        this.connectionRecreationTimeout = configuration.getAttributeAsLong("connectionRecreationTimeout", 500);
         //add monitor
-        monitorRunner.scheduleAtFixedRate(this, 0, 1000);
-        this.pushGroupManager.addObserver(this);
+        monitoringScheduler.scheduleAtFixedRate(this, 0, 1000);
+        this.pushGroupManager.addNotificationReceiver(this);
 
         //define blocking server
         activeServer = new RunningServer(pushGroupManager, terminateBlockingConnectionOnShutdown);
-    }
-
-    public void update(Observable observable, Object o) {
-        sendNotifications((String[]) o);
     }
 
     public void service(final Request request) throws Exception {
@@ -79,7 +91,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Obser
 
     public void shutdown() {
         cancel();
-        pushGroupManager.deleteObserver(this);
+        pushGroupManager.deleteNotificationReceiver(this);
         activeServer.shutdown();
     }
 
@@ -111,7 +123,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Obser
     private synchronized void respondIfNotificationsAvailable() {
         if (!notifiedPushIDs.isEmpty()) {
             //save notifications, maybe they will need to be resent when blocking connection switches to another window 
-            lastNotifications = (String[]) notifiedPushIDs.toArray(new String[0]);
+            lastNotifications = (String[]) new HashSet(notifiedPushIDs).toArray(STRINGS);
             respondIfPendingRequest(new NotificationHandler(lastNotifications) {
                 public void writeTo(Writer writer) throws IOException {
                     super.writeTo(writer);
@@ -190,6 +202,22 @@ public class BlockingConnectionServer extends TimerTask implements Server, Obser
         }
     }
 
+    public void receive(String[] pushIds, final NotificationBroadcaster.Confirmation confirmation) {
+        this.confirmation = confirmation;
+        this.confirmationFailed = new TimerTask() {
+            public void run() {
+                confirmation.handlingConfirmed(STRINGS);
+                if (notifyBackURI != null && !"".equals(notifyBackURI)) {
+                    pushGroupManager.park(participatingPushIDs.toArray(STRINGS), notifyBackURI);
+                }
+            }
+        };
+        //in case 500ms are gone confirm handling anyway and then park the last notified pushIDs
+        timeoutScheduler.schedule(confirmationFailed, connectionRecreationTimeout);
+
+        sendNotifications(pushIds);
+    }
+
     private class RunningServer implements Server {
         private final PushGroupManager pushGroupManager;
         private final boolean terminateBlockingConnectionOnShutdown;
@@ -212,10 +240,13 @@ public class BlockingConnectionServer extends TimerTask implements Server, Obser
             pendingRequest.put(request);
             try {
                 participatingPushIDs = Arrays.asList(request.getParameterAsStrings("ice.pushid"));
+                notifyBackURI = request.getHeader("ice.notifyBack");
                 if (log.isLoggable(Level.FINEST)) {
                     log.finest("Participating pushIds: " + participatingPushIDs + ".");
                 }
-                pushGroupManager.notifyObservers(participatingPushIDs);
+
+                confirmationFailed.cancel();
+                confirmation.handlingConfirmed(participatingPushIDs.toArray(STRINGS));
 
                 if (!sendNotifications(pushGroupManager.getPendingNotifications())) {
                     if (resend) {

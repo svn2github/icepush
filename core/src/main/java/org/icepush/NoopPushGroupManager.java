@@ -25,7 +25,6 @@ package org.icepush;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Observer;
 
 public class NoopPushGroupManager implements PushGroupManager {
     public final static PushGroupManager Instance = new NoopPushGroupManager();
@@ -36,13 +35,13 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void addMember(String groupName, String pushId) {
     }
 
-    public void addObserver(Observer observer) {
+    public void addNotificationReceiver(NotificationBroadcaster.Receiver observer) {
+    }
+
+    public void deleteNotificationReceiver(NotificationBroadcaster.Receiver observer) {
     }
 
     public void addPushGroupListener(PushGroupListener listener) {
-    }
-
-    public void deleteObserver(Observer observer) {
     }
 
     public String[] getPendingNotifications() {
@@ -54,9 +53,6 @@ public class NoopPushGroupManager implements PushGroupManager {
 
     public Map<String, String[]> getGroupMap() {
         return Collections.EMPTY_MAP;
-    }
-
-    public void notifyObservers(List pushIdList) {
     }
 
     public void push(String groupName) {

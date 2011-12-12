@@ -35,15 +35,17 @@ public class BrowserBoundServlet extends PathDispatcher {
     protected PushContext pushContext;
     protected ServletContext context;
     protected PushGroupManager pushGroupManager;
-    protected Timer monitorRunner;
+    protected Timer monitoringScheduler;
+    protected Timer timeoutScheduler;
     protected Configuration configuration;
     protected boolean terminateBlockingConnectionOnShutdown;
 
-    public BrowserBoundServlet(PushContext pushContext, ServletContext context, final PushGroupManager pushGroupManager, final Timer monitorRunner, Configuration configuration, boolean terminateBlockingConnectionOnShutdown) {
+    public BrowserBoundServlet(PushContext pushContext, ServletContext context, final PushGroupManager pushGroupManager, final Timer monitoringScheduler, Timer timeoutScheduler, Configuration configuration, boolean terminateBlockingConnectionOnShutdown) {
         this.pushContext = pushContext;
         this.context = context;
         this.pushGroupManager = pushGroupManager;
-        this.monitorRunner = monitorRunner;
+        this.monitoringScheduler = monitoringScheduler;
+        this.timeoutScheduler = timeoutScheduler;
         this.configuration = configuration;
         this.terminateBlockingConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
 
@@ -57,8 +59,7 @@ public class BrowserBoundServlet extends PathDispatcher {
     protected Server createBlockingConnectionServer() {
         Slot heartbeatInterval = new Slot(configuration.getAttributeAsLong("heartbeatTimeout", 15000));
         return new ConfigurationServer(pushContext, context, configuration,
-                new ParkIDsServer(pushGroupManager,
-                        new BlockingConnectionServer(pushGroupManager, monitorRunner, heartbeatInterval, terminateBlockingConnectionOnShutdown)));
+                new BlockingConnectionServer(pushGroupManager, monitoringScheduler, timeoutScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration));
     }
 
     private class CreatePushID extends AbstractPseudoServlet {

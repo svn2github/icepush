@@ -22,14 +22,14 @@
 
 package org.icepush;
 
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.icepush.servlet.ServletContextConfiguration;
 
 import javax.servlet.ServletContext;
-
-import org.icepush.servlet.ReadyObservable;
-import org.icepush.servlet.ServletContextConfiguration;
+import java.util.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class LocalPushGroupManager extends AbstractPushGroupManager implements PushGroupManager {
     private static final Logger LOGGER = Logger.getLogger(LocalPushGroupManager.class.getName());
@@ -47,50 +47,57 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private final Map<String, PushID> pushIDMap = new HashMap<String, PushID>();
     private final Map<String, Group> groupMap = new HashMap<String, Group>();
     private final HashSet<String> pendingNotifications = new HashSet();
-    private final HashMap parkedPushIDs = new HashMap();
-    private final Observable inboundNotifier = new ReadyObservable();
-    private final Observable outboundNotifier = new ReadyObservable();
+    private final HashMap<String, String> parkedPushIDs = new HashMap();
+    private final NotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
     private final long groupTimeout;
     private final long pushIdTimeout;
     private final ServletContext context;
-    private final Timer scheduler;
     private long lastTouchScan = System.currentTimeMillis();
     private long lastExpiryScan = System.currentTimeMillis();
-
-    private final Observer timeoutScanner = new Observer() {
-        private Set<String> pushIDs = new HashSet<String>();
-
-        public void update(final Observable observable, final Object object) {
-            long now = System.currentTimeMillis();
-            //accumulate pushIDs
-            pushIDs.addAll((List) object);
-            //avoid to scan/touch the groups on each notification
-            if (lastTouchScan + GROUP_SCANNING_TIME_RESOLUTION < now) {
-                try {
-                    for (Group group : new ArrayList<Group>(groupMap.values())) {
-                        group.touchIfMatching(pushIDs);
-                        group.discardIfExpired();
-                    }
-                    for (PushID pushID : new ArrayList<PushID>(pushIDMap.values())) {
-                        pushID.touchIfMatching(pushIDs);
-                        pushID.discardIfExpired();
-                    }
-                } finally {
-                    lastTouchScan = now;
-                    lastExpiryScan = now;
-                    pushIDs = new HashSet();
-                }
-            }
-        }
-    };
+    private int notificationQueueSize = 1000;
 
     public LocalPushGroupManager(final ServletContext servletContext) {
         Configuration configuration = new ServletContextConfiguration("org.icepush", servletContext);
         this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", 2 * 60 * 1000);
         this.pushIdTimeout = configuration.getAttributeAsLong("pushIdTimeout", 2 * 60 * 1000);
+        this.notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", 1000);
         context = servletContext;
-        inboundNotifier.addObserver(timeoutScanner);
-        scheduler = (Timer) context.getAttribute(Timer.class.getName());
+        Timer timer = (Timer) servletContext.getAttribute(Timer.class.getName());
+        timer.schedule(new TimerTask() {
+            public void run() {
+                //take tasks from the queue and execute them serially
+                while (true) {
+                    try {
+                        queue.take().run();
+                    } catch (InterruptedException e) {
+                        LOGGER.log(Level.FINEST, "Notification queue draining interrupted.");
+                    }
+                }
+            }
+        }, 0);
+    }
+
+    public void scan(String[] confirmedPushIDs) {
+        Set<String> pushIDs = new HashSet<String>();
+        long now = System.currentTimeMillis();
+        //accumulate pushIDs
+        pushIDs.addAll(Arrays.asList(confirmedPushIDs));
+        //avoid to scan/touch the groups on each notification
+        if (lastTouchScan + GROUP_SCANNING_TIME_RESOLUTION < now) {
+            try {
+                for (Group group : new ArrayList<Group>(groupMap.values())) {
+                    group.touchIfMatching(pushIDs);
+                    group.discardIfExpired();
+                }
+                for (PushID pushID : new ArrayList<PushID>(pushIDMap.values())) {
+                    pushID.touchIfMatching(pushIDs);
+                    pushID.discardIfExpired();
+                }
+            } finally {
+                lastTouchScan = now;
+                lastExpiryScan = now;
+            }
+        }
     }
 
     public void addMember(final String groupName, final String id) {
@@ -116,12 +123,12 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
-    public void addObserver(final Observer observer) {
-        outboundNotifier.addObserver(observer);
+    public void addNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
+        outboundNotifier.addReceiver(observer);
     }
 
-    public void deleteObserver(final Observer observer) {
-        outboundNotifier.deleteObserver(observer);
+    public void deleteNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
+        outboundNotifier.deleteReceiver(observer);
     }
 
     public void clearPendingNotifications(List pushIdList) {
@@ -140,64 +147,19 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         return groupMap;
     }
 
-    public void notifyObservers(final List pushIdList) {
-        //unpark pushIds that become active again
-        Iterator i = pushIdList.iterator();
-        while (i.hasNext()) {
-            parkedPushIDs.remove(i.next());
-        }
-        inboundNotifier.notifyObservers(pushIdList);
-    }
+    private BlockingQueue<Runnable> queue = new LinkedBlockingDeque<Runnable>(notificationQueueSize);
 
     public void push(final String groupName) {
-        try {
-            Group group = groupMap.get(groupName);
-            if (group != null) {
-                if (LOGGER.isLoggable(Level.FINEST)) {
-                    LOGGER.log(Level.FINEST, "Push notification triggered for '" + groupName + "' group.");
-                }
-                String[] pushIDs = group.getPushIDs();
-                pendingNotifications.addAll(Arrays.asList(pushIDs));
-                outboundNotifier.notifyObservers(pushIDs);
-                pushed(groupName);
+        if (!queue.offer(new Notification(groupName))) {
+            if (LOGGER.isLoggable(Level.INFO)) {
+                LOGGER.log(Level.INFO, "Notification for group '" + groupName + "' was dropped, queue maximum size reached.");
             }
-        } finally {
-            scanForExpiry();
         }
     }
 
     public void push(final String groupName, final PushConfiguration config) {
-        try {
-            //invoke normal push after the verification for park push IDs to avoid interfering with the blocking connection
-            push(groupName);
-
-            //todo: move the handling of blocking connection/parking into BlockingConnectionServer (this manager should
-            //todo: not care about the blocking connection handling)
-            //todo: handle correctly notification triggered during server-response > client-request gap
-
-            scheduler.schedule(new TimerTask() {
-                public void run() {
-                    Group group = groupMap.get(groupName);
-                    String[] pushIDs = group.getPushIDs();
-                    HashSet uris = new HashSet();
-                    for (int i = 0; i < pushIDs.length; i++) {
-                        String pushID = pushIDs[i];
-                        String uri = (String) parkedPushIDs.get(pushID);
-                        if (uri != null) {
-                            uris.add(uri);
-                        }
-                    }
-
-                    if (!uris.isEmpty()) {
-                        getOutOfBandNotifier().broadcast(
-                                (PushNotification) config,
-                                (String[]) uris.toArray(STRINGS));
-                    }
-                }
-            }, 300);
-        } finally {
-            scanForExpiry();
-        }
+        //add this notification to a blocking queue
+        queue.add(new OutOfBandNotification(groupName, config));
     }
 
     public void removeMember(final String groupName, final String pushId) {
@@ -379,6 +341,73 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                         group.removePushID(id);
                     }
                 }
+            }
+        }
+    }
+
+    private class Notification implements Runnable {
+        private final String groupName;
+
+        public Notification(String groupName) {
+            this.groupName = groupName;
+        }
+
+        public void run() {
+            try {
+                Group group = groupMap.get(groupName);
+                if (group != null) {
+                    if (LOGGER.isLoggable(Level.FINEST)) {
+                        LOGGER.log(Level.FINEST, "Push notification triggered for '" + groupName + "' group.");
+                    }
+                    String[] pushIDs = group.getPushIDs();
+                    pendingNotifications.addAll(Arrays.asList(pushIDs));
+
+                    String[] notified = outboundNotifier.broadcast(pushIDs);
+                    for (int i = 0; i < notified.length; i++) {
+                        parkedPushIDs.remove(notified[i]);
+                    }
+                    scan(notified);
+                    pushed(groupName);
+                }
+            } finally {
+                scanForExpiry();
+            }
+        }
+    }
+
+    private class OutOfBandNotification extends Notification {
+        private final String groupName;
+        private final PushConfiguration config;
+
+        public OutOfBandNotification(String groupName, PushConfiguration config) {
+            super(groupName);
+            this.groupName = groupName;
+            this.config = config;
+        }
+
+        public void run() {
+            try {
+                //invoke normal push after the verification for park push IDs to avoid interfering with the blocking connection
+                super.run();
+
+                Group group = groupMap.get(groupName);
+                String[] pushIDs = group.getPushIDs();
+                HashSet uris = new HashSet();
+                for (int i = 0; i < pushIDs.length; i++) {
+                    String pushID = pushIDs[i];
+                    String uri = parkedPushIDs.get(pushID);
+                    if (uri != null) {
+                        uris.add(uri);
+                    }
+                }
+
+                if (!uris.isEmpty()) {
+                    getOutOfBandNotifier().broadcast(
+                            (PushNotification) config,
+                            (String[]) uris.toArray(STRINGS));
+                }
+            } finally {
+                scanForExpiry();
             }
         }
     }

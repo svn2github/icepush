@@ -22,33 +22,20 @@
 
 package org.icepush;
 
-import java.util.List;
-import java.util.Map;
 
-public interface PushGroupManager {
-    void addMember(String groupName, String pushId);
+public interface NotificationBroadcaster {
 
-    void push(String groupName);
+    void addReceiver(Receiver receiver);
 
-    void push(String groupName, PushConfiguration config);
+    void deleteReceiver(Receiver observer);
 
-    void park(String[] pushIds, String notifyBackURI);
+    String[] broadcast(String[] notifiedPushIds);
 
-    String[] getPendingNotifications();
+    public interface Confirmation {
+        void handlingConfirmed(String[] pushIds);
+    }
 
-    void clearPendingNotifications(List pushIdList);
-
-    void addNotificationReceiver(NotificationBroadcaster.Receiver receiver);
-
-    void deleteNotificationReceiver(NotificationBroadcaster.Receiver observer);
-
-    void removeMember(String groupName, String pushId);
-
-    void addPushGroupListener(PushGroupListener listener);
-
-    void removePushGroupListener(PushGroupListener listener);
-
-    Map<String, String[]> getGroupMap();
-
-    void shutdown();
+    public interface Receiver {
+        void receive(String[] pushIds, Confirmation confirmation);
+    }
 }
