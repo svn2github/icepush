@@ -45,7 +45,6 @@ public class MainServlet implements PseudoServlet {
     protected PushGroupManager pushGroupManager;
     protected PathDispatcher dispatcher;
     protected Timer monitoringScheduler;
-    protected Timer timeoutScheduler;
     protected PushContext pushContext;
     protected ServletContext context;
     protected Configuration configuration;
@@ -61,8 +60,6 @@ public class MainServlet implements PseudoServlet {
         context = servletContext;
         terminateConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
         monitoringScheduler = new Timer("Monitoring scheduler", true);
-        timeoutScheduler = new Timer("Timeout scheduler", true);
-        context.setAttribute(Timer.class.getName(), monitoringScheduler);
         configuration = new ServletContextConfiguration("org.icepush", context);
         pushContext = new PushContext(context);
         pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context);
@@ -83,7 +80,7 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected PseudoServlet createBrowserBoundServlet(String browserID) {
-        return new BrowserBoundServlet(pushContext, context, pushGroupManager, monitoringScheduler, timeoutScheduler, configuration, terminateConnectionOnShutdown);
+        return new BrowserBoundServlet(pushContext, context, pushGroupManager, monitoringScheduler, configuration, terminateConnectionOnShutdown);
     }
 
     public void dispatchOn(String pattern, PseudoServlet servlet) {
@@ -123,6 +120,7 @@ public class MainServlet implements PseudoServlet {
 
     public void shutdown() {
         dispatcher.shutdown();
+        pushGroupManager.shutdown();
         monitoringScheduler.cancel();
     }
 

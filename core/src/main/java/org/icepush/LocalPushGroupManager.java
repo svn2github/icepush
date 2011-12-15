@@ -49,6 +49,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private final HashSet<String> pendingNotifications = new HashSet();
     private final HashMap<String, String> parkedPushIDs = new HashMap();
     private final NotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
+    private final Timer timer = new Timer("Notification queue consumer.", true);
     private final long groupTimeout;
     private final long pushIdTimeout;
     private final ServletContext context;
@@ -61,9 +62,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", 2 * 60 * 1000);
         this.pushIdTimeout = configuration.getAttributeAsLong("pushIdTimeout", 2 * 60 * 1000);
         this.notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", 1000);
-        context = servletContext;
-        Timer timer = (Timer) servletContext.getAttribute(Timer.class.getName());
-        timer.schedule(new TimerTask() {
+        this.context = servletContext;
+        this.timer.schedule(new TimerTask() {
             public void run() {
                 //take tasks from the queue and execute them serially
                 while (true) {
@@ -184,7 +184,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     public void shutdown() {
-        // Do nothing.
+        timer.cancel();
     }
 
     private void scanForExpiry() {

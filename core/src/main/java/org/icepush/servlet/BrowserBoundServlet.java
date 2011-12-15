@@ -36,16 +36,14 @@ public class BrowserBoundServlet extends PathDispatcher {
     protected ServletContext context;
     protected PushGroupManager pushGroupManager;
     protected Timer monitoringScheduler;
-    protected Timer timeoutScheduler;
     protected Configuration configuration;
     protected boolean terminateBlockingConnectionOnShutdown;
 
-    public BrowserBoundServlet(PushContext pushContext, ServletContext context, final PushGroupManager pushGroupManager, final Timer monitoringScheduler, Timer timeoutScheduler, Configuration configuration, boolean terminateBlockingConnectionOnShutdown) {
+    public BrowserBoundServlet(PushContext pushContext, ServletContext context, final PushGroupManager pushGroupManager, final Timer monitoringScheduler, Configuration configuration, boolean terminateBlockingConnectionOnShutdown) {
         this.pushContext = pushContext;
         this.context = context;
         this.pushGroupManager = pushGroupManager;
         this.monitoringScheduler = monitoringScheduler;
-        this.timeoutScheduler = timeoutScheduler;
         this.configuration = configuration;
         this.terminateBlockingConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
 
@@ -59,7 +57,7 @@ public class BrowserBoundServlet extends PathDispatcher {
     protected Server createBlockingConnectionServer() {
         Slot heartbeatInterval = new Slot(configuration.getAttributeAsLong("heartbeatTimeout", 15000));
         return new ConfigurationServer(pushContext, context, configuration,
-                new BlockingConnectionServer(pushGroupManager, monitoringScheduler, timeoutScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration));
+                new BlockingConnectionServer(pushGroupManager, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration));
     }
 
     private class CreatePushID extends AbstractPseudoServlet {

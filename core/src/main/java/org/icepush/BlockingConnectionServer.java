@@ -65,18 +65,18 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private List<String> participatingPushIDs = Collections.emptyList();
     private TimerTask confirmationFailed = NOOPTask;
     private NotificationBroadcaster.Confirmation confirmation = NOOPConfirmation;
+    private Timer monitoringScheduler;
 
     private String lastWindow = "";
     private String[] lastNotifications = new String[]{};
     private String notifyBackURI;
-    private Timer timeoutScheduler;
     private long connectionRecreationTimeout;
 
-    public BlockingConnectionServer(final PushGroupManager pushGroupManager, final Timer monitoringScheduler, Timer timeoutScheduler, Slot heartbeat, final boolean terminateBlockingConnectionOnShutdown, Configuration configuration) {
+    public BlockingConnectionServer(final PushGroupManager pushGroupManager, final Timer monitoringScheduler, Slot heartbeat, final boolean terminateBlockingConnectionOnShutdown, Configuration configuration) {
         this.heartbeatInterval = heartbeat;
         this.pushGroupManager = pushGroupManager;
-        this.timeoutScheduler = timeoutScheduler;
         this.connectionRecreationTimeout = configuration.getAttributeAsLong("connectionRecreationTimeout", 500);
+        this.monitoringScheduler = monitoringScheduler;
         //add monitor
         monitoringScheduler.scheduleAtFixedRate(this, 0, 1000);
         this.pushGroupManager.addNotificationReceiver(this);
@@ -213,7 +213,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             }
         };
         //in case 500ms are gone confirm handling anyway and then park the last notified pushIDs
-        timeoutScheduler.schedule(confirmationFailed, connectionRecreationTimeout);
+        monitoringScheduler.schedule(confirmationFailed, connectionRecreationTimeout);
 
         sendNotifications(pushIds);
     }
