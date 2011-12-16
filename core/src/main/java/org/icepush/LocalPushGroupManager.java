@@ -43,6 +43,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         public void registerProvider(String protocol, NotificationProvider provider) {
         }
     };
+    private static final Runnable NOOP = new Runnable() {
+        public void run() {
+        }
+    };
 
     private final Map<String, PushID> pushIDMap = new HashMap<String, PushID>();
     private final Map<String, Group> groupMap = new HashMap<String, Group>();
@@ -50,31 +54,24 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private final HashMap<String, String> parkedPushIDs = new HashMap();
     private final NotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
     private final Timer timer = new Timer("Notification queue consumer.", true);
+    private final TimerTask queueConsumer;
+    private final BlockingQueue<Runnable> queue;
     private final long groupTimeout;
     private final long pushIdTimeout;
     private final ServletContext context;
+
     private long lastTouchScan = System.currentTimeMillis();
     private long lastExpiryScan = System.currentTimeMillis();
-    private int notificationQueueSize = 1000;
 
     public LocalPushGroupManager(final ServletContext servletContext) {
+        this.context = servletContext;
         Configuration configuration = new ServletContextConfiguration("org.icepush", servletContext);
         this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", 2 * 60 * 1000);
         this.pushIdTimeout = configuration.getAttributeAsLong("pushIdTimeout", 2 * 60 * 1000);
-        this.notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", 1000);
-        this.context = servletContext;
-        this.timer.schedule(new TimerTask() {
-            public void run() {
-                //take tasks from the queue and execute them serially
-                while (true) {
-                    try {
-                        queue.take().run();
-                    } catch (InterruptedException e) {
-                        LOGGER.log(Level.FINEST, "Notification queue draining interrupted.");
-                    }
-                }
-            }
-        }, 0);
+        int notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", 1000);
+        this.queue = new LinkedBlockingQueue<Runnable>(notificationQueueSize);
+        this.queueConsumer = new QueueConsumerTask();
+        this.timer.schedule(queueConsumer, 0);
     }
 
     public void scan(String[] confirmedPushIDs) {
@@ -147,8 +144,6 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         return groupMap;
     }
 
-    private BlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>(notificationQueueSize);
-
     public void push(final String groupName) {
         if (!queue.offer(new Notification(groupName))) {
             if (LOGGER.isLoggable(Level.INFO)) {
@@ -184,6 +179,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     public void shutdown() {
+        queueConsumer.cancel();
         timer.cancel();
     }
 
@@ -409,6 +405,27 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
             } finally {
                 scanForExpiry();
             }
+        }
+    }
+
+    private class QueueConsumerTask extends TimerTask {
+        private boolean running = true;
+
+        public void run() {
+            //take tasks from the queue and execute them serially
+            while (running) {
+                try {
+                    queue.take().run();
+                } catch (InterruptedException e) {
+                    LOGGER.log(Level.FINEST, "Notification queue draining interrupted.");
+                }
+            }
+        }
+
+        public boolean cancel() {
+            running = false;
+            queue.offer(NOOP);//add noop to unblock the queue
+            return super.cancel();
         }
     }
 }
