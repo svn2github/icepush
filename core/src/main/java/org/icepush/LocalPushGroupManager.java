@@ -387,7 +387,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                 super.run();
 
                 Group group = groupMap.get(groupName);
-                String[] pushIDs = group.getPushIDs();
+                String[] pushIDs = new String[0];
+                if (null != group)  {
+                    pushIDs = group.getPushIDs();
+                }
                 HashSet uris = new HashSet();
                 for (int i = 0; i < pushIDs.length; i++) {
                     String pushID = pushIDs[i];
