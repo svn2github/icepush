@@ -98,25 +98,21 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     public void addMember(final String groupName, final String id) {
-        try {
-            PushID pushID = pushIDMap.get(id);
-            if (pushID == null) {
-                pushIDMap.put(id, new PushID(id, groupName));
-            } else {
-                pushID.addToGroup(groupName);
-            }
-            Group group = groupMap.get(groupName);
-            if (group == null) {
-                groupMap.put(groupName, new Group(groupName, id));
-            } else {
-                group.addPushID(id);
-            }
-            memberAdded(groupName, id);
-            if (LOGGER.isLoggable(Level.FINEST)) {
-                LOGGER.log(Level.FINEST, "Added pushId '" + id + "' to group '" + groupName + "'.");
-            }
-        } finally {
-            scanForExpiry();
+        PushID pushID = pushIDMap.get(id);
+        if (pushID == null) {
+            pushIDMap.put(id, new PushID(id, groupName));
+        } else {
+            pushID.addToGroup(groupName);
+        }
+        Group group = groupMap.get(groupName);
+        if (group == null) {
+            groupMap.put(groupName, new Group(groupName, id));
+        } else {
+            group.addPushID(id);
+        }
+        memberAdded(groupName, id);
+        if (LOGGER.isLoggable(Level.FINEST)) {
+            LOGGER.log(Level.FINEST, "Added pushId '" + id + "' to group '" + groupName + "'.");
         }
     }
 
@@ -388,7 +384,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
                 Group group = groupMap.get(groupName);
                 String[] pushIDs = new String[0];
-                if (null != group)  {
+                if (null != group) {
                     pushIDs = group.getPushIDs();
                 }
                 HashSet uris = new HashSet();
