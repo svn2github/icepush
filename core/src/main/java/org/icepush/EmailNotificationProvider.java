@@ -25,7 +25,6 @@ package org.icepush;
 import org.icepush.servlet.ServletContextConfiguration;
 import org.icepush.util.ExtensionRegistry;
 
-import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Session;
 import javax.mail.Transport;
@@ -47,26 +46,29 @@ public class EmailNotificationProvider implements NotificationProvider {
     private static final String SECURITY_TLS = "TLS";
     private Session session;
     private InternetAddress fromAddress;
+    private String user;
+    private String password;
+    private String host;
+    private int port;
+    private String protocol;
 
     public EmailNotificationProvider(Configuration configuration) {
-        String host = configuration.getAttribute("host", "localhost");
+        host = configuration.getAttribute("host", "localhost");
         String from = configuration.getAttribute("from", "nobody@localhost.com");
-        String user = configuration.getAttribute("user", "");
-        String password = configuration.getAttribute("password", "");
+        user = configuration.getAttribute("user", "");
+        password = configuration.getAttribute("password", "");
         boolean verifyServerCertificate = configuration.getAttributeAsBoolean("verify-server-certificate", false);
         boolean debugSMTP = configuration.getAttributeAsBoolean("debug", false);
 
         String securityType = configuration.getAttribute("security", SECURITY_NONE);
-        int defaultPort = SECURITY_TLS.equals(securityType) || SECURITY_SSL.equals(securityType) ? 465 : 25;
-        int port = configuration.getAttributeAsInteger("port", defaultPort);
+        boolean secured = SECURITY_TLS.equals(securityType) || SECURITY_SSL.equals(securityType);
+        int defaultPort = secured ? 465 : 25;
+        port = configuration.getAttributeAsInteger("port", defaultPort);
+        protocol = secured ? "smtps" : "smtp";
 
         try {
             Properties properties = new Properties();
-            properties.setProperty("mail.smtp.host", host);
-            properties.setProperty("mail.smtp.port", String.valueOf(port));
-            properties.setProperty("mail.smtp.from", from);
-            properties.setProperty("mail.smtp.user", user);
-            properties.setProperty("mail.smtp.password", password);
+            properties.setProperty("mail.smtp.auth", "true");
             //debug
             if (debugSMTP) {
                 properties.setProperty("mail.debug", "true");
@@ -80,11 +82,11 @@ public class EmailNotificationProvider implements NotificationProvider {
                 properties.put("mail.smtp.ssl.protocols", "SSLv3");
             }
             if (!verifyServerCertificate) {
-                properties.setProperty("mail.smtp.ssl.socketFactory.class", "org.icepush.DummySSLSocketFactory");
-                properties.setProperty("mail.smtp.ssl.socketFactory.fallback", "false");
+                properties.setProperty("mail.smtps.socketFactory.class", "org.icepush.DummySSLSocketFactory");
+                properties.setProperty("mail.smtps.socketFactory.fallback", "false");
             }
 
-            session = Session.getDefaultInstance(properties, null);
+            session = Session.getInstance(properties);
             fromAddress = new InternetAddress(from);
         } catch (AddressException e) {
             throw new RuntimeException(e);
@@ -135,10 +137,12 @@ public class EmailNotificationProvider implements NotificationProvider {
             MimeMessage mimeMessage = new MimeMessage(session);
             try {
                 mimeMessage.setFrom(fromAddress);
-                mimeMessage.addRecipient(Message.RecipientType.TO, new InternetAddress(destinationURI.getSchemeSpecificPart()));
+                InternetAddress address = new InternetAddress(destinationURI.getSchemeSpecificPart());
                 mimeMessage.setSubject(notification.getSubject());
                 mimeMessage.setText(notification.getDetail());
-                Transport.send(mimeMessage);
+                Transport transport = session.getTransport(protocol);
+                transport.connect(host, port, user, password);
+                transport.sendMessage(mimeMessage, new InternetAddress[]{address});
             } catch (MessagingException ex) {
                 log.log(Level.WARNING, "Failed to send email message.", ex);
             }
