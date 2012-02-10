@@ -48,7 +48,8 @@ public class MainServlet implements PseudoServlet {
         this(context, true);
     }
 
-    public MainServlet(final ServletContext servletContext, final boolean terminateBlockingConnectionOnShutdown) {
+    public MainServlet(final ServletContext servletContext,
+                       final boolean terminateBlockingConnectionOnShutdown) {
         log.info(new ProductInfo().toString());
 
         context = servletContext;
@@ -85,7 +86,8 @@ public class MainServlet implements PseudoServlet {
         return pushGroupManager;
     }
 
-    public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    public void service(HttpServletRequest request,
+                        HttpServletResponse response) throws Exception {
         try {
             dispatcher.service(request, response);
         } catch (SocketException e) {
@@ -118,7 +120,8 @@ public class MainServlet implements PseudoServlet {
         monitoringScheduler.cancel();
     }
 
-    public static class ExtensionRegistration implements ServletContextListener {
+    public static class ExtensionRegistration implements
+            ServletContextListener {
         public void contextInitialized(ServletContextEvent servletContextEvent) {
             ExtensionRegistry.addExtension(servletContextEvent.getServletContext(), 1, "org.icepush.MainServlet", MainServlet.class);
         }
@@ -151,19 +154,20 @@ public class MainServlet implements PseudoServlet {
                 String protocol = uri.getScheme();
                 NotificationProvider provider = (NotificationProvider) providers.get(protocol);
                 if (provider == null) {
-                    log.warning("Cannot find notification provider for '" + uri + "' URI.");
+                    log.warning("No notification providers for '" + uri + "' URI registered");
                 } else {
                     try {
                         provider.send(notifyURI, notification);
                     } catch (Throwable t) {
-                        log.log(Level.WARNING, "Failed to send message to " + notifyURI);
+                        log.log(Level.WARNING, "Exception sending message to " + notifyURI + ", " + t);
                     }
                 }
             }
 
         }
 
-        public void registerProvider(String protocol, NotificationProvider provider) {
+        public void registerProvider(String protocol,
+                                     NotificationProvider provider) {
             providers.put(protocol, provider);
         }
     }
