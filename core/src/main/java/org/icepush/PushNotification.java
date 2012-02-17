@@ -16,12 +16,15 @@
  */
 package org.icepush;
 
-import java.util.HashMap;
 import java.util.Map;
 
 public class PushNotification extends PushConfiguration {
     public static String SUBJECT = "subject";
     public static String DETAIL = "detail";
+
+    protected PushNotification() {
+        super();
+    }
 
     public PushNotification(String subject)  {
         getAttributes().put(SUBJECT, subject);
