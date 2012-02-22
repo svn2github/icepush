@@ -238,7 +238,7 @@ if (!window.ice.icepush) {
                 changeHeartbeatInterval(asyncConnection, attributeAsNumber(configuration, 'heartbeatTimeout', 50000));
             });
             register(commandDispatcher, 'browser', function(message) {
-                document.cookie = BrowserIDCookieName + '=' + message.getAttribute('id');
+                Cookie(BrowserIDCookieName, message.getAttribute('id'));
             });
 
             //purge discarded pushIDs from the notification list
