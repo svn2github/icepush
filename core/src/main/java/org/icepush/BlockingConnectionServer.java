@@ -23,6 +23,7 @@ import org.icepush.http.Server;
 import org.icepush.http.standard.FixedXMLContentHandler;
 import org.icepush.http.standard.ResponseHandlerServer;
 import org.icepush.util.Slot;
+import javax.servlet.http.Cookie;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -122,8 +123,8 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                 public void writeTo(Writer writer) throws IOException {
                     super.writeTo(writer);
 
-                    if (log.isLoggable(Level.FINEST)) {
-                        log.finest("Sending notifications for " + notifiedPushIDs + ".");
+                    if (log.isLoggable(Level.FINE)) {
+                        log.fine("Sending notifications for " + notifiedPushIDs + ".");
                     }
                     pushGroupManager.clearPendingNotifications(participatingPushIDs);
                     notifiedPushIDs.removeAll(Arrays.asList(lastNotifications));
@@ -235,8 +236,19 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             try {
                 participatingPushIDs = Arrays.asList(request.getParameterAsStrings("ice.pushid"));
                 notifyBackURI = request.getHeader("ice.notifyBack");
-                if (log.isLoggable(Level.FINEST)) {
-                    log.finest("Participating pushIds: " + participatingPushIDs + ".");
+                if (log.isLoggable(Level.FINE)) {
+                    String browserID = "undefined";
+                    Cookie[] cookies = request.getCookies();
+                    if (cookies != null) {
+                        for (Cookie cookie : cookies) {
+                            if ("ice.push.browser".equals(cookie.getName())) {
+                                browserID = cookie.getValue();
+                                break;
+                            }
+                        }
+                    }
+                    log.fine("Listen request from pushIds: " + participatingPushIDs + 
+                        ". Cloud Push ID: " + notifyBackURI + ". Browser: " + browserID);
                 }
 
                 confirmationFailed.cancel();

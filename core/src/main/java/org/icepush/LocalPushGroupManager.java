@@ -391,6 +391,9 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                 }
 
                 if (!uris.isEmpty()) {
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(Level.FINE, "Cloud Push dispatched for " + parkedPushIDs);
+                    }
                     getOutOfBandNotifier().broadcast(
                             (PushNotification) config,
                             (String[]) uris.toArray(STRINGS));
