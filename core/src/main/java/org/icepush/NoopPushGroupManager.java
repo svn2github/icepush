@@ -57,7 +57,10 @@ public class NoopPushGroupManager implements PushGroupManager {
 
     public void park(String[] pushIds, String notifyBackURI) {
     }
-
+    
+    public void pruneParkedIDs(String notifyBackURI, List<String> listenedPushIds)  {
+    }
+    
     public void removeMember(String groupName, String pushId) {
     }
 

@@ -27,6 +27,8 @@ public interface PushGroupManager {
     void push(String groupName, PushConfiguration config);
 
     void park(String[] pushIds, String notifyBackURI);
+    
+    void pruneParkedIDs(String notifyBackURI, List<String> listenedPushIds);
 
     String[] getPendingNotifications();
 

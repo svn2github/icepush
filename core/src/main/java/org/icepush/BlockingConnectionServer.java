@@ -254,6 +254,11 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                 confirmationFailed.cancel();
                 confirmation.handlingConfirmed(participatingPushIDs.toArray(STRINGS));
 
+                if (null != notifyBackURI)  {
+                    pushGroupManager.pruneParkedIDs(notifyBackURI, 
+                            participatingPushIDs);
+                }
+
                 if (!sendNotifications(pushGroupManager.getPendingNotifications())) {
                     if (resend) {
                         resendLastNotifications();

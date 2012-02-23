@@ -168,6 +168,20 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
+    public void pruneParkedIDs(String notifyBackURI, List<String> listenedPushIds)  {
+        for (String parkedID : parkedPushIDs.keySet())  {
+            String thisNotifyBack = parkedPushIDs.get(parkedID);
+            if (thisNotifyBack.equals(notifyBackURI) && 
+                    !listenedPushIds.contains(parkedID))  {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.fine("Removed unlistened parked pushID " + 
+                            parkedID + " for " + notifyBackURI);
+                }
+                parkedPushIDs.remove(parkedID);
+            }
+        }
+    }
+
     public void shutdown() {
         queueConsumer.cancel();
         timer.cancel();
