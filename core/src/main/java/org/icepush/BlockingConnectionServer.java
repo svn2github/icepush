@@ -22,8 +22,8 @@ import org.icepush.http.ResponseHandler;
 import org.icepush.http.Server;
 import org.icepush.http.standard.FixedXMLContentHandler;
 import org.icepush.http.standard.ResponseHandlerServer;
+import org.icepush.servlet.BrowserDispatcher;
 import org.icepush.util.Slot;
-import javax.servlet.http.Cookie;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -237,15 +237,10 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                 participatingPushIDs = Arrays.asList(request.getParameterAsStrings("ice.pushid"));
                 notifyBackURI = request.getHeader("ice.notifyBack");
                 if (log.isLoggable(Level.FINE)) {
-                    String browserID = "undefined";
-                    Cookie[] cookies = request.getCookies();
-                    if (cookies != null) {
-                        for (Cookie cookie : cookies) {
-                            if ("ice.push.browser".equals(cookie.getName())) {
-                                browserID = cookie.getValue();
-                                break;
-                            }
-                        }
+                    String browserID = BrowserDispatcher
+                            .getBrowserIDFromCookie(request);
+                    if (null == browserID)  {
+                        browserID = "undefined";
                     }
                     log.fine("Listen request from pushIds: " + participatingPushIDs + 
                         ". Cloud Push ID: " + notifyBackURI + ". Browser: " + browserID);
