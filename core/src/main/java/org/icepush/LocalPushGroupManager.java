@@ -428,6 +428,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                     queue.take().run();
                 } catch (InterruptedException e) {
                     LOGGER.log(Level.FINEST, "Notification queue draining interrupted.");
+                } catch (Throwable t)  {
+                    LOGGER.log(Level.WARNING, "Notification queue encountered ", t);
                 }
             }
         }
