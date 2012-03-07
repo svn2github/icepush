@@ -37,11 +37,19 @@ import java.util.logging.Logger;
 public class BlockingConnectionServer extends TimerTask implements Server, NotificationBroadcaster.Receiver {
     private static final Logger log = Logger.getLogger(BlockingConnectionServer.class.getName());
     private static final String[] STRINGS = new String[0];
-    private static final ResponseHandler CloseResponseDup = new CloseConnectionResponseHandler("duplicate");
-    private static final ResponseHandler CloseResponseDown = new CloseConnectionResponseHandler("shutdown");
     //Define here to avoid classloading problems after application exit
     private static final ResponseHandler NoopResponse = new NoopResponseHandler();
-    private static final Server AfterShutdown = new ResponseHandlerServer(CloseResponseDown);
+    private final ResponseHandler CloseResponseDup = new CloseConnectionResponseHandler("duplicate") {
+        public void respond(Response response) throws Exception {
+            super.respond(response);
+            //revert timeout to previous value, duplicate requests can extend excessively the calculated delay
+            //the duplicate requests occur during page reload or navigating away from the page and then returning back
+            //before the server decides to sever the connection
+            revertConnectionRecreationTimeout();
+        }
+    };
+    private final ResponseHandler CloseResponseDown = new CloseConnectionResponseHandler("shutdown");
+    private final Server AfterShutdown = new ResponseHandlerServer(CloseResponseDown);
     private static final TimerTask NOOPTask = new TimerTask() {
         public void run() {
         }
@@ -66,6 +74,8 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private String[] lastNotifications = new String[]{};
     private String notifyBackURI;
     private long connectionRecreationTimeout;
+    private long responseTimestamp = System.currentTimeMillis();
+    private long backupConnectionRecreationTimeout;
 
     public BlockingConnectionServer(final PushGroupManager pushGroupManager, final Timer monitoringScheduler, Slot heartbeat, final boolean terminateBlockingConnectionOnShutdown, Configuration configuration) {
         this.heartbeatInterval = heartbeat;
@@ -141,6 +151,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         Request previousRequest = (Request) pendingRequest.poll();
         if (previousRequest != null) {
             try {
+                recordResponseTime();
                 previousRequest.respondWith(handler);
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -151,14 +162,13 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private static class NoopResponseHandler extends FixedXMLContentHandler {
         public void writeTo(Writer writer) throws IOException {
             writer.write("<noop/>");
-
             if (log.isLoggable(Level.FINEST)) {
                 log.finest("Sending NoOp.");
             }
         }
     }
 
-    private static class CloseConnectionResponseHandler implements ResponseHandler {
+    private class CloseConnectionResponseHandler implements ResponseHandler {
         private String reason = "undefined";
 
         public CloseConnectionResponseHandler(String reason) {
@@ -170,7 +180,6 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             response.setHeader("X-Connection", "close");
             response.setHeader("X-Connection-reason", reason);
             response.setHeader("Content-Length", 0);
-
             if (log.isLoggable(Level.FINEST)) {
                 log.finest("Close current blocking connection.");
             }
@@ -224,6 +233,8 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
 
         public void service(final Request request) throws Exception {
             resetTimeout();
+            adjustConnectionRecreationTimeout();
+
             respondIfPendingRequest(CloseResponseDup);
 
             //resend notifications if the window owning the blocking connection has changed
@@ -272,5 +283,21 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             activeServer = AfterShutdown;
             respondIfPendingRequest(terminateBlockingConnectionOnShutdown ? CloseResponseDown : NoopResponse);
         }
+    }
+
+    private void adjustConnectionRecreationTimeout() {
+        backupConnectionRecreationTimeout = connectionRecreationTimeout;
+        long requestTimestamp = System.currentTimeMillis();
+        long currentResponseDelay = requestTimestamp - responseTimestamp;
+        //adaptive timeout -- see algorithm described in PUSH-164
+        connectionRecreationTimeout = Math.max(currentResponseDelay, 500) + (connectionRecreationTimeout / 2);
+    }
+
+    private void revertConnectionRecreationTimeout() {
+        connectionRecreationTimeout = backupConnectionRecreationTimeout;
+    }
+
+    private void recordResponseTime() {
+        responseTimestamp = System.currentTimeMillis();
     }
 }
