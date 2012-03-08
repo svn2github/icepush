@@ -75,6 +75,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private String notifyBackURI;
     private long connectionRecreationTimeout;
     private long responseTimestamp = System.currentTimeMillis();
+    private long requestTimestamp = System.currentTimeMillis();
     private long backupConnectionRecreationTimeout;
 
     public BlockingConnectionServer(final PushGroupManager pushGroupManager, final Timer monitoringScheduler, Slot heartbeat, final boolean terminateBlockingConnectionOnShutdown, Configuration configuration) {
@@ -217,7 +218,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             }
         };
         //in case 500ms are gone confirm handling anyway and then park the last notified pushIDs
-        monitoringScheduler.schedule(confirmationFailed, connectionRecreationTimeout);
+        monitoringScheduler.schedule(confirmationFailed, connectionRecreationTimeout * 2);
 
         sendNotifications(pushIds);
     }
@@ -233,7 +234,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
 
         public void service(final Request request) throws Exception {
             resetTimeout();
-            adjustConnectionRecreationTimeout();
+            adjustConnectionRecreationTimeout(request);
 
             respondIfPendingRequest(CloseResponseDup);
 
@@ -247,15 +248,6 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             try {
                 participatingPushIDs = Arrays.asList(request.getParameterAsStrings("ice.pushid"));
                 notifyBackURI = request.getHeader("ice.notifyBack");
-                if (log.isLoggable(Level.FINE)) {
-                    String browserID = BrowserDispatcher
-                            .getBrowserIDFromCookie(request);
-                    if (null == browserID)  {
-                        browserID = "undefined";
-                    }
-                    log.fine("Listen request from pushIds: " + participatingPushIDs + 
-                        ". Cloud Push ID: " + notifyBackURI + ". Browser: " + browserID);
-                }
 
                 confirmationFailed.cancel();
                 confirmation.handlingConfirmed(participatingPushIDs.toArray(STRINGS));
@@ -285,12 +277,38 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         }
     }
 
-    private void adjustConnectionRecreationTimeout() {
+    private void adjustConnectionRecreationTimeout(Request request) {
         backupConnectionRecreationTimeout = connectionRecreationTimeout;
-        long requestTimestamp = System.currentTimeMillis();
+        long now = System.currentTimeMillis();
+        long elapsed = now - requestTimestamp;
+        requestTimestamp = now;
         long currentResponseDelay = requestTimestamp - responseTimestamp;
         //adaptive timeout -- see algorithm described in PUSH-164
-        connectionRecreationTimeout = Math.max(currentResponseDelay, 500) + (connectionRecreationTimeout / 2);
+        long responseDelay = Math.max(currentResponseDelay, 500);
+        if (responseDelay < (connectionRecreationTimeout * 2))  {
+            connectionRecreationTimeout = 
+                    (responseDelay + connectionRecreationTimeout) / 2;
+        } else {
+            //very long delay since last reconnect, so increase gradually
+            connectionRecreationTimeout = (connectionRecreationTimeout * 3) / 2;
+        }
+        if (log.isLoggable(Level.FINE)) {
+            String browserID = BrowserDispatcher
+                    .getBrowserIDFromCookie(request);
+            if (null == browserID)  {
+                browserID = "undefined";
+            }
+            participatingPushIDs = Arrays.asList(
+                    request.getParameterAsStrings("ice.pushid"));
+            notifyBackURI = request.getHeader("ice.notifyBack");
+            log.fine(
+                "ICEpush metric: pushIds: " + participatingPushIDs + 
+                " Cloud Push ID: " + notifyBackURI + 
+                " Browser: " + browserID + 
+                " last request " + elapsed +
+                " Latency: " + currentResponseDelay +
+                " connectionRecreationTimeout " + connectionRecreationTimeout );
+        }
     }
 
     private void revertConnectionRecreationTimeout() {

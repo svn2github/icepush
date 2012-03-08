@@ -16,12 +16,9 @@
  */
 package org.icepush.servlet;
 
-import java.util.Map;
-import java.util.HashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import java.util.logging.Level;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -30,12 +27,10 @@ import javax.servlet.ServletRequest;
 import org.icepush.Configuration;
 import org.icepush.http.ResponseHandler;
 import org.icepush.http.Server;
-import org.icepush.servlet.BrowserDispatcher;
 
 public class ThreadBlockingAdaptingServlet implements PseudoServlet {
     private static final Logger LOG = Logger.getLogger(ThreadBlockingAdaptingServlet.class.getName());
     private static final int TIMEOUT = 600; // seconds
-    private Map<String, Long> connectTimes = new HashMap();
 
     private Server server;
     private Configuration configuration;
@@ -46,30 +41,9 @@ public class ThreadBlockingAdaptingServlet implements PseudoServlet {
     }
 
     public void service(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
-
-        String browserID = null;
-        if (LOG.isLoggable(Level.FINE)) {
-            Long now = System.currentTimeMillis();
-            browserID = BrowserDispatcher.getBrowserIDFromCookie(request);
-            if (null == browserID)  {
-                browserID = "undefined";
-            }
-            Long lastTime = connectTimes.get(browserID);
-            if (null == lastTime) {
-                lastTime = now;
-            }
-
-            LOG.fine("ICEpush metric: Reconnect latency for " + 
-                    browserID + " : " + (now - lastTime));
-        }
-
         ThreadBlockingRequestResponse requestResponse = new ThreadBlockingRequestResponse(request, response, configuration);
         server.service(requestResponse);
         requestResponse.blockUntilRespond();
-
-        if (LOG.isLoggable(Level.FINE)) {
-            connectTimes.put(browserID, System.currentTimeMillis());
-        }
     }
 
     public void shutdown() {
