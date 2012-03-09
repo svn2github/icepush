@@ -218,6 +218,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             }
         };
         //in case 500ms are gone confirm handling anyway and then park the last notified pushIDs
+System.out.println("Cloud push in " + (connectionRecreationTimeout * 2));
         monitoringScheduler.schedule(confirmationFailed, connectionRecreationTimeout * 2);
 
         sendNotifications(pushIds);
@@ -284,14 +285,16 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         requestTimestamp = now;
         long currentResponseDelay = requestTimestamp - responseTimestamp;
         //adaptive timeout -- see algorithm described in PUSH-164
-        long responseDelay = Math.max(currentResponseDelay, 500);
-        if (responseDelay < (connectionRecreationTimeout * 2))  {
-            connectionRecreationTimeout = 
-                    (responseDelay + connectionRecreationTimeout) / 2;
-        } else {
-            //very long delay since last reconnect, so increase gradually
-            connectionRecreationTimeout = (connectionRecreationTimeout * 3) / 2;
-        }
+        long responseDelay = currentResponseDelay;
+        responseDelay = Math.max(responseDelay, 
+                (connectionRecreationTimeout * 4) / 5);
+        responseDelay = Math.min(responseDelay, 
+                (connectionRecreationTimeout * 3) / 2);
+        responseDelay = Math.max(responseDelay, 500);
+        
+        connectionRecreationTimeout = 
+                    (responseDelay + (connectionRecreationTimeout * 4)) / 5;
+
         if (log.isLoggable(Level.FINE)) {
             String browserID = BrowserDispatcher
                     .getBrowserIDFromCookie(request);
@@ -302,12 +305,14 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                     request.getParameterAsStrings("ice.pushid"));
             notifyBackURI = request.getHeader("ice.notifyBack");
             log.fine(
-                "ICEpush metric: pushIds: " + participatingPushIDs + 
+                "ICEpush metric:" +
+                " IP: " + request.getRemoteAddr() + 
+                " pushIds: " + participatingPushIDs + 
                 " Cloud Push ID: " + notifyBackURI + 
                 " Browser: " + browserID + 
-                " last request " + elapsed +
+                " last request: " + elapsed +
                 " Latency: " + currentResponseDelay +
-                " connectionRecreationTimeout " + connectionRecreationTimeout );
+                " connectionRecreationTimeout: " + connectionRecreationTimeout );
         }
     }
 
