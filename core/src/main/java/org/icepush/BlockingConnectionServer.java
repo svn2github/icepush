@@ -218,7 +218,9 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             }
         };
         //in case 500ms are gone confirm handling anyway and then park the last notified pushIDs
-System.out.println("Cloud push in " + (connectionRecreationTimeout * 2));
+        if (log.isLoggable(Level.FINE)) {
+            log.fine("Cloud push in " + (connectionRecreationTimeout * 2));
+        }
         monitoringScheduler.schedule(confirmationFailed, connectionRecreationTimeout * 2);
 
         sendNotifications(pushIds);
