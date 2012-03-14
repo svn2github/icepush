@@ -50,7 +50,18 @@ public class MainServlet implements PseudoServlet {
 
     public MainServlet(final ServletContext servletContext,
                        final boolean terminateBlockingConnectionOnShutdown) {
-        log.info(new ProductInfo().toString());
+        this(servletContext,terminateBlockingConnectionOnShutdown,true);
+    }
+
+    public MainServlet(final ServletContext servletContext,
+                       final boolean terminateBlockingConnectionOnShutdown,
+                       final boolean printProductInfo) {
+
+        //We print the product info unless we are part of EE which will print out it's
+        //own version.
+        if(printProductInfo){
+            log.info(new ProductInfo().toString());
+        }
 
         context = servletContext;
         terminateConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
