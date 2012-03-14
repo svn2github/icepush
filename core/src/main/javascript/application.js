@@ -63,7 +63,7 @@ if (!window.ice.icepush) {
         var BrowserIDCookieName = 'ice.push.browser';
         var NotifiedPushIDs = 'ice.notified.pushids';
 
-        var handler = window.console && window.console.firebug ? FirebugLogHandler(debug) : WindowLogHandler(debug, window.location.href);
+        var handler = window.console ? ConsoleLogHandler(debug) : WindowLogHandler(debug, window.location.href);
         namespace.windowID = namespace.windowID || substring(Math.random().toString(16), 2, 7);
         namespace.logger = Logger([ 'icepush' ], handler);
         namespace.info = info;

@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 public class ConfigurationServer implements Server {
     private static final Logger log = Logger.getLogger(ConfigurationServer.class.getName());
     private static final String defaultServerErrorRetries = "1000 2000 4000";
+    private static final int defaultEmptyResponseRetries = 3;
     private static final int defaultBlockingConnectionTimeout = 10000;
     private static final String BrowserIDCookieName = "ice.push.browser";
 
@@ -46,10 +47,13 @@ public class ConfigurationServer implements Server {
         String contextPath = normalizeContextPath(configuration.getAttribute("contextPath", (String) servletContext.getAttribute("contextPath")));
         long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", defaultBlockingConnectionTimeout);
         String serverErrorRetries = configuration.getAttribute("serverErrorRetryTimeouts", defaultServerErrorRetries);
+        int emptyResponseRetries = configuration.getAttributeAsInteger("heartbeatTimeout", defaultEmptyResponseRetries);
 
         String configurationMessage = "<configuration" +
                 (heartbeatTimeout != defaultBlockingConnectionTimeout ?
                         " heartbeatTimeout=\"" + heartbeatTimeout + "\"" : "") +
+                (emptyResponseRetries != defaultEmptyResponseRetries ?
+                        " emptyResponseRetries=\"" + emptyResponseRetries + "\"" : "") +
                 (!serverErrorRetries.equals(defaultServerErrorRetries) ?
                         " serverErrorRetryTimeouts=\"" + serverErrorRetries + "\"" : "") +
                 (contextPath != null ?

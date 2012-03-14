@@ -139,20 +139,26 @@ var AsyncConnection;
                             var nonEmptyResponse = notEmpty(contentAsText(response));
 
                             if (reconnect) {
-                                if (not(nonEmptyResponse)) warn(logger, 'empty response received');
+                                if (nonEmptyResponse) {
+                                    broadcast(onReceiveListeners, [response]);
+                                    resetEmptyResponseRetries();
+                                } else {
+                                    warn(logger, 'empty response received');
+                                    decrementEmptyResponseRetries();
+                                }
+
+                                if (anyEmptyResponseRetriesLeft()) {
+                                    resetTimeoutBomb();
+                                    connect();
+                                } else {
+                                    info(logger, 'blocking connection stopped, too many empty responses received...');
+                                }
                             } else {
                                 info(logger, 'blocking connection stopped at server\'s request...');
                                 //avoid to reconnect
                                 stop(timeoutBomb);
                             }
-                            if (nonEmptyResponse) {
-                                broadcast(onReceiveListeners, [response]);
-                            }
                             receiveXWindowCookie(response);
-                            if (reconnect) {
-                                resetTimeoutBomb();
-                                connect();
-                            }
                         });
                         condition(ServerInternalError, retryOnServerError);
                     }));
@@ -168,6 +174,19 @@ var AsyncConnection;
         var retryTimeouts = collect(split(attributeAsString(configuration, 'serverErrorRetryTimeouts', '1000 2000 4000'), ' '), Number);
         var retryOnServerError = timedRetryAbort(connect, broadcaster(onServerErrorListeners), retryTimeouts);
         var heartbeatTimeout = attributeAsNumber(configuration, 'heartbeatTimeout', 50000) + NetworkDelay;
+        //count the number of consecutive empty responses
+        var emptyResponseRetries;
+        function resetEmptyResponseRetries() {
+            emptyResponseRetries = attributeAsNumber(configuration, 'emptyResponseRetries', 3);
+        }
+        function decrementEmptyResponseRetries() {
+            --emptyResponseRetries;
+        }
+        function anyEmptyResponseRetriesLeft() {
+            return emptyResponseRetries > 0;
+        }
+        resetEmptyResponseRetries();
+
 
         var NoopDelay = object(function(method) {
             method(runOnce, function(self) {
