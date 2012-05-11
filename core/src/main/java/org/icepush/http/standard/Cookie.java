@@ -110,10 +110,12 @@ public class Cookie {
         //PUSH-144: as the Cookie header may not always be available (e.g. portlets) we try an
         //alternate approach
         javax.servlet.http.Cookie[] treats = request.getCookies();
-        for (int i = 0; i < treats.length; i++) {
-            javax.servlet.http.Cookie treat = treats[i];
-            if (treat.getName().equalsIgnoreCase(cookieName)) {
-                return new Cookie(treat.getName(), treat.getValue());
+        if( null != treats ){
+            for (int i = 0; i < treats.length; i++) {
+                javax.servlet.http.Cookie treat = treats[i];
+                if (treat.getName().equalsIgnoreCase(cookieName)) {
+                    return new Cookie(treat.getName(), treat.getValue());
+                }
             }
         }
 
