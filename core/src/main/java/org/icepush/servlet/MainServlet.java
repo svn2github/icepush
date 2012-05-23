@@ -30,12 +30,14 @@ import javax.servlet.http.HttpServletResponse;
 import java.net.SocketException;
 import java.net.URI;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Timer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class MainServlet implements PseudoServlet {
     private static final Logger log = Logger.getLogger(MainServlet.class.getName());
+    static HashSet<TraceListener> traceListeners = new HashSet();
     protected PushGroupManager pushGroupManager;
     protected PathDispatcher dispatcher;
     protected Timer monitoringScheduler;
@@ -131,6 +133,22 @@ public class MainServlet implements PseudoServlet {
         monitoringScheduler.cancel();
     }
 
+    public static void trace(String message)  {
+        for (TraceListener listener : traceListeners)  {
+            listener.handleTrace(message);
+        }
+    }
+
+    public static void addTraceListener(TraceListener listener)  {
+        traceListeners.add(listener);
+    }
+
+    //Application can add itself as a TraceListener to receive
+    //diagnostic message callbacks when cloud push occurs
+    public interface TraceListener  {
+        public void handleTrace(String message);
+    }
+
     public static class ExtensionRegistration implements
             ServletContextListener {
         public void contextInitialized(ServletContextEvent servletContextEvent) {
@@ -180,6 +198,10 @@ public class MainServlet implements PseudoServlet {
         public void registerProvider(String protocol,
                                      NotificationProvider provider) {
             providers.put(protocol, provider);
+        }
+        
+        public void trace(String message)  {
+            MainServlet.trace(message);
         }
     }
 }

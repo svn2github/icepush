@@ -36,6 +36,9 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
         public void registerProvider(String protocol, NotificationProvider provider) {
         }
+        public void trace(String message)  {
+            LOGGER.warning("NOOPOutOfBandNotifier discarding notification " + message);
+        }
     };
     private static final Runnable NOOP = new Runnable() {
         public void run() {

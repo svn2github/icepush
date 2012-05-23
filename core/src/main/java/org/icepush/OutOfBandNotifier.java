@@ -21,5 +21,7 @@ public interface OutOfBandNotifier {
     void broadcast(PushNotification notification, String[] uris);
 
     void registerProvider(String protocol, NotificationProvider provider);
+    
+    void trace(String message);
 
 }
