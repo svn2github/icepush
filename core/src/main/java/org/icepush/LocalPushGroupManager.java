@@ -364,12 +364,16 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                     }
                     String[] pushIDs = group.getPushIDs();
                     pendingNotifications.addAll(Arrays.asList(pushIDs));
-
-                    String[] notified = outboundNotifier.broadcast(pushIDs);
-                    for (int i = 0; i < notified.length; i++) {
-                        parkedPushIDs.remove(notified[i]);
-                    }
-                    scan(notified);
+                    outboundNotifier.broadcast(
+                        pushIDs,
+                        new NotifiedPushIDsHandler() {
+                            public void handle(final String[] notifiedPushIDs) {
+                                for (int i = 0; i < notifiedPushIDs.length; i++) {
+                                    parkedPushIDs.remove(notifiedPushIDs[i]);
+                                }
+                                scan(notifiedPushIDs);
+                            }
+                        });
                     pushed(groupName);
                 }
             } finally {
@@ -390,9 +394,25 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
         public void run() {
             try {
-                //invoke normal push after the verification for park push IDs to avoid interfering with the blocking connection
-                super.run();
+                try {
+                    Group group = groupMap.get(groupName);
+                    if (group != null) {
+                        if (LOGGER.isLoggable(Level.FINEST)) {
+                            LOGGER.log(Level.FINEST, "Push notification triggered for '" + groupName + "' group.");
+                        }
+                        String[] pushIDs = group.getPushIDs();
+                        pendingNotifications.addAll(Arrays.asList(pushIDs));
 
+                        String[] notified = outboundNotifier.broadcast(pushIDs);
+                        for (int i = 0; i < notified.length; i++) {
+                            parkedPushIDs.remove(notified[i]);
+                        }
+                        scan(notified);
+                        pushed(groupName);
+                    }
+                } finally {
+                    scanForExpiry();
+                }
                 Group group = groupMap.get(groupName);
                 String[] pushIDs = new String[0];
                 if (null != group) {

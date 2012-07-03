@@ -16,22 +16,6 @@
  */
 package org.icepush;
 
-
-public interface NotificationBroadcaster {
-
-    void addReceiver(Receiver receiver);
-
-    void deleteReceiver(Receiver observer);
-
-    String[] broadcast(String[] notifiedPushIds);
-
-    void broadcast(String[] notifiedPushIDs, NotifiedPushIDsHandler notifiedPushIDsHandler);
-
-    public interface Confirmation {
-        void handlingConfirmed(String[] pushIds);
-    }
-
-    public interface Receiver {
-        void receive(String[] pushIds, Confirmation confirmation);
-    }
+public interface NotifiedPushIDsHandler {
+    void handle(String[] notifiedPushIDs);
 }

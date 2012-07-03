@@ -18,8 +18,11 @@ package org.icepush;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class LocalNotificationBroadcaster implements NotificationBroadcaster {
     private static final String[] STRINGS = new String[0];
@@ -53,6 +56,57 @@ public class LocalNotificationBroadcaster implements NotificationBroadcaster {
         }
 
         return confirmedPushIds.toArray(STRINGS);
+    }
+
+    private enum ConfirmationStatus { FALSE, TRUE, DELAYED }
+    private final Map<Receiver, ConfirmationStatus> receiverConfirmedMap = new HashMap<Receiver, ConfirmationStatus>();
+    private final ReentrantLock receiverConfirmedMapLock = new ReentrantLock();
+
+    public void broadcast(final String[] notifiedPushIds, final NotifiedPushIDsHandler notifiedPushIDsHandler) {
+        final int size = receivers.size();
+        final Map<Receiver, Confirmation> receiverConfirmationMap = new HashMap<Receiver, Confirmation>();
+        for (final Receiver receiver : receivers) {
+            receiverConfirmedMapLock.lock();
+            try {
+                if (!receiverConfirmedMap.containsKey(receiver) ||
+                    receiverConfirmedMap.get(receiver) == ConfirmationStatus.TRUE) {
+
+                    receiverConfirmedMap.put(receiver, ConfirmationStatus.FALSE);
+                    receiverConfirmationMap.put(
+                        receiver,
+                        new Confirmation() {
+                            public void handlingConfirmed(final String[] pushIDs) {
+                                receiverConfirmedMapLock.lock();
+                                try {
+                                    notifiedPushIDsHandler.handle(pushIDs);
+                                    if (receiverConfirmedMap.containsKey(receiver)) {
+                                        receiverConfirmedMap.put(receiver, ConfirmationStatus.TRUE);
+                                    }
+                                } finally {
+                                    receiverConfirmedMapLock.unlock();
+                                }
+                            }
+                        });
+                } else if (
+                    receiverConfirmedMap.containsKey(receiver) &&
+                    receiverConfirmedMap.get(receiver) == ConfirmationStatus.FALSE) {
+
+                    receiverConfirmedMap.put(receiver, ConfirmationStatus.DELAYED);
+                }
+            } finally {
+                receiverConfirmedMapLock.unlock();
+            }
+        }
+        for (Receiver receiver : receivers) {
+            receiverConfirmedMapLock.lock();
+            try {
+                if (receiverConfirmedMap.get(receiver) == ConfirmationStatus.FALSE) {
+                    receiver.receive(notifiedPushIds, receiverConfirmationMap.remove(receiver));
+                }
+            } finally {
+                receiverConfirmedMapLock.unlock();
+            }
+        }
     }
 
     public void deleteReceiver(Receiver observer) {
