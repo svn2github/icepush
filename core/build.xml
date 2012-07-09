@@ -49,6 +49,10 @@
         <delete file="${java.dir}/${product.info}" failonerror="no"/>
     </target>
 
+    <target name="clean">
+        <delete dir="${dist.dir}"/>
+    </target>
+
     <target name="build.bridge" description="collate JS code">
         <echo>Building ICEpush bridge</echo>
         <ant antfile="build.javascript.xml" target="build" inheritall="no" dir=".">
