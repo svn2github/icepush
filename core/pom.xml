@@ -90,6 +90,35 @@
                 </executions>
             </plugin>
 
+            <!--The regular Maven processes are unaware of the icepush*.js files that
+                are generated so we need to copy them across just before the package phase. -->
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>2.5</version>
+                <executions>
+                    <execution>
+                        <id>copy-resources</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${basedir}/target/classes/META-INF/resources</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>build/javascript/META-INF/resources</directory>
+                                    <filtering>false</filtering>
+                                    <includes>
+                                        <include>*.js</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+
             <plugin>
 
                 <groupId>org.apache.maven.plugins</groupId>
