@@ -70,7 +70,7 @@ public class MainServlet implements PseudoServlet {
         monitoringScheduler = new Timer("Monitoring scheduler", true);
         configuration = new ServletContextConfiguration("org.icepush", context);
         pushContext = new PushContext(context);
-        pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context);
+        pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context, configuration);
         pushContext.setPushGroupManager(pushGroupManager);
         dispatcher = new PathDispatcher();
         new DefaultOutOfBandNotifier(servletContext);
