@@ -38,8 +38,10 @@ function LocalStorageNotificationBroadcaster(name, callback) {
         method(notifyWindows, function(self, newValue) {
             //the random number is required to force locaStorage event notification when stored value has not changed
             window.localStorage.setItem(name, join(newValue, ' ') + ' ' + Math.random());
-            //notify the current window as well
-            callback(newValue);
+            //notify the current window as well, when not running in IE
+            if (!/MSIE/.test(navigator.userAgent)) {
+                callback(newValue);
+            }
         });
 
         method(disposeBroadcast, noop);
