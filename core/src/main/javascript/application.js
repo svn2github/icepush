@@ -225,6 +225,7 @@ if (!window.ice.icepush) {
                 return configurationElement;
             });
             var commandDispatcher = CommandDispatcher();
+            var sequenceNo = 0;
             var asyncConnection = AsyncConnection(logger, windowID, configuration);
 
             register(commandDispatcher, 'noop', NoopCommand);
@@ -289,6 +290,11 @@ if (!window.ice.icepush) {
 
             onUnload(window, dispose);
 
+            onSend(asyncConnection, function(request) {
+                //send current sequence number
+                setHeader(request, 'ice.push.sequence', sequenceNo);
+            });
+
             onReceive(asyncConnection, function(response) {
                 var mimeType = getHeader(response, 'Content-Type');
                 if (mimeType && startsWith(mimeType, 'text/xml')) {
@@ -296,6 +302,9 @@ if (!window.ice.icepush) {
                 } else {
                     warn(logger, 'unknown content in response - ' + mimeType + ', expected text/xml');
                 }
+
+                //update sequence number incremented by the server
+                sequenceNo = Number(getHeader(response, 'ice.push.sequence'));
             });
 
             onServerError(asyncConnection, function(response) {
@@ -324,6 +333,7 @@ if (!window.ice.icepush) {
             //make some connection functionality public
             namespace.push.connection = {
                 resumeConnection: function() {
+                    sequenceNo++;
                     resumeConnection(asyncConnection);
                 },
 
