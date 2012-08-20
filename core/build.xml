@@ -25,22 +25,6 @@
     <property file="${root.offset}/build.properties"/>
     <property name="product.info" value="org/icepush/ProductInfo.java"/>
 
-    <!-- If build.number isn't already set then set it from the System Var (set by Jenkins) -->
-	<property name="build.number" value="{$BUILD_NUMBER}" />
-
-<!--    <condition property="build.number"
-               value="${BUILD_NUMBER}">
-        <isset property="${BUILD_NUMBER}"/>
-    </condition> -->
-    <!-- If (svn) revision isn't already set then set it from the System Var (set by Jenkins) -->
-   	<property name="revision" value="{$SVN_REVISION}" />
-
-<!--     <condition property="revision"
-               value="${SVN_REVISION}">
-        <isset property="${SVN_REVISON}"/>
-    </condition> -->
-
-
     <import file="${root.offset}/build-common.xml"/>
 
     <target name="product.info" description="update product information">
