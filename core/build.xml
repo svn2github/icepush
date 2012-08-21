@@ -28,7 +28,6 @@
     <import file="${root.offset}/build-common.xml"/>
 
     <target name="product.info" description="update product information">
-        <buildnumber/>
         <copy file="conf/${product.info}"
               tofile="${java.dir}/${product.info}"
               overwrite="true"/>
