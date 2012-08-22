@@ -150,7 +150,7 @@
 				<fileset dir="${build.dir}/jar">
 					<include name="**/*"></include>
 				</fileset>
-				<fileset dir="${java.dir}" includes="**/*.java"/>
+				<!--<fileset dir="${java.dir}" includes="**/*.java"/>-->
 				<add.filesets/>
 	            <manifest>
 	                <section name="${jar.groupId}">
