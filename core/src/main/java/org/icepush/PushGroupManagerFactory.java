@@ -31,7 +31,10 @@ public class PushGroupManagerFactory {
     private static final Logger LOGGER = Logger.getLogger(PushGroupManagerFactory.class.getName());
 
     public static PushGroupManager newPushGroupManager(final ServletContext servletContext, final Configuration configuration) {
-        String _pushGroupManager = configuration.getAttribute("pushGroupManager", null);
+        String _pushGroupManager = (String)servletContext.getAttribute("org.icepush.PushGroupManager");
+        if (_pushGroupManager == null) {
+            _pushGroupManager = configuration.getAttribute("pushGroupManager", null);
+        }
         if (_pushGroupManager == null || _pushGroupManager.trim().length() == 0) {
             LOGGER.log(Level.FINEST, "Using annotation scanner to find @ExtendedPushGroupManager.");
             Set<String> _annotationSet = new HashSet<String>();
