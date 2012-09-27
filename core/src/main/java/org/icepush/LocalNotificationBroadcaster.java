@@ -20,20 +20,25 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class LocalNotificationBroadcaster implements NotificationBroadcaster {
     private static final String[] STRINGS = new String[0];
-    private ArrayList<Receiver> receivers = new ArrayList<Receiver>();
+    private final List<Receiver> receiverList = new CopyOnWriteArrayList<Receiver>();
 
     public void addReceiver(Receiver receiver) {
-        receivers.add(receiver);
+        receiverList.add(receiver);
     }
 
     public String[] broadcast(String[] notifiedPushIds) {
-        final int size = receivers.size();
+        List<Receiver> copiedReceiverList = new ArrayList<Receiver>(receiverList);
+        int size = copiedReceiverList.size();
+        Iterator<Receiver> receivers = copiedReceiverList.iterator();
         final Semaphore semaphore = new Semaphore(size, true);
         final HashSet<String> confirmedPushIds = new HashSet();
 
@@ -45,8 +50,8 @@ public class LocalNotificationBroadcaster implements NotificationBroadcaster {
                     semaphore.release();
                 }
             };
-            for (Receiver receiver : receivers) {
-                receiver.receive(notifiedPushIds, confirmation);
+            while (receivers.hasNext()) {
+                receivers.next().receive(notifiedPushIds, confirmation);
             }
 
             //block until all notified parties confirm the sending of the pushID notifications
@@ -63,9 +68,13 @@ public class LocalNotificationBroadcaster implements NotificationBroadcaster {
     private final ReentrantLock receiverConfirmedMapLock = new ReentrantLock();
 
     public void broadcast(final String[] notifiedPushIds, final NotifiedPushIDsHandler notifiedPushIDsHandler) {
-        final int size = receivers.size();
+        List<Receiver> copiedReceiverList = new ArrayList<Receiver>(receiverList);
+        int size = copiedReceiverList.size();
+        Iterator<Receiver> receivers;
+        receivers = copiedReceiverList.iterator();
         final Map<Receiver, Confirmation> receiverConfirmationMap = new HashMap<Receiver, Confirmation>();
-        for (final Receiver receiver : receivers) {
+        while (receivers.hasNext()) {
+            final Receiver receiver = receivers.next();
             receiverConfirmedMapLock.lock();
             try {
                 if (!receiverConfirmedMap.containsKey(receiver) ||
@@ -97,7 +106,9 @@ public class LocalNotificationBroadcaster implements NotificationBroadcaster {
                 receiverConfirmedMapLock.unlock();
             }
         }
-        for (Receiver receiver : receivers) {
+        receivers = copiedReceiverList.iterator();
+        while (receivers.hasNext()) {
+            Receiver receiver = receivers.next();
             receiverConfirmedMapLock.lock();
             try {
                 if (receiverConfirmedMap.get(receiver) == ConfirmationStatus.FALSE) {
@@ -110,6 +121,6 @@ public class LocalNotificationBroadcaster implements NotificationBroadcaster {
     }
 
     public void deleteReceiver(Receiver observer) {
-        receivers.remove(observer);
+        receiverList.remove(observer);
     }
 }
