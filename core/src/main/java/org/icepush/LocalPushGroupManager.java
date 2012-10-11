@@ -356,7 +356,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
     private class Notification implements Runnable {
         private final String groupName;
-        private final List<String> exemptPushIDList = new ArrayList<String>();
+        private final Set<String> exemptPushIDSet = new HashSet<String>();
 
         public Notification(String groupName) {
             this.groupName = groupName;
@@ -364,7 +364,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
         public Notification(final String groupName, final PushConfiguration config) {
             this.groupName = groupName;
-            this.exemptPushIDList.addAll((List)config.getAttributes().get("pushIDList"));
+            this.exemptPushIDSet.addAll((Set)config.getAttributes().get("pushIDSet"));
         }
 
         public void run() {
@@ -375,7 +375,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                         LOGGER.log(Level.FINEST, "Push notification triggered for '" + groupName + "' group.");
                     }
                     List<String> pushIDList = Arrays.asList(group.getPushIDs());
-                    pushIDList.removeAll(exemptPushIDList);
+                    pushIDList.removeAll(exemptPushIDSet);
                     pendingNotifications.addAll(pushIDList);
                     outboundNotifier.broadcast(
                         pushIDList.toArray(new String[pushIDList.size()]),
@@ -397,13 +397,13 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
     private class OutOfBandNotification extends Notification {
         private final String groupName;
-        private final List<String> exemptPushIDList = new ArrayList<String>();
+        private final Set<String> exemptPushIDSet = new HashSet<String>();
         private final PushConfiguration config;
 
         public OutOfBandNotification(String groupName, PushConfiguration config) {
             super(groupName);
             this.groupName = groupName;
-            this.exemptPushIDList.addAll((List)config.getAttributes().get("pushIDList"));
+            this.exemptPushIDSet.addAll((Set)config.getAttributes().get("pushIDSet"));
             this.config = config;
         }
 
@@ -416,7 +416,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                             LOGGER.log(Level.FINEST, "Push notification triggered for '" + groupName + "' group.");
                         }
                         List<String> pushIDList = Arrays.asList(group.getPushIDs());
-                        pushIDList.removeAll(exemptPushIDList);
+                        pushIDList.removeAll(exemptPushIDSet);
                         pendingNotifications.addAll(pushIDList);
 
                         String[] notified = outboundNotifier.broadcast(pushIDList.toArray(new String[pushIDList.size()]));
