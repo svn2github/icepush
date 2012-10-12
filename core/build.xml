@@ -49,7 +49,7 @@
     </target>
 
     <target name="clean">
-        <delete dir="${dist.dir}"/>
+        <delete dir="${build.dir}"/>
     </target>
 
     <target name="build.bridge" description="collate JS code">
