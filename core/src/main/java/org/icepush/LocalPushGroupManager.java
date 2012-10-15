@@ -377,7 +377,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                     if (LOGGER.isLoggable(Level.FINEST)) {
                         LOGGER.log(Level.FINEST, "Push notification triggered for '" + groupName + "' group.");
                     }
-                    List<String> pushIDList = Arrays.asList(group.getPushIDs());
+                    List<String> pushIDList = new ArrayList(Arrays.asList(group.getPushIDs()));
                     pushIDList.removeAll(exemptPushIDSet);
                     pendingNotifications.addAll(pushIDList);
                     outboundNotifier.broadcast(
@@ -421,7 +421,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                         if (LOGGER.isLoggable(Level.FINEST)) {
                             LOGGER.log(Level.FINEST, "Push notification triggered for '" + groupName + "' group.");
                         }
-                        List<String> pushIDList = Arrays.asList(group.getPushIDs());
+                        List<String> pushIDList = new ArrayList(Arrays.asList(group.getPushIDs()));
                         pushIDList.removeAll(exemptPushIDSet);
                         pendingNotifications.addAll(pushIDList);
 
