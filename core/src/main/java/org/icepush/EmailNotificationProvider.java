@@ -80,6 +80,14 @@ public class EmailNotificationProvider implements NotificationProvider {
                 properties.setProperty("mail.smtps.socketFactory.fallback", "false");
             }
 
+            String passwordHash = "";
+            if (null != password)  {
+                passwordHash = String.valueOf(password.hashCode()) + "(hash)";
+            }
+            log.info("ICEpush Email Notification Provider Properties " +
+                    properties + " " + from + " " + user + ":" + passwordHash +
+                    "@" + host + ":" + port);
+
             session = Session.getInstance(properties);
             fromAddress = new InternetAddress(from);
         } catch (AddressException e) {
