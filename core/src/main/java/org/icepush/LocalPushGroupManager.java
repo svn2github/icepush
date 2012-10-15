@@ -364,7 +364,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
         public Notification(final String groupName, final PushConfiguration config) {
             this.groupName = groupName;
-            this.exemptPushIDSet.addAll((Set)config.getAttributes().get("pushIDSet"));
+            Set pushIDSet = (Set)config.getAttributes().get("pushIDSet");
+            if (pushIDSet != null) {
+                this.exemptPushIDSet.addAll(pushIDSet);
+            }
         }
 
         public void run() {
@@ -403,7 +406,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         public OutOfBandNotification(String groupName, PushConfiguration config) {
             super(groupName);
             this.groupName = groupName;
-            this.exemptPushIDSet.addAll((Set)config.getAttributes().get("pushIDSet"));
+            Set pushIDSet = (Set)config.getAttributes().get("pushIDSet");
+            if (pushIDSet != null) {
+                this.exemptPushIDSet.addAll(pushIDSet);
+            }
             this.config = config;
         }
 
