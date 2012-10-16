@@ -22,14 +22,36 @@ import java.util.Map;
 public class PushConfiguration {
     private Map<String, Object> attributes = new HashMap();
 
+    /**
+     * <p>
+     *     Constructs a new PushConfiguration.
+     * </p>
+     *
+     * @see        #PushConfiguration(Map<String, Object>)
+     */
     public PushConfiguration()  {
         attributes = new HashMap<String, Object>();
     }
 
+    /**
+     * <p>
+     *     Constructs a new PushConfiguration with the specified <code>attributes</code>.
+     * </p>
+     *
+     * @param      attributes
+     * @see        #PushConfiguration
+     */
     public PushConfiguration(Map<String, Object> attributes)  {
         this.attributes = attributes;
     }
 
+    /**
+     * <p>
+     *     Gets the attributes of this PushConfiguration.
+     * </p>
+     *
+     * @return     The attributes.
+     */
     public Map<String, Object> getAttributes()  {
         return attributes;
     }

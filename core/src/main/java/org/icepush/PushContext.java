@@ -32,9 +32,31 @@ public class PushContext {
     private int browserCounter = 0;
     private int subCounter = 0;
 
+    /**
+     * <p>
+     *     Constructs a PushContext using the specified <code>context</code>.
+     * </p>
+     *
+     * @param      context
+     *                 The ServletContext.
+     */
     public PushContext(final ServletContext context) {
         context.setAttribute(PushContext.class.getName(), this);
     }
+
+    /**
+     * <p>
+     *     Creates a Push ID consisting of the Browser ID and Sub ID.  If the specified <code>request</code> does not
+     *     contain a Browser ID already, it will be created and set on the specified <code>request</code> and
+     *     <code>response</code>.
+     * </p>
+     *
+     * @param      request
+     *                 The HTTP Servlet request.
+     * @param      response
+     *                 The HTTP Servlet response.
+     * @return     The created Push ID.
+     */
 
     public synchronized String createPushId(HttpServletRequest request, HttpServletResponse response) {
         String browserID = getBrowserIDFromCookie(request);
@@ -59,26 +81,85 @@ public class PushContext {
         return id;
     }
 
+    /**
+     * <p>
+     *     Initiate a Server Push to the members of the group specified by the <code>groupName</code>.
+     * </p>
+     *
+     * @param      groupName
+     *                 The group name of the group.
+     * @see        #push(String, PushConfiguration)
+     */
     public void push(final String groupName) {
         pushGroupManager.push(groupName);
     }
 
+    /**
+     * <p>
+     *     Initiate a Server Push to the members of the group specified by the <code>groupName</code>.
+     * </p>
+     *
+     * @param      groupName
+     *                 The group name of the group.
+     * @param      config
+     *                 The Push configuration.
+     * @see        #push(String)
+     */
     public void push(final String groupName, PushConfiguration config) {
         pushGroupManager.push(groupName, config);
     }
 
+    /**
+     * <p>
+     *     Adds the specified <code>pushId</code> to the group with the specified <code>groupName</code>.
+     * </p>
+     *
+     * @param      groupName
+     *                 The name of the group the specified <code>pushId</code> needs to be added to.
+     * @param      pushId
+     *                 The Push ID that needs to be added.
+     */
     public void addGroupMember(final String groupName, final String pushId) {
         pushGroupManager.addMember(groupName, pushId);
     }
 
+    /**
+     * <p>
+     *     Removes the specified <code>pushId</code> from the group with the specified <code>groupName</code>.
+     * </p>
+     *
+     * @param      groupName
+     *                 The name of the group the specified <code>pushId</code> needs to be removed from.
+     * @param      pushId
+     *                 The Push ID that needs to be removed.
+     */
     public void removeGroupMember(final String groupName, final String pushId) {
         pushGroupManager.removeMember(groupName, pushId);
     }
 
+    /**
+     * <p>
+     *     Sets the push group manager.
+     * </p>
+     * <p>
+     *     <b>Note: This method is not intended for application use!</b>
+     * </p>
+     *
+     * @param      pushGroupManager
+     */
     public void setPushGroupManager(final PushGroupManager pushGroupManager) {
         this.pushGroupManager = pushGroupManager;
     }
 
+    /**
+     * <p>
+     *     Gets the PushContext instance associated with the specified <code>context</code>.
+     * </p>
+     *
+     * @param      context
+     *                 The ServletContext from which to get the PushContext.
+     * @return     The PushContext.
+     */
     public static synchronized PushContext getInstance(ServletContext context) {
         return (PushContext) context.getAttribute(PushContext.class.getName());
     }
