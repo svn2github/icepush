@@ -39,6 +39,7 @@ public class PushConfiguration {
      * </p>
      *
      * @param      attributes
+     *                 The attributes of the new PushConfiguration to be constructed.
      * @see        #PushConfiguration
      */
     public PushConfiguration(Map<String, Object> attributes)  {

@@ -34,7 +34,7 @@ public class PushContext {
 
     /**
      * <p>
-     *     Constructs a PushContext using the specified <code>context</code>.
+     *     Constructs a new PushContext using the specified <code>context</code>.
      * </p>
      *
      * @param      context

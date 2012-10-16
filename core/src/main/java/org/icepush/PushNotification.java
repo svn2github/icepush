@@ -31,11 +31,11 @@ public class PushNotification extends PushConfiguration {
 
     /**
      * <p>
-     *     Constructs a PushNotification with the specified <code>subject</code>.
+     *     Constructs a new PushNotification with the specified <code>subject</code>.
      * </p>
      *
      * @param      subject
-     *                 The subject of the PushNotification to be constructed.
+     *                 The subject of the new PushNotification to be constructed.
      * @see        #PushNotification(String, String)
      * @see        #PushNotification(Map)
      */
@@ -45,13 +45,13 @@ public class PushNotification extends PushConfiguration {
 
     /**
      * <p>
-     *     Constructs a PushNotification with the specified <code>subject</code> and <code>detail</code>.
+     *     Constructs a new PushNotification with the specified <code>subject</code> and <code>detail</code>.
      * </p>
      *
      * @param      subject
-     *                 The subject of the PushNotification to be constructed.
+     *                 The subject of the new PushNotification to be constructed.
      * @param      detail
-     *                 The detail of the PushNotification to be constructed.
+     *                 The detail of the new PushNotification to be constructed.
      * @see        #PushNotification(String)
      * @see        #PushNotification(Map)
      */
@@ -62,11 +62,11 @@ public class PushNotification extends PushConfiguration {
 
     /**
      * <p>
-     *     Constructs a PushNotification with the specified <code>attributes</code>.
+     *     Constructs a new PushNotification with the specified <code>attributes</code>.
      * </p>
      *
      * @param      attributes
-     *                 The attributes of the PushNotification to be constructed.
+     *                 The attributes of the new PushNotification to be constructed.
      * @see        #PushNotification(String)
      * @see        #PushNotification(String, String)
      */
