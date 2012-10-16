@@ -94,21 +94,12 @@
     </target>
 
     <target name="jar" depends="compile, build.bridge" description="fill the jar">
-        <property name="sources" location="${dist.dir}/src.zip"/>
-        <zip destfile="${sources}" compress="false">
-            <fileset dir=".">
-                <include name="src/**"/>
-                <include name="*.xml"/>
-                <include name="*.properties"/>
-            </fileset>
-        </zip>
         <build.jar>
             <add.filesets>
                 <!--<file file="${sources}"/>-->
                 <fileset dir="${build.dir}/javascript"/>
             </add.filesets>
         </build.jar>
-        <delete file="${sources}"/>
         <antcall target="clean.product.info"/>
     </target>
 </project>
