@@ -21,11 +21,16 @@
     <property file="build.properties"/>
     <property name="root.offset" value=".."/>
     <property name="java.dir" location="src/main/java"/>
+    <property name="javadocs.dir" location="${build.dir}/javadocs"/>
     <property name="push.product" value="ICEpush"/>
     <property file="${root.offset}/build.properties"/>
     <property name="product.info" value="org/icepush/ProductInfo.java"/>
 
     <import file="${root.offset}/build-common.xml"/>
+
+    <patternset id="lib.compile">
+        <include name="*.jar"/>
+    </patternset>
 
     <target name="product.info" description="update product information">
         <copy file="conf/${product.info}"
@@ -61,6 +66,31 @@
 
     <target name="compile" depends="pre.compile, product.info" description="compile classes">
         <compile/>
+    </target>
+
+    <target name="javadoc">
+        <echo message="lib.dir: '${root.offset}/${lib.dir}'" />
+        <delete dir="${javadocs.dir}"/>
+        <javadoc destdir="${javadocs.dir}"
+                 windowtitle="${javadoc.title}"
+                 failonerror="true"
+                 bottom="Copyright ${year} ${copyright}"
+                 access="public"
+                 useexternalfile="true" >
+            <fileset dir="${java.dir}" defaultexcludes="yes">
+                <include name="org/icepush/PushConfiguration.java"/>
+                <include name="org/icepush/PushContext.java"/>
+                <include name="org/icepush/PushNotification.java"/>
+            </fileset>
+            <classpath>
+                <fileset dir="${root.offset}/${lib.dir}">
+                    <patternset refid="lib.compile"/>
+                </fileset>
+            </classpath>
+            <header><![CDATA[${javadoc.header}]]></header>
+            <footer><![CDATA[${javadoc.header}]]></footer>
+            <doctitle><![CDATA[<h2>${javadoc.title}</h2>]]></doctitle>
+        </javadoc>
     </target>
 
     <target name="jar" depends="compile, build.bridge" description="fill the jar">
