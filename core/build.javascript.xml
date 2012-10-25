@@ -63,9 +63,26 @@
         </copy>
     </target>
 
-    <target name="build.bridge.compressed" depends="prepare">
+    <target name="build.bridge.compressed" depends="prepare, file-checks, use-first-location, use-second-location" />
+
+    <target name="file-checks">
+        <available file="../lib/yui-compressor.jar" property="use-first-location" />
+        <available file="../../lib/yui-compressor.jar" property="use-second-location" />
+    </target>
+
+    <target name="use-first-location">
         <echo message="Compressing Javascript code..."/>
         <java jar="../lib/yui-compressor.jar" fork="yes">
+            <arg line="--preserve-semi"/>
+            <arg value="-o"/>
+            <arg value="${build.dir}/META-INF/resources/icepush.js"/>
+            <arg value="${tmp}"/>
+        </java>
+    </target>
+
+    <target name="use-second-location">
+        <echo message="Compressing Javascript code..."/>
+        <java jar="../../lib/yui-compressor.jar" fork="yes">
             <arg line="--preserve-semi"/>
             <arg value="-o"/>
             <arg value="${build.dir}/META-INF/resources/icepush.js"/>

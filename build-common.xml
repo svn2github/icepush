@@ -96,7 +96,8 @@
 				<exclude name="@{src.javac.excludes}" />
 				<classpath>
 					<fileset refid="icepush.dist" />
-					<fileset dir="${root.offset}/${lib.dir}" />
+                                        <fileset dir="${root.offset}/${super.lib.dir}" erroronmissingdir="false" />
+					<fileset dir="${root.offset}/${lib.dir}" erroronmissingdir="false" />
 					<add.classpath.elements />
 				</classpath>
 				<add.javac.elements />
