@@ -24,15 +24,16 @@
     <parent>
         <groupId>org.icefaces</groupId>
         <artifactId>bundle-parent</artifactId>
-        <version>3.1.0-RC1-SNAPSHOT</version>
-        <relativePath>../../../icefaces3/trunk/icefaces/</relativePath>
+        <version>3.3.0-SNAPSHOT</version>
+        <relativePath>..</relativePath>
     </parent>
 
     <groupId>org.icepush</groupId>
     <artifactId>icepush-parent</artifactId>
-    <version>3.1.0-RC1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>${icepush.product.name} Parent POM</name>
+    <url>http://www.icesoft.org</url>
+    <description>${icepush.product.name} Library</description>
 
     <modules>
         <module>core</module>
