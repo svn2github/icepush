@@ -14,7 +14,7 @@
  * governing permissions and limitations under the License.
   -->
 
-<project name="icepush" default="jar" basedir=".">
+<project name="icepush" default="lib" basedir=".">
 
     <property file="local.properties"/>
     <property file="../build.properties"/>
@@ -102,5 +102,12 @@
         </build.jar>
         <antcall target="clean.product.info"/>
     </target>
+
+    <target name="lib" depends="jar" description="copy icepush.jar to main lib directory">
+        <copy file="${dist.dir}/${ant.project.name}.jar"
+              todir="../../lib"
+              overwrite="true"/>
+    </target>
+
 </project>
 

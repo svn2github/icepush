@@ -59,6 +59,20 @@
                         </goals>
                     </execution>
 
+                    <!-- Other parts of the build need the icepush.jar in the lib directory. -->
+                    <execution>
+                        <id>compile-all</id>
+                        <phase>compile</phase>
+                        <configuration>
+                            <target>
+                                <ant antfile="./build.xml"/>
+                            </target>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+
                     <!-- Run the Ant target to process the ProductInfo -->
                     <execution>
                         <id>gen-productinfo</id>
