@@ -47,6 +47,7 @@ public class ICEpushServlet extends HttpServlet {
     }
 
     protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        response.setHeader("X-Request-URI", request.getRequestURI());
         try {
             mainServlet.service(request, response);
         } catch (ServletException e) {
