@@ -46,10 +46,11 @@ public abstract class BrowserDispatcher implements PseudoServlet {
     }
 
     public void shutdown() {
-        Iterator i = browserBoundServlets.values().iterator();
-        while (i.hasNext()) {
-            PseudoServlet servlet = (PseudoServlet) i.next();
-            servlet.shutdown();
+        synchronized (browserBoundServlets) {
+            Iterator i = new ArrayList(browserBoundServlets.values()).iterator();
+            while (i.hasNext()) {
+                ((PseudoServlet)i.next()).shutdown();
+            }
         }
     }
 
@@ -64,7 +65,9 @@ public abstract class BrowserDispatcher implements PseudoServlet {
     }
 
     protected PseudoServlet lookupServer(final String browserID) {
-        return (PseudoServlet) browserBoundServlets.get(browserID);
+        synchronized (browserBoundServlets) {
+            return (PseudoServlet)browserBoundServlets.get(browserID);
+        }
     }
 
     public static String getBrowserIDFromCookie(HttpServletRequest request) {
@@ -88,10 +91,11 @@ public abstract class BrowserDispatcher implements PseudoServlet {
     }
 
     private void discardUnusedServlets() {
-        Iterator i = new ArrayList(browserBoundServlets.values()).iterator();
-        while (i.hasNext()) {
-            BrowserEntry entry = (BrowserEntry) i.next();
-            entry.discardIfExpired();
+        synchronized (browserBoundServlets) {
+            Iterator i = new ArrayList(browserBoundServlets.values()).iterator();
+            while (i.hasNext()) {
+                ((BrowserEntry)i.next()).discardIfExpired();
+            }
         }
     }
 
@@ -127,7 +131,9 @@ public abstract class BrowserDispatcher implements PseudoServlet {
                 } catch (Throwable t) {
                     log.fine("Failed to discard browser bound server for ID=" + id);
                 } finally {
-                    browserBoundServlets.remove(id);
+                    synchronized (browserBoundServlets) {
+                        browserBoundServlets.remove(id);
+                    }
                     log.fine("Discarded browser bound server for ID=" + id);
                 }
             }
