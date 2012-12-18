@@ -21,12 +21,13 @@
     <property name="src.dir" location="src/main/javascript"/>
     <property name="lib.dir" location="src/main/javascript/lib"/>
     <property name="build.dir" location="${basedir}/build/javascript"/>
+    <property name="build.res.dir" location="${build.dir}/META-INF/resources/ice.push"/>
     <property name="tmp" value="${build.dir}/tmp.js"/>
 
     <target name="prepare" description="Collate bridge code">
         <tstamp/>
         <mkdir dir="${build.dir}"/>
-        <mkdir dir="${build.dir}/META-INF/resources"/>
+        <mkdir dir="${build.res.dir}"/>
         <loadfile property="functional.js" srcFile="${lib.dir}/functional.js"/>
         <loadfile property="oo.js" srcFile="${lib.dir}/oo.js"/>
         <loadfile property="collection.js" srcFile="${lib.dir}/collection.js"/>
@@ -75,7 +76,7 @@
         <java jar="../lib/yui-compressor.jar" fork="yes">
             <arg line="--preserve-semi"/>
             <arg value="-o"/>
-            <arg value="${build.dir}/META-INF/resources/icepush.js"/>
+            <arg value="${build.res.dir}/icepush.js"/>
             <arg value="${tmp}"/>
         </java>
     </target>
@@ -85,13 +86,13 @@
         <java jar="../../lib/yui-compressor.jar" fork="yes">
             <arg line="--preserve-semi"/>
             <arg value="-o"/>
-            <arg value="${build.dir}/META-INF/resources/icepush.js"/>
+            <arg value="${build.res.dir}/icepush.js"/>
             <arg value="${tmp}"/>
         </java>
     </target>
 
     <target name="build.bridge.uncompressed" depends="prepare">
-        <move file="${tmp}" tofile="${build.dir}/META-INF/resources/icepush.uncompressed.js" overwrite="yes">
+        <move file="${tmp}" tofile="${build.res.dir}/icepush.uncompressed.js" overwrite="yes">
             <filterchain>
                 <stripjavacomments/>
                 <ignoreblank/>
