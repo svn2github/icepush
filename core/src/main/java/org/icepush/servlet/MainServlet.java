@@ -79,7 +79,8 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected void addDispatches() {
-        dispatchOn(".*code\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(new CodeServer("icepush.js"))), configuration));
+        dispatchOn(".*code\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
+                new CodeServer("ice.push/icepush.js"))), configuration));
         dispatchOn(".*", new BrowserDispatcher(configuration) {
             protected PseudoServlet newServer(String browserID) {
                 return createBrowserBoundServlet(browserID);
