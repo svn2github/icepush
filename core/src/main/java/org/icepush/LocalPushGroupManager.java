@@ -21,6 +21,8 @@ import org.icepush.servlet.ServletContextConfiguration;
 import javax.servlet.ServletContext;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -45,8 +47,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     };
 
-    private final Map<String, PushID> pushIDMap = new HashMap<String, PushID>();
-    private final Map<String, Group> groupMap = new HashMap<String, Group>();
+    private final ConcurrentMap<String, PushID> pushIDMap = new ConcurrentHashMap<String, PushID>();
+    private final ConcurrentMap<String, Group> groupMap = new ConcurrentHashMap<String, Group>();
     private final HashSet<String> pendingNotifications = new HashSet();
     private final HashMap<String, String> parkedPushIDs = new HashMap();
     private final NotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
@@ -79,11 +81,11 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         //avoid to scan/touch the groups on each notification
         if (lastTouchScan + GROUP_SCANNING_TIME_RESOLUTION < now) {
             try {
-                for (Group group : new ArrayList<Group>(groupMap.values())) {
+                for (Group group : groupMap.values()) {
                     group.touchIfMatching(pushIDs);
                     group.discardIfExpired();
                 }
-                for (PushID pushID : new ArrayList<PushID>(pushIDMap.values())) {
+                for (PushID pushID : pushIDMap.values()) {
                     pushID.touchIfMatching(pushIDs);
                     pushID.discardIfExpired();
                 }
@@ -201,10 +203,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         //avoid to scan/touch the groups on each notification
         if (lastExpiryScan + GROUP_SCANNING_TIME_RESOLUTION < now) {
             try {
-                for (Group group : new ArrayList<Group>(groupMap.values())) {
+                for (Group group : groupMap.values()) {
                     group.discardIfExpired();
                 }
-                for (PushID pushID : new ArrayList<PushID>(pushIDMap.values())) {
+                for (PushID pushID : pushIDMap.values()) {
                     pushID.discardIfExpired();
                 }
             } finally {
