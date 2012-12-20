@@ -469,14 +469,21 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         private boolean running = true;
 
         public void run() {
-            //take tasks from the queue and execute them serially
-            while (running) {
-                try {
-                    queue.take().run();
-                } catch (InterruptedException e) {
-                    LOGGER.log(Level.FINEST, "Notification queue draining interrupted.");
-                } catch (Throwable t)  {
-                    LOGGER.log(Level.WARNING, "Notification queue encountered ", t);
+            try {
+                //take tasks from the queue and execute them serially
+                while (running) {
+                    try {
+                        queue.take().run();
+                    } catch (InterruptedException e) {
+                        LOGGER.log(Level.FINEST, "Notification queue draining interrupted.");
+                    } catch (Throwable t)  {
+                        LOGGER.log(Level.WARNING, "Notification queue encountered ", t);
+                    }
+                }
+            } catch (Exception exception) {
+                if (LOGGER.isLoggable(Level.WARNING)) {
+                    LOGGER.log(
+                        Level.WARNING, "Exception caught on " + this.getClass().getName() + " TimerTask.", exception);
                 }
             }
         }

@@ -102,8 +102,14 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     }
 
     public void run() {
-        if ((System.currentTimeMillis() > responseTimeoutTime) && (!pendingRequest.isEmpty())) {
-            respondIfPendingRequest(NoopResponse);
+        try {
+            if ((System.currentTimeMillis() > responseTimeoutTime) && (!pendingRequest.isEmpty())) {
+                respondIfPendingRequest(NoopResponse);
+            }
+        } catch (Exception exception) {
+            if (log.isLoggable(Level.WARNING)) {
+                log.log(Level.WARNING, "Exception caught on " + this.getClass().getName() + " TimerTask.", exception);
+            }
         }
     }
 
@@ -195,6 +201,9 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         }
 
         public void writeTo(Writer writer) throws IOException {
+            if (log.isLoggable(Level.FINEST)) {
+                log.log(Level.FINEST, "Notified Push IDs: " + Arrays.toString(pushIDs));
+            }
             writer.write("<notified-pushids>");
             for (int i = 0; i < pushIDs.length; i++) {
                 String id = pushIDs[i];
@@ -211,9 +220,15 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         this.confirmation = confirmation;
         this.confirmationFailed = new TimerTask() {
             public void run() {
-                confirmation.handlingConfirmed(STRINGS);
-                if (notifyBackURI != null && !"".equals(notifyBackURI)) {
-                    pushGroupManager.park(participatingPushIDs.toArray(STRINGS), notifyBackURI);
+                try {
+                    confirmation.handlingConfirmed(STRINGS);
+                    if (notifyBackURI != null && !"".equals(notifyBackURI)) {
+                        pushGroupManager.park(participatingPushIDs.toArray(STRINGS), notifyBackURI);
+                    }
+                } catch (Exception exception) {
+                    if (log.isLoggable(Level.WARNING)) {
+                        log.log(Level.WARNING, "Exception caught on confirmationFailed TimerTask.", exception);
+                    }
                 }
             }
         };
