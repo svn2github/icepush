@@ -23,6 +23,7 @@ import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -47,6 +48,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     };
 
+    private final Set<BlockingConnectionServer> blockingConnectionServerSet =
+        new CopyOnWriteArraySet<BlockingConnectionServer>();
     private final ConcurrentMap<String, PushID> pushIDMap = new ConcurrentHashMap<String, PushID>();
     private final ConcurrentMap<String, Group> groupMap = new ConcurrentHashMap<String, Group>();
     private final HashSet<String> pendingNotifications = new HashSet();
@@ -96,6 +99,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
+    public void addBlockingConnectionServer(final BlockingConnectionServer server) {
+        blockingConnectionServerSet.add(server);
+    }
+
     public void addMember(final String groupName, final String id) {
         PushID pushID = pushIDMap.get(id);
         if (pushID == null) {
@@ -117,6 +124,12 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
     public void addNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
         outboundNotifier.addReceiver(observer);
+    }
+
+    public void backOff(final String browserID, final long delay) {
+        for (final BlockingConnectionServer server : blockingConnectionServerSet) {
+            server.backOff(browserID, delay);
+        }
     }
 
     public void deleteNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
@@ -156,6 +169,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
         //add this notification to a blocking queue
         queue.add(notification);
+    }
+
+    public void removeBlockingConnectionServer(final BlockingConnectionServer server) {
+        blockingConnectionServerSet.remove(server);
     }
 
     public void removeMember(final String groupName, final String pushId) {

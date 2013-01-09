@@ -46,6 +46,20 @@ public class PushContext {
 
     /**
      * <p>
+     *     Instructs the specified browser to back off from ajax push listen for the specified number of milliseconds.
+     * </p>
+     *
+     * @param      browserID
+     *                 The ICEpush browser ID as stored in the ice.push.browser cookie.
+     * @param      delay
+     *                 The delay in milliseconds the browser needs to back off.
+     */
+    public void backOff(final String browserID, final long delay) {
+        pushGroupManager.backOff(browserID, delay);
+    }
+
+    /**
+     * <p>
      *     Creates a Push ID consisting of the Browser ID and Sub ID.  If the specified <code>request</code> does not
      *     contain a Browser ID already, it will be created and set on the specified <code>request</code> and
      *     <code>response</code>.

@@ -26,10 +26,16 @@ public class NoopPushGroupManager implements PushGroupManager {
     private NoopPushGroupManager() {
     }
 
+    public void addBlockingConnectionServer(final BlockingConnectionServer server) {
+    }
+
     public void addMember(String groupName, String pushId) {
     }
 
     public void addNotificationReceiver(NotificationBroadcaster.Receiver observer) {
+    }
+
+    public void backOff(final String browserID, final long delay) {
     }
 
     public void deleteNotificationReceiver(NotificationBroadcaster.Receiver observer) {
@@ -61,6 +67,9 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void pruneParkedIDs(String notifyBackURI, List<String> listenedPushIds)  {
     }
     
+    public void removeBlockingConnectionServer(final BlockingConnectionServer server) {
+    }
+
     public void removeMember(String groupName, String pushId) {
     }
 

@@ -25,6 +25,7 @@ import org.icepush.http.standard.ResponseHandlerServer;
 import org.icepush.servlet.BrowserDispatcher;
 import org.icepush.util.Slot;
 
+import javax.servlet.http.Cookie;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.*;
@@ -62,6 +63,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private final BlockingQueue pendingRequest = new LinkedBlockingQueue(1);
     private final Slot heartbeatInterval;
     private final PushGroupManager pushGroupManager;
+    private String browserID;
     private long responseTimeoutTime;
     private Server activeServer;
     private ConcurrentLinkedQueue notifiedPushIDs = new ConcurrentLinkedQueue();
@@ -85,10 +87,23 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         this.monitoringScheduler = monitoringScheduler;
         //add monitor
         monitoringScheduler.scheduleAtFixedRate(this, 0, 1000);
+        this.pushGroupManager.addBlockingConnectionServer(this);
         this.pushGroupManager.addNotificationReceiver(this);
 
         //define blocking server
         activeServer = new RunningServer(pushGroupManager, terminateBlockingConnectionOnShutdown);
+    }
+
+    public void backOff(final String browserID, final long delay) {
+        if (this.browserID.equals(browserID)) {
+            respondIfPendingRequest(new NoopResponseHandler() {
+                @Override
+                public void respond(final Response response) throws Exception {
+                    super.respond(response);
+                    response.setHeader("X-Connection-Backoff", delay);
+                }
+            });
+        }
     }
 
     public void service(final Request request) throws Exception {
@@ -98,6 +113,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     public void shutdown() {
         cancel();
         pushGroupManager.deleteNotificationReceiver(this);
+        pushGroupManager.removeBlockingConnectionServer(this);
         activeServer.shutdown();
     }
 
@@ -255,7 +271,9 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             adjustConnectionRecreationTimeout(request);
 
             respondIfPendingRequest(CloseResponseDup);
-
+            if (browserID == null) {
+                browserID = getBrowserIDFromCookie(request);
+            }
             //resend notifications if the window owning the blocking connection has changed
             String currentWindow = request.getHeader("ice.push.window");
             currentWindow = currentWindow == null ? "" : currentWindow;
@@ -331,6 +349,18 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                 " Latency: " + currentResponseDelay +
                 " connectionRecreationTimeout: " + connectionRecreationTimeout );
         }
+    }
+
+    private static String getBrowserIDFromCookie(final Request request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("ice.push.browser".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
     }
 
     private void revertConnectionRecreationTimeout() {

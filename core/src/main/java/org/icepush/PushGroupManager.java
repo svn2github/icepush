@@ -47,4 +47,10 @@ public interface PushGroupManager {
     Map<String, String[]> getGroupMap();
 
     void shutdown();
+
+    void addBlockingConnectionServer(BlockingConnectionServer server);
+
+    void removeBlockingConnectionServer(BlockingConnectionServer server);
+
+    void backOff(String browserID, long delay);
 }
