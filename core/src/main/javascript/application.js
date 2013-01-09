@@ -241,6 +241,17 @@ if (!window.ice.icepush) {
             register(commandDispatcher, 'browser', function(message) {
                 Cookie(BrowserIDCookieName, message.getAttribute('id'));
             });
+            register(commandDispatcher, 'back-off', function(message) {
+                debug(logger, 'received back-off');
+                var delay = asNumber(message.getAttribute('delay'));
+                try {
+                    pauseConnection(asyncConnection);
+                } finally {
+                    runOnce(Delay(function() {
+                        resumeConnection(asyncConnection);
+                    }, delay));
+                }
+            });
 
             //purge discarded pushIDs from the notification list
             function purgeUnusedPushIDs(ids) {

@@ -96,13 +96,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
 
     public void backOff(final String browserID, final long delay) {
         if (this.browserID.equals(browserID)) {
-            respondIfPendingRequest(new NoopResponseHandler() {
-                @Override
-                public void respond(final Response response) throws Exception {
-                    super.respond(response);
-                    response.setHeader("X-Connection-Backoff", delay);
-                }
-            });
+            respondIfPendingRequest(new BackOffResponseHandler(delay));
         }
     }
 
@@ -187,6 +181,21 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             writer.write("<noop/>");
             if (log.isLoggable(Level.FINEST)) {
                 log.finest("Sending NoOp.");
+            }
+        }
+    }
+
+    private static class BackOffResponseHandler extends FixedXMLContentHandler {
+        private long delay;
+
+        private BackOffResponseHandler(long delay) {
+            this.delay = delay;
+        }
+
+        public void writeTo(Writer writer) throws IOException {
+            writer.write("<back-off delay=\"" + delay + "\"/>");
+            if (log.isLoggable(Level.FINEST)) {
+                log.finest("Sending back-off - " + delay + "ms.");
             }
         }
     }
