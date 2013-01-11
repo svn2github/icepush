@@ -16,111 +16,31 @@
  */
 package org.icepush;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class LocalNotificationBroadcaster implements NotificationBroadcaster {
-    private static final String[] STRINGS = new String[0];
-    private final List<Receiver> receiverList = new CopyOnWriteArrayList<Receiver>();
+    private static final Logger LOGGER = Logger.getLogger(LocalNotificationBroadcaster.class.getName());
 
-    public void addReceiver(Receiver receiver) {
-        receiverList.add(receiver);
+    private Set<Receiver> receivers = new CopyOnWriteArraySet<Receiver>();
+
+    public void addReceiver(final Receiver receiver) {
+        receivers.add(receiver);
     }
 
-    public String[] broadcast(String[] notifiedPushIds) {
-        List<Receiver> copiedReceiverList = new ArrayList<Receiver>(receiverList);
-        int size = copiedReceiverList.size();
-        Iterator<Receiver> receivers = copiedReceiverList.iterator();
-        final Semaphore semaphore = new Semaphore(size, true);
-        final HashSet<String> confirmedPushIds = new HashSet();
-
-        try {
-            semaphore.acquire(size);
-            Confirmation confirmation = new Confirmation() {
-                public void handlingConfirmed(String[] ids) {
-                    confirmedPushIds.addAll(Arrays.asList(ids));
-                    semaphore.release();
-                }
-            };
-            while (receivers.hasNext()) {
-                receivers.next().receive(notifiedPushIds, confirmation);
-            }
-
-            //block until all notified parties confirm the sending of the pushID notifications
-            semaphore.acquire(size);
-        } catch (InterruptedException e) {
-            return STRINGS;
+    public void broadcast(final String[] notifiedPushIds) {
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(Level.FINE, "Local Notification Broadcaster broadcasting " + Arrays.asList(notifiedPushIds));
         }
-
-        return confirmedPushIds.toArray(STRINGS);
-    }
-
-    private enum ConfirmationStatus { FALSE, TRUE, DELAYED }
-    private final Map<Receiver, ConfirmationStatus> receiverConfirmedMap = new HashMap<Receiver, ConfirmationStatus>();
-    private final ReentrantLock receiverConfirmedMapLock = new ReentrantLock();
-
-    public void broadcast(final String[] notifiedPushIds, final NotifiedPushIDsHandler notifiedPushIDsHandler) {
-        List<Receiver> copiedReceiverList = new ArrayList<Receiver>(receiverList);
-        int size = copiedReceiverList.size();
-        Iterator<Receiver> receivers;
-        receivers = copiedReceiverList.iterator();
-        final Map<Receiver, Confirmation> receiverConfirmationMap = new HashMap<Receiver, Confirmation>();
-        while (receivers.hasNext()) {
-            final Receiver receiver = receivers.next();
-            receiverConfirmedMapLock.lock();
-            try {
-                if (!receiverConfirmedMap.containsKey(receiver) ||
-                    receiverConfirmedMap.get(receiver) == ConfirmationStatus.TRUE) {
-
-                    receiverConfirmedMap.put(receiver, ConfirmationStatus.FALSE);
-                    receiverConfirmationMap.put(
-                        receiver,
-                        new Confirmation() {
-                            public void handlingConfirmed(final String[] pushIDs) {
-                                receiverConfirmedMapLock.lock();
-                                try {
-                                    notifiedPushIDsHandler.handle(pushIDs);
-                                    if (receiverConfirmedMap.containsKey(receiver)) {
-                                        receiverConfirmedMap.put(receiver, ConfirmationStatus.TRUE);
-                                    }
-                                } finally {
-                                    receiverConfirmedMapLock.unlock();
-                                }
-                            }
-                        });
-                } else if (
-                    receiverConfirmedMap.containsKey(receiver) &&
-                    receiverConfirmedMap.get(receiver) == ConfirmationStatus.FALSE) {
-
-                    receiverConfirmedMap.put(receiver, ConfirmationStatus.DELAYED);
-                }
-            } finally {
-                receiverConfirmedMapLock.unlock();
-            }
-        }
-        receivers = copiedReceiverList.iterator();
-        while (receivers.hasNext()) {
-            Receiver receiver = receivers.next();
-            receiverConfirmedMapLock.lock();
-            try {
-                if (receiverConfirmedMap.get(receiver) == ConfirmationStatus.FALSE) {
-                    receiver.receive(notifiedPushIds, receiverConfirmationMap.remove(receiver));
-                }
-            } finally {
-                receiverConfirmedMapLock.unlock();
-            }
+        for (final Receiver receiver : receivers) {
+            receiver.receive(notifiedPushIds);
         }
     }
 
-    public void deleteReceiver(Receiver observer) {
-        receiverList.remove(observer);
+    public void deleteReceiver(final Receiver observer) {
+        receivers.remove(observer);
     }
 }

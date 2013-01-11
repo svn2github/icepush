@@ -32,6 +32,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Timer;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -52,12 +53,21 @@ public class MainServlet implements PseudoServlet {
 
     public MainServlet(final ServletContext servletContext,
                        final boolean terminateBlockingConnectionOnShutdown) {
+
         this(servletContext,terminateBlockingConnectionOnShutdown,true);
     }
 
     public MainServlet(final ServletContext servletContext,
                        final boolean terminateBlockingConnectionOnShutdown,
                        final boolean printProductInfo) {
+
+        this(servletContext, terminateBlockingConnectionOnShutdown, printProductInfo, null);
+    }
+
+    public MainServlet(final ServletContext servletContext,
+                       final boolean terminateBlockingConnectionOnShutdown,
+                       final boolean printProductInfo,
+                       final ScheduledThreadPoolExecutor executor) {
 
         //We print the product info unless we are part of EE which will print out it's
         //own version.
@@ -70,7 +80,7 @@ public class MainServlet implements PseudoServlet {
         monitoringScheduler = new Timer("Monitoring scheduler", true);
         configuration = new ServletContextConfiguration("org.icepush", context);
         pushContext = new PushContext(context);
-        pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context, configuration);
+        pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context, executor, configuration);
         pushContext.setPushGroupManager(pushGroupManager);
         dispatcher = new PathDispatcher();
         new DefaultOutOfBandNotifier(servletContext);

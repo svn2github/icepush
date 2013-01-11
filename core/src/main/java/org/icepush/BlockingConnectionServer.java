@@ -39,7 +39,9 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private static final Logger log = Logger.getLogger(BlockingConnectionServer.class.getName());
     private static final String[] STRINGS = new String[0];
     //Define here to avoid classloading problems after application exit
-    private static final ResponseHandler NoopResponse = new NoopResponseHandler();
+    private static final ResponseHandler ErrorNoopResponse = new NoopResponseHandler("request does not contain Push IDs");
+    private static final ResponseHandler ShutdownNoopResponse = new NoopResponseHandler("shutdown");
+    private static final ResponseHandler TimeoutNoopResponse = new NoopResponseHandler("response timeout");
     private final ResponseHandler CloseResponseDup = new CloseConnectionResponseHandler("duplicate") {
         public void respond(Response response) throws Exception {
             super.respond(response);
@@ -51,14 +53,6 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     };
     private final ResponseHandler CloseResponseDown = new CloseConnectionResponseHandler("shutdown");
     private final Server AfterShutdown = new ResponseHandlerServer(CloseResponseDown);
-    private static final TimerTask NOOPTask = new TimerTask() {
-        public void run() {
-        }
-    };
-    private static final NotificationBroadcaster.Confirmation NOOPConfirmation = new NotificationBroadcaster.Confirmation() {
-        public void handlingConfirmed(String[] pushIds) {
-        }
-    };
 
     private final BlockingQueue pendingRequest = new LinkedBlockingQueue(1);
     private final Slot heartbeatInterval;
@@ -68,8 +62,6 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private Server activeServer;
     private ConcurrentLinkedQueue notifiedPushIDs = new ConcurrentLinkedQueue();
     private List<String> participatingPushIDs = Collections.emptyList();
-    private TimerTask confirmationFailed = NOOPTask;
-    private NotificationBroadcaster.Confirmation confirmation = NOOPConfirmation;
     private Timer monitoringScheduler;
 
     private String lastWindow = "";
@@ -86,7 +78,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         this.connectionRecreationTimeout = configuration.getAttributeAsLong("connectionRecreationTimeout", 5000);
         this.monitoringScheduler = monitoringScheduler;
         //add monitor
-        monitoringScheduler.scheduleAtFixedRate(this, 0, 1000);
+        this.monitoringScheduler.scheduleAtFixedRate(this, 0, 1000);
         this.pushGroupManager.addBlockingConnectionServer(this);
         this.pushGroupManager.addNotificationReceiver(this);
 
@@ -114,7 +106,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     public void run() {
         try {
             if ((System.currentTimeMillis() > responseTimeoutTime) && (!pendingRequest.isEmpty())) {
-                respondIfPendingRequest(NoopResponse);
+                respondIfPendingRequest(TimeoutNoopResponse);
             }
         } catch (Exception exception) {
             if (log.isLoggable(Level.WARNING)) {
@@ -123,18 +115,16 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         }
     }
 
-    private boolean sendNotifications(String[] ids) {
+    private boolean sendNotifications(final String[] ids) {
         //stop sending notifications if pushID are not used anymore by the browser
         List pushIDs = new ArrayList(Arrays.asList(ids));
         pushIDs.retainAll(participatingPushIDs);
         boolean anyNotifications = !pushIDs.isEmpty();
-
         if (anyNotifications) {
             notifiedPushIDs.addAll(pushIDs);
             resetTimeout();
             respondIfNotificationsAvailable();
         }
-
         return anyNotifications;
     }
 
@@ -144,14 +134,16 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
 
     private synchronized void respondIfNotificationsAvailable() {
         if (!notifiedPushIDs.isEmpty()) {
-            //save notifications, maybe they will need to be resent when blocking connection switches to another window 
+            //save notifications, maybe they will need to be resent when blocking connection switches to another window
             lastNotifications = (String[]) new HashSet(notifiedPushIDs).toArray(STRINGS);
             respondIfPendingRequest(new NotificationHandler(lastNotifications) {
                 public void writeTo(Writer writer) throws IOException {
                     super.writeTo(writer);
 
                     if (log.isLoggable(Level.FINE)) {
-                        log.fine("Sending notifications for " + notifiedPushIDs + ".");
+                        log.log(
+                            Level.FINE,
+                            "Push Notifications available for PushIDs '" + notifiedPushIDs + "', trying to respond.");
                     }
                     pushGroupManager.clearPendingNotifications(participatingPushIDs);
                     notifiedPushIDs.removeAll(Arrays.asList(lastNotifications));
@@ -167,6 +159,9 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private void respondIfPendingRequest(ResponseHandler handler) {
         Request previousRequest = (Request) pendingRequest.poll();
         if (previousRequest != null) {
+            if (log.isLoggable(Level.FINE)) {
+                log.log(Level.FINE, "Pending request for PushIDs '" + participatingPushIDs + "', trying to respond.");
+            }
             try {
                 recordResponseTime();
                 previousRequest.respondWith(handler);
@@ -177,10 +172,29 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     }
 
     private static class NoopResponseHandler extends FixedXMLContentHandler {
+        private static final String UNDEFINED = "undefined";
+
+        private final String reason;
+
+        private NoopResponseHandler() {
+            this(UNDEFINED);
+        }
+
+        private NoopResponseHandler(final String reason) {
+            this.reason = reason;
+        }
+
+        @Override
+        public void respond(final Response response)
+        throws Exception {
+            response.setHeader("X-Connection-reason", reason);
+            super.respond(response);
+        }
+
         public void writeTo(Writer writer) throws IOException {
             writer.write("<noop/>");
-            if (log.isLoggable(Level.FINEST)) {
-                log.finest("Sending NoOp.");
+            if (log.isLoggable(Level.FINE)) {
+                log.log(Level.FINE, "Sending NoOp.");
             }
         }
     }
@@ -194,8 +208,8 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
 
         public void writeTo(Writer writer) throws IOException {
             writer.write("<back-off delay=\"" + delay + "\"/>");
-            if (log.isLoggable(Level.FINEST)) {
-                log.finest("Sending back-off - " + delay + "ms.");
+            if (log.isLoggable(Level.FINE)) {
+                log.log(Level.FINE, "Sending back-off - " + delay + "ms.");
             }
         }
     }
@@ -212,8 +226,8 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             response.setHeader("X-Connection", "close");
             response.setHeader("X-Connection-reason", reason);
             response.setHeader("Content-Length", 0);
-            if (log.isLoggable(Level.FINEST)) {
-                log.finest("Close current blocking connection.");
+            if (log.isLoggable(Level.FINE)) {
+                log.log(Level.FINE, "Close current blocking connection.");
             }
         }
     }
@@ -226,9 +240,6 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         }
 
         public void writeTo(Writer writer) throws IOException {
-            if (log.isLoggable(Level.FINEST)) {
-                log.log(Level.FINEST, "Notified Push IDs: " + Arrays.toString(pushIDs));
-            }
             writer.write("<notified-pushids>");
             for (int i = 0; i < pushIDs.length; i++) {
                 String id = pushIDs[i];
@@ -238,32 +249,21 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                 writer.write(id);
             }
             writer.write("</notified-pushids>");
+            if (log.isLoggable(Level.FINE)) {
+                log.log(Level.FINE, "Sending Notified PushIDs '" + Arrays.toString(pushIDs) + "'.");
+            }
         }
     }
 
-    public void receive(String[] pushIds, final NotificationBroadcaster.Confirmation confirmation) {
-        this.confirmation = confirmation;
-        this.confirmationFailed = new TimerTask() {
-            public void run() {
-                try {
-                    confirmation.handlingConfirmed(STRINGS);
-                    if (notifyBackURI != null && !"".equals(notifyBackURI)) {
-                        pushGroupManager.park(participatingPushIDs.toArray(STRINGS), notifyBackURI);
-                    }
-                } catch (Exception exception) {
-                    if (log.isLoggable(Level.WARNING)) {
-                        log.log(Level.WARNING, "Exception caught on confirmationFailed TimerTask.", exception);
-                    }
-                }
-            }
-        };
-        //in case 500ms are gone confirm handling anyway and then park the last notified pushIDs
+    public void receive(final String[] pushIDs) {
         if (log.isLoggable(Level.FINE)) {
-            log.fine("Cloud push in " + (connectionRecreationTimeout * 2));
+            log.log(Level.FINE, "Cloud Push in " + (connectionRecreationTimeout * 2) + " ms.");
         }
-        monitoringScheduler.schedule(confirmationFailed, connectionRecreationTimeout * 2);
-
-        sendNotifications(pushIds);
+        List<String> pushIDList = new ArrayList<String>(Arrays.asList(pushIDs));
+        pushIDList.retainAll(participatingPushIDs);
+        pushGroupManager.startConfirmationTimeout(pushIDList, notifyBackURI, connectionRecreationTimeout * 2);
+        pushGroupManager.startExpiryTimeout(pushIDList, notifyBackURI);
+        sendNotifications(pushIDs);
     }
 
     private class RunningServer implements Server {
@@ -276,6 +276,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         }
 
         public void service(final Request request) throws Exception {
+//            log.log(Level.INFO, "ice.push.sequence: " + request.getHeaderAsInteger("ice.push.sequence"));
             resetTimeout();
             adjustConnectionRecreationTimeout(request);
 
@@ -283,6 +284,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             if (browserID == null) {
                 browserID = getBrowserIDFromCookie(request);
             }
+            pushGroupManager.recordListen(participatingPushIDs, request.getHeaderAsInteger("ice.push.sequence"));
             //resend notifications if the window owning the blocking connection has changed
             String currentWindow = request.getHeader("ice.push.window");
             currentWindow = currentWindow == null ? "" : currentWindow;
@@ -293,10 +295,9 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             try {
                 participatingPushIDs = Arrays.asList(request.getParameterAsStrings("ice.pushid"));
                 notifyBackURI = request.getHeader("ice.notifyBack");
-
-                confirmationFailed.cancel();
-                confirmation.handlingConfirmed(participatingPushIDs.toArray(STRINGS));
-
+                pushGroupManager.scan(participatingPushIDs.toArray(STRINGS));
+                pushGroupManager.cancelConfirmationTimeout(participatingPushIDs);
+                pushGroupManager.cancelExpiryTimeout(participatingPushIDs);
                 if (null != notifyBackURI)  {
                     pushGroupManager.pruneParkedIDs(notifyBackURI, 
                             participatingPushIDs);
@@ -311,14 +312,14 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                 }
             } catch (RuntimeException e) {
                 log.fine("Request does not contain pushIDs.");
-                respondIfPendingRequest(NoopResponse);
+                respondIfPendingRequest(ErrorNoopResponse);
             }
         }
 
         public void shutdown() {
             //avoid creating new blocking connections after shutdown
             activeServer = AfterShutdown;
-            respondIfPendingRequest(terminateBlockingConnectionOnShutdown ? CloseResponseDown : NoopResponse);
+            respondIfPendingRequest(terminateBlockingConnectionOnShutdown ? CloseResponseDown : ShutdownNoopResponse);
         }
     }
 
@@ -348,15 +349,16 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             participatingPushIDs = Arrays.asList(
                     request.getParameterAsStrings("ice.pushid"));
             notifyBackURI = request.getHeader("ice.notifyBack");
-            log.fine(
+            log.log(
+                Level.FINE,
                 "ICEpush metric:" +
-                " IP: " + request.getRemoteAddr() + 
-                " pushIds: " + participatingPushIDs + 
-                " Cloud Push ID: " + notifyBackURI + 
-                " Browser: " + browserID + 
-                " last request: " + elapsed +
-                " Latency: " + currentResponseDelay +
-                " connectionRecreationTimeout: " + connectionRecreationTimeout );
+                    " IP: " + request.getRemoteAddr() +
+                    " pushIds: " + participatingPushIDs +
+                    " Cloud Push ID: " + notifyBackURI +
+                    " Browser: " + browserID +
+                    " last request: " + elapsed +
+                    " Latency: " + currentResponseDelay +
+                    " connectionRecreationTimeout: " + connectionRecreationTimeout);
         }
     }
 

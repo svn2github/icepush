@@ -26,7 +26,7 @@ public interface PushGroupManager {
 
     void push(String groupName, PushConfiguration config);
 
-    void park(String[] pushIds, String notifyBackURI);
+    void park(String pushId, String notifyBackURI);
     
     void pruneParkedIDs(String notifyBackURI, List<String> listenedPushIds);
 
@@ -48,9 +48,21 @@ public interface PushGroupManager {
 
     void shutdown();
 
+    void recordListen(List<String> pushIDList, int sequenceNumber);
+
+    void startConfirmationTimeout(List<String> pushIDList, String notifyBackURI, long timeout);
+
+    void cancelConfirmationTimeout(List<String> pushIDList);
+
+    void startExpiryTimeout(List<String> pushIDList, String notifyBackURI);
+
+    void cancelExpiryTimeout(List<String> pushIDList);
+
     void addBlockingConnectionServer(BlockingConnectionServer server);
 
     void removeBlockingConnectionServer(BlockingConnectionServer server);
 
     void backOff(String browserID, long delay);
+
+    void scan(String[] confirmedPushIDs);
 }

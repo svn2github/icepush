@@ -29,53 +29,73 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void addBlockingConnectionServer(final BlockingConnectionServer server) {
     }
 
-    public void addMember(String groupName, String pushId) {
+    public void addMember(final String groupName, final String pushId) {
     }
 
-    public void addNotificationReceiver(NotificationBroadcaster.Receiver observer) {
+    public void addNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
+    }
+
+    public void addPushGroupListener(final PushGroupListener listener) {
     }
 
     public void backOff(final String browserID, final long delay) {
     }
 
-    public void deleteNotificationReceiver(NotificationBroadcaster.Receiver observer) {
+    public void cancelConfirmationTimeout(final List<String> pushIDList) {
     }
 
-    public void addPushGroupListener(PushGroupListener listener) {
+    public void cancelExpiryTimeout(final List<String> pushIDList) {
     }
 
-    public String[] getPendingNotifications() {
-        return new String[0];
+    public void clearPendingNotifications(final List pushIdList) {
     }
 
-    public void clearPendingNotifications(List pushIdList) {
+    public void deleteNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
     }
 
     public Map<String, String[]> getGroupMap() {
         return Collections.EMPTY_MAP;
     }
 
-    public void push(String groupName) {
+    public String[] getPendingNotifications() {
+        return new String[0];
     }
 
-    public void push(String groupName, PushConfiguration config) {
+    public void push(final String groupName) {
     }
 
-    public void park(String[] pushIds, String notifyBackURI) {
+    public void push(final String groupName, final PushConfiguration config) {
+    }
+
+    public void park(final String pushId, final String notifyBackURI) {
     }
     
-    public void pruneParkedIDs(String notifyBackURI, List<String> listenedPushIds)  {
+    public void pruneParkedIDs(final String notifyBackURI, final List<String> listenedPushIds)  {
     }
-    
+
+    public void recordListen(final List<String> pushIdList, final int sequenceNumber) {
+    }
+
     public void removeBlockingConnectionServer(final BlockingConnectionServer server) {
     }
 
-    public void removeMember(String groupName, String pushId) {
+    public void removeMember(final String groupName, final String pushId) {
     }
 
-    public void removePushGroupListener(PushGroupListener listener) {
+    public void removePushGroupListener(final PushGroupListener listener) {
+    }
+
+    public void scan(final String[] confirmedPushIDs) {
     }
 
     public void shutdown() {
+    }
+
+    public void startConfirmationTimeout(
+        final List<String> pushIDList, final String notifyBackURI, final long timeout) {
+
+    }
+
+    public void startExpiryTimeout(final List<String> pushIDList, final String notifyBackURI) {
     }
 }

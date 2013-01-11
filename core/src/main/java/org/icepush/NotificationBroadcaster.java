@@ -23,15 +23,9 @@ public interface NotificationBroadcaster {
 
     void deleteReceiver(Receiver observer);
 
-    String[] broadcast(String[] notifiedPushIds);
-
-    void broadcast(String[] notifiedPushIDs, NotifiedPushIDsHandler notifiedPushIDsHandler);
-
-    public interface Confirmation {
-        void handlingConfirmed(String[] pushIds);
-    }
+    void broadcast(String[] notifiedPushIds);
 
     public interface Receiver {
-        void receive(String[] pushIds, Confirmation confirmation);
+        void receive(String[] pushIds);
     }
 }
