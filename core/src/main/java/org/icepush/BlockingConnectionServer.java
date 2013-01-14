@@ -71,6 +71,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private long responseTimestamp = System.currentTimeMillis();
     private long requestTimestamp = System.currentTimeMillis();
     private long backupConnectionRecreationTimeout;
+    private long backOffDelay = 0;
 
     public BlockingConnectionServer(final PushGroupManager pushGroupManager, final Timer monitoringScheduler, Slot heartbeat, final boolean terminateBlockingConnectionOnShutdown, Configuration configuration) {
         this.heartbeatInterval = heartbeat;
@@ -86,9 +87,10 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         activeServer = new RunningServer(pushGroupManager, terminateBlockingConnectionOnShutdown);
     }
 
-    public void backOff(final String browserID, final long delay) {
-        if (this.browserID.equals(browserID)) {
-            respondIfPendingRequest(new BackOffResponseHandler(delay));
+    public synchronized void backOff(final String browserID, final long delay) {
+        if (this.browserID.equals(browserID) && delay > 0) {
+            backOffDelay = delay;
+            respondIfBackOffRequested();
         }
     }
 
@@ -132,6 +134,16 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         sendNotifications(lastNotifications);
     }
 
+    private synchronized boolean respondIfBackOffRequested() {
+        boolean result = false;
+        if (backOffDelay > 0) {
+            if (result = respondIfPendingRequest(new BackOffResponseHandler(backOffDelay))) {
+                backOffDelay = 0;
+            }
+        }
+        return result;
+    }
+
     private synchronized void respondIfNotificationsAvailable() {
         if (!notifiedPushIDs.isEmpty()) {
             //save notifications, maybe they will need to be resent when blocking connection switches to another window
@@ -156,7 +168,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         responseTimeoutTime = System.currentTimeMillis() + heartbeatInterval.getLongValue();
     }
 
-    private void respondIfPendingRequest(ResponseHandler handler) {
+    private boolean respondIfPendingRequest(ResponseHandler handler) {
         Request previousRequest = (Request) pendingRequest.poll();
         if (previousRequest != null) {
             if (log.isLoggable(Level.FINE)) {
@@ -165,10 +177,12 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             try {
                 recordResponseTime();
                 previousRequest.respondWith(handler);
+                return true;
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
+        return false;
     }
 
     private static class NoopResponseHandler extends FixedXMLContentHandler {
@@ -302,12 +316,13 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                     pushGroupManager.pruneParkedIDs(notifyBackURI, 
                             participatingPushIDs);
                 }
-
-                if (!sendNotifications(pushGroupManager.getPendingNotifications())) {
-                    if (resend) {
-                        resendLastNotifications();
-                    } else {
-                        respondIfNotificationsAvailable();
+                if (!respondIfBackOffRequested()) {
+                    if (!sendNotifications(pushGroupManager.getPendingNotifications())) {
+                        if (resend) {
+                            resendLastNotifications();
+                        } else {
+                            respondIfNotificationsAvailable();
+                        }
                     }
                 }
             } catch (RuntimeException e) {
