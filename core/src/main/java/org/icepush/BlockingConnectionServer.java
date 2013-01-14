@@ -66,7 +66,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
 
     private String lastWindow = "";
     private String[] lastNotifications = new String[]{};
-    private String notifyBackURI;
+    private NotifyBackURI notifyBackURI;
     private long connectionRecreationTimeout;
     private long responseTimestamp = System.currentTimeMillis();
     private long requestTimestamp = System.currentTimeMillis();
@@ -308,7 +308,14 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             pendingRequest.put(request);
             try {
                 participatingPushIDs = Arrays.asList(request.getParameterAsStrings("ice.pushid"));
-                notifyBackURI = request.getHeader("ice.notifyBack");
+                String notifyBack = request.getHeader("ice.notifyBack");
+                if (notifyBack != null && notifyBack.trim().length() != 0) {
+                    if (notifyBackURI == null || !notifyBackURI.getURI().equals(notifyBack)) {
+                        notifyBackURI = new NotifyBackURI(notifyBack);
+                    } else if (notifyBackURI != null && notifyBackURI.getURI().equals(notifyBack)) {
+                        notifyBackURI.touch();
+                    }
+                }
                 pushGroupManager.scan(participatingPushIDs.toArray(STRINGS));
                 pushGroupManager.cancelConfirmationTimeout(participatingPushIDs);
                 pushGroupManager.cancelExpiryTimeout(participatingPushIDs);
@@ -363,7 +370,12 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             }
             participatingPushIDs = Arrays.asList(
                     request.getParameterAsStrings("ice.pushid"));
-            notifyBackURI = request.getHeader("ice.notifyBack");
+            String notifyBack = request.getHeader("ice.notifyBack");
+            if (notifyBack != null && notifyBack.trim().length() != 0 &&
+                    (notifyBackURI == null || !notifyBackURI.getURI().equals(notifyBack))) {
+
+                notifyBackURI = new NotifyBackURI(notifyBack);
+            }
             log.log(
                 Level.FINE,
                 "ICEpush metric:" +

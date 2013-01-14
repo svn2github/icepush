@@ -67,7 +67,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private final ConcurrentMap<String, PushID> pushIDMap = new ConcurrentHashMap<String, PushID>();
     private final ConcurrentMap<String, Group> groupMap = new ConcurrentHashMap<String, Group>();
     private final HashSet<String> pendingNotifications = new HashSet();
-    private final HashMap<String, String> parkedPushIDs = new HashMap();
+    private final HashMap<String, NotifyBackURI> parkedPushIDs = new HashMap();
     private final NotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
     private final Timer timer = new Timer("Notification queue consumer.", true);
     private final TimerTask queueConsumer;
@@ -75,6 +75,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private final long groupTimeout;
     private final long pushIdTimeout;
     private final long cloudPushIdTimeout;
+    private final long minCloudPushInterval;
     private final ServletContext context;
     private final Timer timeoutTimer = new Timer("Timeout timer", true);
 
@@ -87,6 +88,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", 2 * 60 * 1000);
         this.pushIdTimeout = configuration.getAttributeAsLong("pushIdTimeout", 2 * 60 * 1000);
         this.cloudPushIdTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", 30 * 60 * 1000);
+        this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", 10 * 1000);
         int notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", 1000);
         this.queue = new LinkedBlockingQueue<Runnable>(notificationQueueSize);
         this.queueConsumer = new QueueConsumerTask();
@@ -229,14 +231,14 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
-    public void park(String pushId, String notifyBackURI) {
+    public void park(final String pushId, final NotifyBackURI notifyBackURI) {
         parkedPushIDs.put(pushId, notifyBackURI);
     }
 
-    public void pruneParkedIDs(String notifyBackURI, List<String> listenedPushIds)  {
+    public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final List<String> listenedPushIds)  {
         for (String parkedID : parkedPushIDs.keySet())  {
-            String thisNotifyBack = parkedPushIDs.get(parkedID);
-            if (thisNotifyBack.equals(notifyBackURI) && !listenedPushIds.contains(parkedID))  {
+            NotifyBackURI thisNotifyBack = parkedPushIDs.get(parkedID);
+            if (thisNotifyBack.getURI().equals(notifyBackURI.getURI()) && !listenedPushIds.contains(parkedID))  {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE, "Removed unlistened parked PushID '" + parkedID + "' for '" + notifyBackURI + "'.");
@@ -270,17 +272,33 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     public void startConfirmationTimeout(
-        final List<String> pushIDList, final String notifyBackURI, final long timeout) {
+        final List<String> pushIDList, final NotifyBackURI notifyBackURI, final long timeout) {
 
-        for (final String pushIDString : pushIDList) {
-            PushID pushID = pushIDMap.get(pushIDString);
-            if (pushID != null) {
-                pushID.startConfirmationTimeout(notifyBackURI, timeout);
+        if (notifyBackURI != null) {
+            long now = System.currentTimeMillis();
+            if (notifyBackURI.getTimestamp() + minCloudPushInterval <= now + timeout) {
+                for (final String pushIDString : pushIDList) {
+                    PushID pushID = pushIDMap.get(pushIDString);
+                    if (pushID != null) {
+                        pushID.startConfirmationTimeout(notifyBackURI, timeout);
+                    }
+                }
+            } else {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Timeout is within the minimum Cloud Push interval for URI '" + notifyBackURI + "'. (" +
+                            "timestamp: '" + notifyBackURI.getTimestamp() + "', " +
+                            "minCloudPushInterval: '" + minCloudPushInterval + "', " +
+                            "now: '" + now + "', " +
+                            "timeout: '" + timeout + "'" +
+                        ")");
+                }
             }
         }
     }
 
-    public void startExpiryTimeout(final List<String> pushIDList, final String notifyBackURI) {
+    public void startExpiryTimeout(final List<String> pushIDList, final NotifyBackURI notifyBackURI) {
         for (final String pushIDString : pushIDList) {
             PushID pushID = pushIDMap.get(pushIDString);
             if (pushID != null) {
@@ -513,7 +531,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
             this.sequenceNumber = sequenceNumber;
         }
 
-        public void startConfirmationTimeout(final String notifyBackURI, final long timeout) {
+        public void startConfirmationTimeout(final NotifyBackURI notifyBackURI, final long timeout) {
             if (pushConfiguration != null) {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
@@ -541,18 +559,22 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                                             "(URI: " + notifyBackURI + ", timeout: " + timeout + ").");
                                 }
                                 try {
-                                    if (notifyBackURI != null && !"".equals(notifyBackURI)) {
+                                    if (notifyBackURI != null) {
                                         park(id, notifyBackURI);
                                     }
-                                    String notifyBackURI = parkedPushIDs.get(id);
-                                    if (notifyBackURI != null) {
+                                    NotifyBackURI notifyBackURI = parkedPushIDs.get(id);
+                                    if (notifyBackURI != null &&
+                                        notifyBackURI.getTimestamp() + minCloudPushInterval <=
+                                            System.currentTimeMillis()) {
+
                                         if (LOGGER.isLoggable(Level.FINE)) {
                                             LOGGER.log(Level.FINE, "Cloud Push dispatched for PushID '" + id + "'.");
                                         }
+                                        notifyBackURI.touch();
                                         getOutOfBandNotifier().broadcast(
                                             (PushNotification)pushConfiguration,
                                             new String[] {
-                                                notifyBackURI
+                                                notifyBackURI.getURI()
                                             });
                                     }
                                     cancelConfirmationTimeout();
@@ -570,7 +592,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
             }
         }
 
-        public void startExpiryTimeout(final String notifyBackURI) {
+        public void startExpiryTimeout(final NotifyBackURI notifyBackURI) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE,

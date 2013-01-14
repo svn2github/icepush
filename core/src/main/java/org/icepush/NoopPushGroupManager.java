@@ -67,10 +67,10 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void push(final String groupName, final PushConfiguration config) {
     }
 
-    public void park(final String pushId, final String notifyBackURI) {
+    public void park(final String pushId, final NotifyBackURI notifyBackURI) {
     }
     
-    public void pruneParkedIDs(final String notifyBackURI, final List<String> listenedPushIds)  {
+    public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final List<String> listenedPushIds)  {
     }
 
     public void recordListen(final List<String> pushIdList, final int sequenceNumber) {
@@ -92,10 +92,10 @@ public class NoopPushGroupManager implements PushGroupManager {
     }
 
     public void startConfirmationTimeout(
-        final List<String> pushIDList, final String notifyBackURI, final long timeout) {
+        final List<String> pushIDList, final NotifyBackURI notifyBackURI, final long timeout) {
 
     }
 
-    public void startExpiryTimeout(final List<String> pushIDList, final String notifyBackURI) {
+    public void startExpiryTimeout(final List<String> pushIDList, final NotifyBackURI notifyBackURI) {
     }
 }

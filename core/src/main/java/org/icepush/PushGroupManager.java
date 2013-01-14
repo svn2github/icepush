@@ -26,9 +26,9 @@ public interface PushGroupManager {
 
     void push(String groupName, PushConfiguration config);
 
-    void park(String pushId, String notifyBackURI);
+    void park(String pushId, NotifyBackURI notifyBackURI);
     
-    void pruneParkedIDs(String notifyBackURI, List<String> listenedPushIds);
+    void pruneParkedIDs(NotifyBackURI notifyBackURI, List<String> listenedPushIds);
 
     String[] getPendingNotifications();
 
@@ -50,11 +50,11 @@ public interface PushGroupManager {
 
     void recordListen(List<String> pushIDList, int sequenceNumber);
 
-    void startConfirmationTimeout(List<String> pushIDList, String notifyBackURI, long timeout);
+    void startConfirmationTimeout(List<String> pushIDList, NotifyBackURI notifyBackURI, long timeout);
 
     void cancelConfirmationTimeout(List<String> pushIDList);
 
-    void startExpiryTimeout(List<String> pushIDList, String notifyBackURI);
+    void startExpiryTimeout(List<String> pushIDList, NotifyBackURI notifyBackURI);
 
     void cancelExpiryTimeout(List<String> pushIDList);
 
