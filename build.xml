@@ -25,7 +25,7 @@
 		<copy file="./core/dist/icepush.jar" todir="${dist.dir}"/>
 	</target>
 			
-	<target name="build-all" if="isOSBundle">
+	<target name="build-all" depends="checkIfEEBundle" if="isOSBundle">
 		<ant dir="./core" />
 		<ant dir="./samples/basic" />
 		<ant dir="./samples/jsp" />
@@ -41,4 +41,13 @@
 				
 	</target>
 	
+	<target name="checkIfEEBundle" >
+ 		<condition property="isOSBundle">
+ 			<not>
+				<isset property="ee.bundle.dir"/>
+			</not>	
+		</condition>	
+	<echo message="isOSBundle=${isOSBundle}"/>
+	</target>
+
 </project>
