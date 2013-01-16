@@ -36,8 +36,8 @@
 	</condition>
     <property name="version.string" value="${version.primary}.${version.secondary}.${version.tertiary}"/>
     	
-    <property name="javadoc.title" value="${product} ${product.lib} Java API Documentation" />
-    <property name="javadoc.header" value="${product} ${version.string}&lt;br&gt;Java API Documentation" />
+    <property name="javadoc.title" value="${product.lib} Java API Documentation" />
+    <property name="javadoc.header" value="${product.lib} ${version.string}&lt;br&gt;Java API Documentation" />
     
 
     <import file="${root.offset}/build-common.xml"/>
