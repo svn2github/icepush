@@ -16,6 +16,10 @@
 
 <project name="icepush" default="lib" basedir=".">
 
+    <!-- This property file is only used for EE builds and overrides various
+         property values if it is available. -->
+    <property file="../../ee-bundle.properties"/>
+
     <property file="local.properties"/>
     <property file="../build.properties"/>
     <property file="build.properties"/>
