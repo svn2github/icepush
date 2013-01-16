@@ -25,7 +25,7 @@
 		<copy file="./core/dist/icepush.jar" todir="${dist.dir}"/>
 	</target>
 			
-	<target name="build-all">
+	<target name="build-all" if="isOSBundle">
 		<ant dir="./core" />
 		<ant dir="./samples/basic" />
 		<ant dir="./samples/jsp" />
