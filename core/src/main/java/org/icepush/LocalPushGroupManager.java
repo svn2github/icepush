@@ -186,7 +186,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
                 Level.FINE,
-                "Push Notification request for Push Group '" + groupName + "' (Push configuration: " + config + ").");
+                "Push Notification request for Push Group '" + groupName + "' (Push configuration: '" + config + "').");
         }
         Notification notification;
         if (config.getAttributes().get("subject") != null) {
@@ -441,6 +441,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         private PushID(String id, String group) {
             this.id = id;
             addToGroup(group);
+            startExpiryTimeout(null);
         }
 
         public int getSequenceNumber() {
@@ -533,103 +534,130 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
         public void startConfirmationTimeout(final NotifyBackURI notifyBackURI, final long timeout) {
             if (pushConfiguration != null) {
+                if (confirmationTimeout == null) {
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(
+                            Level.FINE,
+                            "Start confirmation timeout for PushID '" + id + "' " +
+                                    "(URI: '" + notifyBackURI + "', timeout: '" + timeout + "').\r\n\r\n" +
+                                "Confirmation Timeout Counter        : " +
+                                    confirmationTimeoutCounter.incrementAndGet() + "\r\n" +
+                                "Global Confirmation Timeout Counter : " +
+                                    globalConfirmationTimeoutCounter.incrementAndGet() + "\r\n" +
+                                "Expiry Timeout Counter              : " +
+                                    expiryTimeoutCounter.get() + "\r\n" +
+                                "Global Expiry Timeout Counter       : " +
+                                    globalExpiryTimeoutCounter.get() + "\r\n");
+                    }
+                    timeoutTimer.schedule(
+                        confirmationTimeout =
+                            new TimerTask() {
+                                @Override
+                                public void run() {
+                                    if (LOGGER.isLoggable(Level.FINE)) {
+                                        LOGGER.log(
+                                            Level.FINE,
+                                            "Confirmation timeout occurred for PushID '" + id + "' " +
+                                                "(URI: '" + notifyBackURI + "', timeout: '" + timeout + "').");
+                                    }
+                                    try {
+                                        if (notifyBackURI != null) {
+                                            park(id, notifyBackURI);
+                                        }
+                                        NotifyBackURI notifyBackURI = parkedPushIDs.get(id);
+                                        if (notifyBackURI != null &&
+                                            notifyBackURI.getTimestamp() + minCloudPushInterval <=
+                                                System.currentTimeMillis()) {
+
+                                            if (LOGGER.isLoggable(Level.FINE)) {
+                                                LOGGER.log(Level.FINE, "Cloud Push dispatched for PushID '" + id + "'.");
+                                            }
+                                            notifyBackURI.touch();
+                                            getOutOfBandNotifier().broadcast(
+                                                (PushNotification)pushConfiguration,
+                                                new String[] {
+                                                    notifyBackURI.getURI()
+                                                });
+                                        }
+                                        cancelConfirmationTimeout();
+                                    } catch (Exception exception) {
+                                        if (LOGGER.isLoggable(Level.WARNING)) {
+                                            LOGGER.log(
+                                                Level.WARNING,
+                                                "Exception caught on confirmationTimeout TimerTask.",
+                                                exception);
+                                        }
+                                    }
+                                }
+                            },
+                        timeout);
+                } else {
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(
+                            Level.FINE,
+                            "Confirmation timeout already scheduled for PushID '" + id + "' " +
+                                "(URI: '" + notifyBackURI + "', timeout: '" + timeout + "').");
+                    }
+                }
+            }
+        }
+
+        public void startExpiryTimeout(final NotifyBackURI notifyBackURI) {
+            if (expiryTimeout == null) {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
-                        "Start confirmation timeout for PushID '" + id + "' " +
-                                "(URI: " + notifyBackURI + ", timeout: " + timeout + ").\r\n\r\n" +
+                        "Start expiry timeout for PushID '" + id + "' (" +
+                                "URI: '" + notifyBackURI + "', " +
+                                "timeout: '" + (notifyBackURI == null ? pushIdTimeout : cloudPushIdTimeout) + "'" +
+                        ").\r\n\r\n" +
                             "Confirmation Timeout Counter        : " +
-                                confirmationTimeoutCounter.incrementAndGet() + "\r\n" +
+                                confirmationTimeoutCounter.get() + "\r\n" +
                             "Global Confirmation Timeout Counter : " +
-                                globalConfirmationTimeoutCounter.incrementAndGet() + "\r\n" +
+                                globalConfirmationTimeoutCounter.get() + "\r\n" +
                             "Expiry Timeout Counter              : " +
-                                expiryTimeoutCounter.get() + "\r\n" +
+                                expiryTimeoutCounter.incrementAndGet() + "\r\n" +
                             "Global Expiry Timeout Counter       : " +
-                                globalExpiryTimeoutCounter.get() + "\r\n");
+                                globalExpiryTimeoutCounter.incrementAndGet() + "\r\n");
                 }
                 timeoutTimer.schedule(
-                    confirmationTimeout =
+                    expiryTimeout =
                         new TimerTask() {
                             @Override
                             public void run() {
                                 if (LOGGER.isLoggable(Level.FINE)) {
                                     LOGGER.log(
                                         Level.FINE,
-                                        "Confirmation timeout occurred for PushID '" + id + "' " +
-                                            "(URI: " + notifyBackURI + ", timeout: " + timeout + ").");
+                                        "Expiry timeout occurred for PushID '" + id + "' (" +
+                                            "URI: '" + notifyBackURI + "', " +
+                                            "timeout: '" +
+                                                (notifyBackURI == null ? pushIdTimeout : cloudPushIdTimeout) + "'" +
+                                        ").");
                                 }
                                 try {
-                                    if (notifyBackURI != null) {
-                                        park(id, notifyBackURI);
-                                    }
-                                    NotifyBackURI notifyBackURI = parkedPushIDs.get(id);
-                                    if (notifyBackURI != null &&
-                                        notifyBackURI.getTimestamp() + minCloudPushInterval <=
-                                            System.currentTimeMillis()) {
-
-                                        if (LOGGER.isLoggable(Level.FINE)) {
-                                            LOGGER.log(Level.FINE, "Cloud Push dispatched for PushID '" + id + "'.");
-                                        }
-                                        notifyBackURI.touch();
-                                        getOutOfBandNotifier().broadcast(
-                                            (PushNotification)pushConfiguration,
-                                            new String[] {
-                                                notifyBackURI.getURI()
-                                            });
-                                    }
-                                    cancelConfirmationTimeout();
+                                    discard();
+                                    cancelExpiryTimeout();
                                 } catch (Exception exception) {
                                     if (LOGGER.isLoggable(Level.WARNING)) {
                                         LOGGER.log(
                                             Level.WARNING,
-                                            "Exception caught on confirmationTimeout TimerTask.",
+                                            "Exception caught on expiryTimeout TimerTask.",
                                             exception);
                                     }
                                 }
                             }
                         },
-                    timeout);
+                    notifyBackURI == null ? pushIdTimeout : cloudPushIdTimeout);
+            } else {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Expiry timeout already scheduled for PushID '" + id + "' (" +
+                            "URI: '" + notifyBackURI + "', " +
+                            "timeout: '" + (notifyBackURI == null ? pushIdTimeout : cloudPushIdTimeout) + "'" +
+                        ").");
+                }
             }
-        }
-
-        public void startExpiryTimeout(final NotifyBackURI notifyBackURI) {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Start expiry timeout for PushID '" + id + "' (URI: " + notifyBackURI + ").\r\n\r\n" +
-                        "Confirmation Timeout Counter        : " +
-                            confirmationTimeoutCounter.get() + "\r\n" +
-                        "Global Confirmation Timeout Counter : " +
-                            globalConfirmationTimeoutCounter.get() + "\r\n" +
-                        "Expiry Timeout Counter              : " +
-                            expiryTimeoutCounter.incrementAndGet() + "\r\n" +
-                        "Global Expiry Timeout Counter       : " +
-                            globalExpiryTimeoutCounter.incrementAndGet() + "\r\n");
-            }
-            timeoutTimer.schedule(
-                expiryTimeout =
-                    new TimerTask() {
-                        @Override
-                        public void run() {
-                            if (LOGGER.isLoggable(Level.FINE)) {
-                                LOGGER.log(
-                                    Level.FINE,
-                                    "Expiry timeout occurred for PushID '" + id + "' (URI: " + notifyBackURI + ").");
-                            }
-                            try {
-                                discard();
-                                cancelExpiryTimeout();
-                            } catch (Exception exception) {
-                                if (LOGGER.isLoggable(Level.WARNING)) {
-                                    LOGGER.log(
-                                        Level.WARNING,
-                                        "Exception caught on expiryTimeout TimerTask.",
-                                        exception);
-                                }
-                            }
-                        }
-                    },
-                notifyBackURI == null ? pushIdTimeout : cloudPushIdTimeout);
         }
 
 //        public void touch() {

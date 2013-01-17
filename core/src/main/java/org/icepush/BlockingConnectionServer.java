@@ -276,7 +276,6 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         List<String> pushIDList = new ArrayList<String>(Arrays.asList(pushIDs));
         pushIDList.retainAll(participatingPushIDs);
         pushGroupManager.startConfirmationTimeout(pushIDList, notifyBackURI, connectionRecreationTimeout * 2);
-        pushGroupManager.startExpiryTimeout(pushIDList, notifyBackURI);
         sendNotifications(pushIDs);
     }
 
@@ -319,6 +318,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                 pushGroupManager.scan(participatingPushIDs.toArray(STRINGS));
                 pushGroupManager.cancelConfirmationTimeout(participatingPushIDs);
                 pushGroupManager.cancelExpiryTimeout(participatingPushIDs);
+                pushGroupManager.startExpiryTimeout(participatingPushIDs, notifyBackURI);
                 if (null != notifyBackURI)  {
                     pushGroupManager.pruneParkedIDs(notifyBackURI, 
                             participatingPushIDs);
