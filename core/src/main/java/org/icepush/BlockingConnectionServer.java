@@ -88,7 +88,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     }
 
     public synchronized void backOff(final String browserID, final long delay) {
-        if (this.browserID.equals(browserID) && delay > 0) {
+        if (this.browserID != null && this.browserID.equals(browserID) && delay > 0) {
             backOffDelay = delay;
             respondIfBackOffRequested();
         }
