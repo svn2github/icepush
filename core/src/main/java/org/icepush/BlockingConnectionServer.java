@@ -289,7 +289,6 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         }
 
         public void service(final Request request) throws Exception {
-//            log.log(Level.INFO, "ice.push.sequence: " + request.getHeaderAsInteger("ice.push.sequence"));
             resetTimeout();
             adjustConnectionRecreationTimeout(request);
 
@@ -297,7 +296,13 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             if (browserID == null) {
                 browserID = getBrowserIDFromCookie(request);
             }
-            pushGroupManager.recordListen(participatingPushIDs, request.getHeaderAsInteger("ice.push.sequence"));
+            int sequenceNumber;
+            try {
+                sequenceNumber = request.getHeaderAsInteger("ice.push.sequence");
+            } catch (final RuntimeException exception) {
+                sequenceNumber = 0;
+            }
+            pushGroupManager.recordListen(participatingPushIDs, sequenceNumber);
             //resend notifications if the window owning the blocking connection has changed
             String currentWindow = request.getHeader("ice.push.window");
             currentWindow = currentWindow == null ? "" : currentWindow;
