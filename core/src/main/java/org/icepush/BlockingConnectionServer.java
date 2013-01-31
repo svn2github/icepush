@@ -316,6 +316,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                 if (notifyBack != null && notifyBack.trim().length() != 0) {
                     if (notifyBackURI == null || !notifyBackURI.getURI().equals(notifyBack)) {
                         notifyBackURI = new NotifyBackURI(notifyBack);
+                        pushGroupManager.setNotifyBackURI(participatingPushIDs, notifyBackURI, true);
                     } else if (notifyBackURI != null && notifyBackURI.getURI().equals(notifyBack)) {
                         notifyBackURI.touch();
                     }

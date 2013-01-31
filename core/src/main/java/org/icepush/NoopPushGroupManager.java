@@ -47,7 +47,7 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void cancelExpiryTimeout(final List<String> pushIDList) {
     }
 
-    public void clearPendingNotifications(final List pushIdList) {
+    public void clearPendingNotifications(final List<String> pushIdList) {
     }
 
     public void deleteNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
@@ -86,6 +86,12 @@ public class NoopPushGroupManager implements PushGroupManager {
     }
 
     public void scan(final String[] confirmedPushIDs) {
+    }
+
+    public boolean setNotifyBackURI(
+        final List<String> pushIDList, final NotifyBackURI notifyBackURI, final boolean broadcast) {
+
+        return false;
     }
 
     public void shutdown() {

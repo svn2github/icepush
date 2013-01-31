@@ -32,7 +32,7 @@ public interface PushGroupManager {
 
     String[] getPendingNotifications();
 
-    void clearPendingNotifications(List pushIdList);
+    void clearPendingNotifications(List<String> pushIdList);
 
     void addNotificationReceiver(NotificationBroadcaster.Receiver receiver);
 
@@ -65,4 +65,6 @@ public interface PushGroupManager {
     void backOff(String browserID, long delay);
 
     void scan(String[] confirmedPushIDs);
+
+    boolean setNotifyBackURI(List<String> pushIDList, NotifyBackURI notifyBackURI, boolean broadcast);
 }

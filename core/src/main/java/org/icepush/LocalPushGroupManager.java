@@ -151,7 +151,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         outboundNotifier.deleteReceiver(observer);
     }
 
-    public void clearPendingNotifications(final List pushIdList) {
+    public void clearPendingNotifications(final List<String> pushIdList) {
         pendingNotifications.removeAll(pushIdList);
     }
 
@@ -229,6 +229,21 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                 LOGGER.log(Level.FINE, "Removed PushID '" + pushId + "' from Push Group '" + groupName + "'.");
             }
         }
+    }
+
+    public boolean setNotifyBackURI(
+        final List<String> pushIDList, final NotifyBackURI notifyBackURI, final boolean broadcast) {
+
+        boolean modified = false;
+        for (final String pushIDString : pushIDList) {
+            PushID pushID = pushIDMap.get(pushIDString);
+            if (pushID != null) {
+                if (pushID.setNotifyBackURI(notifyBackURI)) {
+                    modified = true;
+                }
+            }
+        }
+        return modified;
     }
 
     public void park(final String pushId, final NotifyBackURI notifyBackURI) {
@@ -429,7 +444,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         private final String id;
         private final Set<String> groups = new HashSet<String>();
         private long lastAccess = System.currentTimeMillis();
-        private int sequenceNumber;
+        private NotifyBackURI notifyBackURI;
+        private int sequenceNumber = -1;
         private TimerTask confirmationTimeout;
         private TimerTask expiryTimeout;
         private PushConfiguration pushConfiguration;
@@ -442,11 +458,6 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
             this.id = id;
             addToGroup(group);
             startExpiryTimeout(null);
-        }
-
-        public int getSequenceNumber() {
-            return sequenceNumber;
-
         }
 
         public void addToGroup(String group) {
@@ -517,6 +528,14 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 //            }
 //        }
 
+        public NotifyBackURI getNotifyBackURI() {
+            return notifyBackURI;
+        }
+
+        public int getSequenceNumber() {
+            return sequenceNumber;
+        }
+
         public void removeFromGroup(String group) {
             groups.remove(group);
             if (groups.isEmpty()) {
@@ -526,6 +545,14 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                 }
                 pushIDMap.remove(id);
             }
+        }
+
+        public boolean setNotifyBackURI(final NotifyBackURI notifyBackURI) {
+            boolean modified =
+                this.notifyBackURI == null ||
+                !this.notifyBackURI.getURI().equals(notifyBackURI.getURI());
+            this.notifyBackURI = notifyBackURI;
+            return modified;
         }
 
         public void setSequenceNumber(final int sequenceNumber) {
