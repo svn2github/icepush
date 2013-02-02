@@ -397,7 +397,7 @@ if (!window.ice.icepush) {
             info(logger, 'bridge loaded!');
         }
 
-        onLoad(window, Bridge);
+        Bridge();
 
         onKeyPress(document, function(ev) {
             var e = $event(ev);
