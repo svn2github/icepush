@@ -47,6 +47,16 @@ public class MainServlet implements PseudoServlet {
     protected Configuration configuration;
     protected boolean terminateConnectionOnShutdown;
 
+    public synchronized static MainServlet getInstance(ServletContext context)  {
+        MainServlet mainServlet = (MainServlet) context
+                .getAttribute(MainServlet.class.getName());
+        if (null == mainServlet)  {
+            mainServlet = new MainServlet(context);
+            context.setAttribute(MainServlet.class.getName(), mainServlet);
+        }
+        return mainServlet;
+    }
+
     public MainServlet(final ServletContext context) {
         this(context, true);
     }
