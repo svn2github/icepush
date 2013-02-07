@@ -45,9 +45,13 @@ public class ConfigurationServer implements Server {
     public ConfigurationServer(final PushContext context, final ServletContext servletContext, Configuration configuration, final Server server) {
         blockingConnectionServer = server;
         String contextPath = normalizeContextPath(configuration.getAttribute("contextPath", (String) servletContext.getAttribute("contextPath")));
+        //PUSH-218: temporarily disabling modification of the context parameter
         long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", defaultBlockingConnectionTimeout);
+        if(heartbeatTimeout != defaultBlockingConnectionTimeout){
+            heartbeatTimeout = defaultBlockingConnectionTimeout;
+        }
         String serverErrorRetries = configuration.getAttribute("serverErrorRetryTimeouts", defaultServerErrorRetries);
-        int emptyResponseRetries = configuration.getAttributeAsInteger("heartbeatTimeout", defaultEmptyResponseRetries);
+        int emptyResponseRetries = configuration.getAttributeAsInteger("emptyResponseRetries", defaultEmptyResponseRetries);
 
         String configurationMessage = "<configuration" +
                 (heartbeatTimeout != defaultBlockingConnectionTimeout ?

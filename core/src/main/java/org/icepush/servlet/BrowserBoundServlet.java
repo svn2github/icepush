@@ -24,8 +24,10 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.Timer;
+import java.util.logging.Logger;
 
 public class BrowserBoundServlet extends PathDispatcher {
+    private final static Logger log = Logger.getLogger(BrowserBoundServlet.class.getName());
     protected PushContext pushContext;
     protected ServletContext context;
     protected PushGroupManager pushGroupManager;
@@ -49,7 +51,13 @@ public class BrowserBoundServlet extends PathDispatcher {
     }
 
     protected Server createBlockingConnectionServer() {
-        Slot heartbeatInterval = new Slot(configuration.getAttributeAsLong("heartbeatTimeout", 15000));
+        //PUSH-218: temporarily disabling modification of the heartbeatTimeout context parameter
+        long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", 15000);
+        if(heartbeatTimeout != 15000){
+            heartbeatTimeout = 15000;
+            log.info("modification of heartbeatTimeout is currently disabled, reverting to default " + heartbeatTimeout);
+        }
+        Slot heartbeatInterval = new Slot(heartbeatTimeout);
         Slot sequenceNo = new Slot(0);
         return new ConfigurationServer(pushContext, context, configuration,
                 new SequenceTaggingServer(sequenceNo,

@@ -56,7 +56,14 @@ public class AsyncAdaptingServlet implements PseudoServlet {
         public AsyncRequestResponse(final HttpServletRequest request, final HttpServletResponse response, final Configuration configuration) throws Exception {
             super(request, response, configuration);
             asyncContext = request.isAsyncStarted() ? request.getAsyncContext() : request.startAsync();
-            asyncContext.setTimeout(configuration.getAttributeAsLong("heartbeatTimeout", 15000) * 2);
+
+            //PUSH-218: temporarily disabling modification of the context parameter
+            long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", 15000);
+            if(heartbeatTimeout != 15000){
+                heartbeatTimeout = 15000;
+                log.info("modification of heartbeatTimeout is currently disabled, reverting to default " + heartbeatTimeout);
+            }
+            asyncContext.setTimeout(heartbeatTimeout * 2);
         }
 
         public void respondWith(final ResponseHandler handler) throws Exception {
