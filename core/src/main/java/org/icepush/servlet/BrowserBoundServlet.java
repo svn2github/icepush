@@ -51,7 +51,7 @@ public class BrowserBoundServlet extends PathDispatcher {
     }
 
     protected Server createBlockingConnectionServer() {
-        Slot heartbeatInterval = new Slot(configuration.getAttributeAsLong("heartbeatTimeout", 15000));
+        Slot heartbeatInterval = new Slot(configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout));
         Slot sequenceNo = new Slot(0);
         return new ConfigurationServer(pushContext, context, configuration,
                 new SequenceTaggingServer(sequenceNo,

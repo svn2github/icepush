@@ -31,7 +31,7 @@ public class ConfigurationServer implements Server {
     private static final Logger log = Logger.getLogger(ConfigurationServer.class.getName());
     private static final String defaultServerErrorRetries = "1000 2000 4000";
     private static final int defaultEmptyResponseRetries = 3;
-    private static final int defaultBlockingConnectionTimeout = 15000;
+    public static final int DefaultHeartbeatTimeout = 15000;
     private static final String BrowserIDCookieName = "ice.push.browser";
 
     private Server blockingConnectionServer;
@@ -46,12 +46,12 @@ public class ConfigurationServer implements Server {
         blockingConnectionServer = server;
         String contextPath = normalizeContextPath(configuration.getAttribute("contextPath", (String) servletContext.getAttribute("contextPath")));
         //PUSH-218: temporarily disabling modification of the context parameter
-        long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", defaultBlockingConnectionTimeout);
+        long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", DefaultHeartbeatTimeout);
         String serverErrorRetries = configuration.getAttribute("serverErrorRetryTimeouts", defaultServerErrorRetries);
         int emptyResponseRetries = configuration.getAttributeAsInteger("emptyResponseRetries", defaultEmptyResponseRetries);
 
         String configurationMessage = "<configuration" +
-                (heartbeatTimeout != defaultBlockingConnectionTimeout ?
+                (heartbeatTimeout != DefaultHeartbeatTimeout ?
                         " heartbeatTimeout=\"" + heartbeatTimeout + "\"" : "") +
                 (emptyResponseRetries != defaultEmptyResponseRetries ?
                         " emptyResponseRetries=\"" + emptyResponseRetries + "\"" : "") +

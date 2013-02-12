@@ -236,7 +236,7 @@ if (!window.ice.icepush) {
                 //update public values
                 publicConfiguration.contextPath = attributeAsString(configuration, 'contextPath', publicConfiguration.contextPath);
                 publicConfiguration.blockingConnectionURI = attributeAsString(configuration, 'blockingConnectionURI', publicConfiguration.blockingConnectionURI || 'listen.icepush');
-                changeHeartbeatInterval(asyncConnection, attributeAsNumber(configuration, 'heartbeatTimeout', 50000));
+                changeHeartbeatInterval(asyncConnection, attributeAsNumber(configuration, 'heartbeatTimeout', 15000));
             });
             register(commandDispatcher, 'browser', function(message) {
                 Cookie(BrowserIDCookieName, message.getAttribute('id'));

@@ -173,7 +173,7 @@ var AsyncConnection;
         //build callbacks only after 'connection' function was defined
         var retryTimeouts = collect(split(attributeAsString(configuration, 'serverErrorRetryTimeouts', '1000 2000 4000'), ' '), Number);
         var retryOnServerError = timedRetryAbort(connect, broadcaster(onServerErrorListeners), retryTimeouts);
-        var heartbeatTimeout = attributeAsNumber(configuration, 'heartbeatTimeout', 50000) + NetworkDelay;
+        var heartbeatTimeout = attributeAsNumber(configuration, 'heartbeatTimeout', 15000) + NetworkDelay;
         //count the number of consecutive empty responses
         var emptyResponseRetries;
         function resetEmptyResponseRetries() {
