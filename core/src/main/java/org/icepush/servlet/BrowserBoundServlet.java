@@ -51,13 +51,7 @@ public class BrowserBoundServlet extends PathDispatcher {
     }
 
     protected Server createBlockingConnectionServer() {
-        //PUSH-218: temporarily disabling modification of the heartbeatTimeout context parameter
-        long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", 15000);
-        if(heartbeatTimeout != 15000){
-            heartbeatTimeout = 15000;
-            log.info("modification of heartbeatTimeout is currently disabled, reverting to default " + heartbeatTimeout);
-        }
-        Slot heartbeatInterval = new Slot(heartbeatTimeout);
+        Slot heartbeatInterval = new Slot(configuration.getAttributeAsLong("heartbeatTimeout", 15000));
         Slot sequenceNo = new Slot(0);
         return new ConfigurationServer(pushContext, context, configuration,
                 new SequenceTaggingServer(sequenceNo,
