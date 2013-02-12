@@ -31,7 +31,7 @@ public class ConfigurationServer implements Server {
     private static final Logger log = Logger.getLogger(ConfigurationServer.class.getName());
     private static final String defaultServerErrorRetries = "1000 2000 4000";
     private static final int defaultEmptyResponseRetries = 3;
-    private static final int defaultBlockingConnectionTimeout = 10000;
+    private static final int defaultBlockingConnectionTimeout = 15000;
     private static final String BrowserIDCookieName = "ice.push.browser";
 
     private Server blockingConnectionServer;
@@ -47,9 +47,6 @@ public class ConfigurationServer implements Server {
         String contextPath = normalizeContextPath(configuration.getAttribute("contextPath", (String) servletContext.getAttribute("contextPath")));
         //PUSH-218: temporarily disabling modification of the context parameter
         long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", defaultBlockingConnectionTimeout);
-        if(heartbeatTimeout != defaultBlockingConnectionTimeout){
-            heartbeatTimeout = defaultBlockingConnectionTimeout;
-        }
         String serverErrorRetries = configuration.getAttribute("serverErrorRetryTimeouts", defaultServerErrorRetries);
         int emptyResponseRetries = configuration.getAttributeAsInteger("emptyResponseRetries", defaultEmptyResponseRetries);
 
@@ -66,7 +63,7 @@ public class ConfigurationServer implements Server {
                         " contextPath=\"" + contextPath + "\"" : "") +
                 "/>";
         //always redirect if the request comes to this context path
-        redirect = context != null && !servletContext.getContextPath().equals(contextPath);
+        redirect = contextPath != null && !servletContext.getContextPath().equals(contextPath);
         nonDefaultConfiguration = configurationMessage.length() != "<configuration/>".length();
         configureBridge = new ConfigureBridge(configurationMessage);
         setBrowserID = new SetBrowserID(context);
