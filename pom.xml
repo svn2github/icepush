@@ -31,7 +31,7 @@
     <groupId>org.icepush</groupId>
     <artifactId>icepush-parent</artifactId>
     <packaging>pom</packaging>
-    <name>${icepush.product.name} Parent POM</name>
+    <name>${icepush.product.name} Parent</name>
     <url>http://www.icesoft.org</url>
     <description>${icepush.product.name} Library</description>
 
