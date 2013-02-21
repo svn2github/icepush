@@ -226,6 +226,7 @@ if (!window.ice.icepush) {
             });
             var commandDispatcher = CommandDispatcher();
             var sequenceNo = 0;
+            var heartbeatTimestamp;
             var asyncConnection = AsyncConnection(logger, windowID, configuration);
 
             register(commandDispatcher, 'noop', NoopCommand);
@@ -304,6 +305,9 @@ if (!window.ice.icepush) {
             onSend(asyncConnection, function(request) {
                 //send current sequence number
                 setHeader(request, 'ice.push.sequence', sequenceNo);
+                if (heartbeatTimestamp) {
+                    setHeader(request, 'ice.push.heartbeatTimestamp', heartbeatTimestamp);
+                }
             });
 
             onReceive(asyncConnection, function(response) {
@@ -316,6 +320,9 @@ if (!window.ice.icepush) {
 
                 //update sequence number incremented by the server
                 sequenceNo = Number(getHeader(response, 'ice.push.sequence'));
+                if (hasHeader(response, 'ice.push.heartbeatTimestamp')) {
+                    heartbeatTimestamp = Number(getHeader(response, 'ice.push.heartbeatTimestamp'));
+                }
             });
 
             onServerError(asyncConnection, function(response) {
