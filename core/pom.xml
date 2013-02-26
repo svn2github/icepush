@@ -210,4 +210,47 @@
 
     </dependencies>
 
+    <profiles>
+
+        <!-- Not sure why but when I tried to put this in the top-level parent pom, it would sign all the artifacts
+             but would only deploy the signatures for the main .jar and not the the sources and javadoc jars. It
+             apparently works fine if the profile is defined in each project so that's what I've done for now. -->
+        <profile>
+            <id>sign-artifacts</id>
+            <activation>
+                <!--<activeByDefault>true</activeByDefault>-->
+                <property>
+                    <name>signArtifacts</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>1.4</version>
+
+                        <executions>
+
+                            <execution>
+                                <id>sign-library</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <keyname>${icefaces.gpg.keyname}</keyname>
+                                    <passphrase>${icefaces.gpg.passphrase}</passphrase>
+                                </configuration>
+                            </execution>
+
+                        </executions>
+
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+    </profiles>
+
 </project>
