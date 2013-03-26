@@ -267,6 +267,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     public void shutdown() {
         queueConsumer.cancel();
         timer.cancel();
+        timeoutTimer.cancel();
     }
 
     public void cancelConfirmationTimeout(final List<String> pushIDList) {
@@ -604,8 +605,12 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                                     globalExpiryTimeoutCounter.get() + "\r\n");
                     }
                     confirmationTimeoutSequenceNumber = sequenceNumber;
-                    timeoutTimer.schedule(
-                        confirmationTimeout = newConfirmationTimeout(notifyBackURI, timeout), timeout);
+                    try {
+                        timeoutTimer.schedule(
+                            confirmationTimeout = newConfirmationTimeout(notifyBackURI, timeout), timeout);
+                    } catch (final IllegalStateException exception) {
+                        // timeoutTimer was cancelled or its timer thread terminated.
+                    }
                 } else {
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(
@@ -641,9 +646,13 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                                 globalExpiryTimeoutCounter.incrementAndGet() + "\r\n");
                 }
                 expiryTimeoutSequenceNumber = sequenceNumber;
-                timeoutTimer.schedule(
-                    expiryTimeout = newExpiryTimeout(notifyBackURI),
-                    notifyBackURI == null ? pushIdTimeout : cloudPushIdTimeout);
+                try {
+                    timeoutTimer.schedule(
+                        expiryTimeout = newExpiryTimeout(notifyBackURI),
+                        notifyBackURI == null ? pushIdTimeout : cloudPushIdTimeout);
+                } catch (final IllegalStateException exception) {
+                    // timeoutTimer was cancelled or its timer thread terminated.
+                }
             } else {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
