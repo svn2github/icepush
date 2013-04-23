@@ -125,6 +125,10 @@ public class ServletRequestResponse implements Request, Response {
         return Integer.parseInt(request.getHeader(name));
     }
 
+    public long getHeaderAsLong(String name) {
+        return Long.parseLong(request.getHeader(name));
+    }
+
     public boolean containsParameter(String name) {
         return request.getParameter(name) != null;
     }

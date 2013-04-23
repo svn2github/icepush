@@ -16,6 +16,9 @@
 
 package org.icepush;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.icepush.http.Request;
 import org.icepush.http.Response;
 import org.icepush.http.ResponseHandler;
@@ -24,6 +27,8 @@ import org.icepush.http.standard.RequestProxy;
 import org.icepush.util.Slot;
 
 public class SequenceTaggingServer implements Server {
+    private static final Logger LOGGER = Logger.getLogger(SequenceTaggingServer.class.getName());
+
     private Server server;
     private Slot sequenceNo;
 
@@ -60,12 +65,34 @@ public class SequenceTaggingServer implements Server {
                 try {
                     long previousSequenceNo;
                     try {
-                        previousSequenceNo = request.getHeaderAsInteger("ice.push.sequence");
+                        previousSequenceNo = request.getHeaderAsLong("ice.push.sequence");
+                        if (previousSequenceNo >= sequenceNo.getLongValue()) {
+                            sequenceNo.setLongValue(previousSequenceNo + 1);
+                        } else {
+                            if (LOGGER.isLoggable(Level.WARNING)) {
+                                LOGGER.log(
+                                    Level.WARNING,
+                                    "Request's 'ice.push.sequence' [" + previousSequenceNo + "] is less than " +
+                                        "the server-side sequence number [" + sequenceNo.getLongValue() + "].");
+                            }
+                            sequenceNo.setLongValue(sequenceNo.getLongValue() + 1);
+                        }
                     } catch (RuntimeException e) {
-                        previousSequenceNo = 0;
+                        // No sequence number found.
+                        if (sequenceNo.getLongValue() == 0) {
+                            // Start with sequence number
+                            sequenceNo.setLongValue(1);
+                        } else {
+                            if (LOGGER.isLoggable(Level.WARNING)) {
+                                LOGGER.log(
+                                    Level.WARNING,
+                                    "Request's 'ice.push.sequence' header is missing, " +
+                                        "while server-side sequence number is '" + sequenceNo.getLongValue() + "'.");
+                            }
+                            sequenceNo.setLongValue(sequenceNo.getLongValue() + 1);
+                        }
                     }
-                    sequenceNo.setLongValue(sequenceNo.getIntegerValue() + 1);
-                    response.setHeader("ice.push.sequence", sequenceNo.getIntegerValue());
+                    response.setHeader("ice.push.sequence", sequenceNo.getLongValue());
                 } finally {
                     handler.respond(response);
                 }

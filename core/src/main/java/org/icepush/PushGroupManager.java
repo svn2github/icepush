@@ -22,6 +22,8 @@ import java.util.Map;
 public interface PushGroupManager {
     void addMember(String groupName, String pushId);
 
+    PushID getPushID(String pushIDString);
+
     void push(String groupName);
 
     void push(String groupName, PushConfiguration config);
@@ -48,9 +50,9 @@ public interface PushGroupManager {
 
     void shutdown();
 
-    void recordListen(List<String> pushIDList, int sequenceNumber);
+    void recordListen(List<String> pushIDList, long sequenceNumber);
 
-    void startConfirmationTimeout(List<String> pushIDList, NotifyBackURI notifyBackURI, long timeout);
+    void startConfirmationTimeout(List<String> pushIDList);
 
     void cancelConfirmationTimeout(List<String> pushIDList);
 

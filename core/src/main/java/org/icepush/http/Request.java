@@ -41,6 +41,8 @@ public interface Request {
 
     int getHeaderAsInteger(String name);
 
+    long getHeaderAsLong(String name);
+
     boolean containsParameter(String name);
 
     String[] getParameterNames();

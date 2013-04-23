@@ -128,7 +128,7 @@ public class MainServlet implements PseudoServlet {
             if ("Broken pipe".equals(e.getMessage())) {
                 // client left the page
                 if (log.isLoggable(Level.FINEST)) {
-                    log.log(Level.FINEST, "Connection broken by client.", e);
+                    log.log(Level.FINE, "Connection broken by client.", e);
                 } else if (log.isLoggable(Level.FINE)) {
                     log.log(Level.FINE, "Connection broken by client: " + e.getMessage());
                 }

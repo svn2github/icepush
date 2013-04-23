@@ -20,11 +20,9 @@ import org.icepush.servlet.ServletContextConfiguration;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,7 +33,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -64,10 +61,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     };
     private final Set<BlockingConnectionServer> blockingConnectionServerSet =
         new CopyOnWriteArraySet<BlockingConnectionServer>();
-    private final ConcurrentMap<String, PushID> pushIDMap = new ConcurrentHashMap<String, PushID>();
-    private final ConcurrentMap<String, Group> groupMap = new ConcurrentHashMap<String, Group>();
+    protected final ConcurrentMap<String, PushID> pushIDMap = new ConcurrentHashMap<String, PushID>();
+    protected final ConcurrentMap<String, Group> groupMap = new ConcurrentHashMap<String, Group>();
     private final HashSet<String> pendingNotifications = new HashSet();
-    protected final HashMap<String, NotifyBackURI> parkedPushIDs = new HashMap();
+    private final HashMap<String, NotifyBackURI> parkedPushIDs = new HashMap();
     private final NotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
     private final Timer timer = new Timer("Notification queue consumer.", true);
     private final TimerTask queueConsumer;
@@ -75,9 +72,9 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private final long groupTimeout;
     private final long pushIdTimeout;
     private final long cloudPushIdTimeout;
-    protected final long minCloudPushInterval;
+    private final long minCloudPushInterval;
     private final ServletContext context;
-    protected final Timer timeoutTimer = new Timer("Timeout timer", true);
+    private final Timer timeoutTimer = new Timer("Timeout timer", true);
 
     private long lastTouchScan = System.currentTimeMillis();
     private long lastExpiryScan = System.currentTimeMillis();
@@ -127,7 +124,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
         Group group = groupMap.get(groupName);
         if (group == null) {
-            groupMap.put(groupName, new Group(groupName, id));
+            groupMap.put(groupName, new Group(groupName, id, groupTimeout, this));
         } else {
             group.addPushID(id);
         }
@@ -162,7 +159,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     public Map<String, String[]> getGroupMap() {
         Map<String, String[]> groupMap = new HashMap<String, String[]>();
         for (Group group : new ArrayList<Group>(this.groupMap.values())) {
-            groupMap.put(group.name, group.getPushIDs());
+            groupMap.put(group.getName(), group.getPushIDs());
         }
         return groupMap;
     }
@@ -199,7 +196,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         queue.add(notification);
     }
 
-    public void recordListen(final List<String> pushIDList, final int sequenceNumber) {
+    public void recordListen(final List<String> pushIDList, final long sequenceNumber) {
         for (final String pushIDString : pushIDList) {
             PushID pushID = pushIDMap.get(pushIDString);
             if (pushID != null) {
@@ -288,29 +285,11 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
-    public void startConfirmationTimeout(
-        final List<String> pushIDList, final NotifyBackURI notifyBackURI, final long timeout) {
-
-        if (notifyBackURI != null) {
-            long now = System.currentTimeMillis();
-            if (notifyBackURI.getTimestamp() + minCloudPushInterval <= now + timeout) {
-                for (final String pushIDString : pushIDList) {
-                    PushID pushID = pushIDMap.get(pushIDString);
-                    if (pushID != null) {
-                        pushID.startConfirmationTimeout(notifyBackURI, timeout, pushID.getSequenceNumber());
-                    }
-                }
-            } else {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Timeout is within the minimum Cloud Push interval for URI '" + notifyBackURI + "'. (" +
-                            "timestamp: '" + notifyBackURI.getTimestamp() + "', " +
-                            "minCloudPushInterval: '" + minCloudPushInterval + "', " +
-                            "now: '" + now + "', " +
-                            "timeout: '" + timeout + "'" +
-                        ")");
-                }
+    public void startConfirmationTimeout(final List<String> pushIDList) {
+        for (final String pushIDString : pushIDList) {
+            PushID pushID = pushIDMap.get(pushIDString);
+            if (pushID != null) {
+                pushID.startConfirmationTimeout(pushID.getSequenceNumber());
             }
         }
     }
@@ -324,16 +303,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
-    protected Map<String, PushID> getPushIDMap() {
+    public Map<String, PushID> getPushIDMap() {
         return Collections.unmodifiableMap(pushIDMap);
-    }
-
-    protected HashMap<String, Integer> getPushIDSequenceNumberMap() {
-        HashMap<String, Integer> pushIDSequenceNumberMap = new HashMap<String, Integer>();
-        for (final PushID pushID : pushIDMap.values()) {
-            pushIDSequenceNumberMap.put(pushID.getID(), pushID.getSequenceNumber());
-        }
-        return pushIDSequenceNumberMap;
     }
 
     private void scanForExpiry() {
@@ -350,342 +321,70 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
-    public void listeningPushIDs(final Map<String, Integer> pushIDSequenceNumberMap) {
-        // Do nothing.
+    public PushID getPushID(final String pushID) {
+        return pushIDMap.get(pushID);
     }
 
-//    public void touchPushID(final String id, final Long timestamp) {
-//        PushID pushID = pushIDMap.get(id);
-//        if (pushID != null) {
-//            pushID.touch(timestamp);
-//        }
-//    }
+    protected long getCloudPushIDTimeout() {
+        return cloudPushIdTimeout;
+    }
+
+    protected long getMinCloudPushInterval() {
+        return minCloudPushInterval;
+    }
+
+    protected long getPushIDTimeout() {
+        return pushIdTimeout;
+    }
+
+    protected Timer getTimeoutTimer() {
+        return timeoutTimer;
+    }
 
     protected PushID newPushID(final String id, final String groupName) {
-        PushID pushID = new PushID(id, groupName);
+        PushID pushID =
+            new PushID(
+                id, groupName, getPushIDTimeout(), getCloudPushIDTimeout(), getTimeoutTimer(),
+                getMinCloudPushInterval(), this);
         pushID.startExpiryTimeout();
         return pushID;
     }
 
-    protected OutOfBandNotifier getOutOfBandNotifier() {
+    OutOfBandNotifier getOutOfBandNotifier() {
         Object attribute = context.getAttribute(OutOfBandNotifier.class.getName());
         return attribute == null ? NOOPOutOfBandNotifier : (OutOfBandNotifier) attribute;
     }
 
-    private class Group {
-        private final Set<String> pushIdList = new HashSet<String>();
-        private final String name;
-        private long lastAccess = System.currentTimeMillis();
-
-        private Group(final String name, final String firstPushId) {
-            this.name = name;
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "Push Group '" + this.name + "' created.");
-            }
-            addPushID(firstPushId);
-        }
-
-        private void addPushID(final String pushId) {
-            pushIdList.add(pushId);
-        }
-
-        private void discardIfExpired() {
-            //expire group
-            if (lastAccess + groupTimeout < System.currentTimeMillis()) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(Level.FINE, "Push Group '" + name + "' expired.");
-                }
-                groupMap.remove(name);
-                pendingNotifications.removeAll(pushIdList);
-                for (String id : pushIdList) {
-                    PushID pushID = pushIDMap.get(id);
-                    if (pushID != null) {
-                        pushID.removeFromGroup(name);
-                    }
-                }
-            }
-        }
-
-        private String[] getPushIDs() {
-            return pushIdList.toArray(new String[pushIdList.size()]);
-        }
-
-        private void removePushID(final String pushId) {
-            pushIdList.remove(pushId);
-            if (pushIdList.isEmpty()) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE, "Disposed Push Group '" + name + "' since it no longer contains any PushIDs.");
-                }
-                groupMap.remove(name);
-            }
-        }
-
-        private void touch() {
-            touch(System.currentTimeMillis());
-        }
-
-        private void touch(final Long timestamp) {
-            lastAccess = timestamp;
-        }
-
-        private void touchIfMatching(final Collection pushIds) {
-            Iterator i = pushIds.iterator();
-            while (i.hasNext()) {
-                String pushId = (String) i.next();
-                if (pushIdList.contains(pushId)) {
-                    touch();
-                    groupTouched(name, lastAccess);
-                    //no need to touchIfMatching again
-                    //return right away without checking the expiration
-                    return;
-                }
-            }
-        }
+    Group getGroup(final String groupName) {
+        return groupMap.get(groupName);
     }
 
-    // These counters are only used by LOGGER
-    protected static AtomicInteger globalConfirmationTimeoutCounter = new AtomicInteger(0);
-    protected static AtomicInteger globalExpiryTimeoutCounter = new AtomicInteger(0);
+    NotifyBackURI getNotifyBackURI(final String pushID) {
+        return parkedPushIDs.get(pushID);
+    }
 
-    protected class PushID {
-        private final String id;
-        private final Set<String> groups = new HashSet<String>();
-        private long lastAccess = System.currentTimeMillis();
-        private NotifyBackURI notifyBackURI;
-        private int sequenceNumber = -1;
-        private int confirmationTimeoutSequenceNumber = -1;
-        private int expiryTimeoutSequenceNumber = -1;
-        protected TimerTask confirmationTimeout;
-        private TimerTask expiryTimeout;
-        protected PushConfiguration pushConfiguration;
+    void groupTouched(final String groupName, final long timestamp) {
+        super.groupTouched(groupName, timestamp);
+    }
 
-        // These counters are only used by LOGGER
-        protected AtomicInteger confirmationTimeoutCounter = new AtomicInteger(0);
-        protected AtomicInteger expiryTimeoutCounter = new AtomicInteger(0);
+    boolean isParked(final String pushID) {
+        return parkedPushIDs.containsKey(pushID);
+    }
 
-        protected PushID(String id, String group) {
-            this.id = id;
-            addToGroup(group);
-        }
+    void removeGroup(final String groupName) {
+        groupMap.remove(groupName);
+    }
 
-        public void addToGroup(String group) {
-            groups.add(group);
-        }
+    void removePendingNotification(final String pushID) {
+        pendingNotifications.remove(pushID);
+    }
 
-        public void cancelConfirmationTimeout() {
-            if (confirmationTimeout != null) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Cancel confirmation timeout for PushID '" + id + "'.\r\n\r\n" +
-                            "Confirmation Timeout Counter        : " +
-                                confirmationTimeoutCounter.decrementAndGet() + "\r\n" +
-                            "Global Confirmation Timeout Counter : " +
-                                globalConfirmationTimeoutCounter.decrementAndGet() + "\r\n" +
-                            "Expiry Timeout Counter              : " +
-                                expiryTimeoutCounter.get() + "\r\n" +
-                            "Global Expiry Timeout Counter       : " +
-                                globalExpiryTimeoutCounter.get() + "\r\n");
-                }
-                confirmationTimeout.cancel();
-                confirmationTimeout = null;
-                confirmationTimeoutSequenceNumber = -1;
-                pushConfiguration = null;
-            }
-        }
+    void removePendingNotifications(final Set<String> pushIDList) {
+        pendingNotifications.removeAll(pushIDList);
+    }
 
-        public void cancelExpiryTimeout() {
-            if (expiryTimeout != null) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Cancel expiry timeout for PushID '" + id + "'.\r\n\r\n" +
-                            "Confirmation Timeout Counter        : " +
-                                confirmationTimeoutCounter.get() + "\r\n" +
-                            "Global Confirmation Timeout Counter : " +
-                                globalConfirmationTimeoutCounter.get() + "\r\n" +
-                            "Expiry Timeout Counter              : " +
-                                expiryTimeoutCounter.decrementAndGet() + "\r\n" +
-                            "Global Expiry Timeout Counter       : " +
-                                globalExpiryTimeoutCounter.decrementAndGet() + "\r\n");
-                }
-                expiryTimeout.cancel();
-                expiryTimeout = null;
-                expiryTimeoutSequenceNumber = -1;
-            }
-        }
-
-        public void discard() {
-            if (!parkedPushIDs.containsKey(id)) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(Level.FINE, "PushID '" + id + "' discarded.");
-                }
-                pushIDMap.remove(id);
-                pendingNotifications.remove(id);
-                for (String groupName : groups) {
-                    Group group = groupMap.get(groupName);
-                    if (group != null) {
-                        group.removePushID(id);
-                    }
-                }
-            }
-        }
-
-//        public void discardIfExpired() {
-//            //expire pushId
-//            if (!parkedPushIDs.containsKey(id) && lastAccess + pushIdTimeout < System.currentTimeMillis()) {
-//                discard();
-//            }
-//        }
-
-        public int getConfirmationTimeoutSequenceNumber() {
-            return confirmationTimeoutSequenceNumber;
-        }
-
-        public int getExpiryTimeoutSequenceNumber() {
-            return expiryTimeoutSequenceNumber;
-        }
-
-        public String getID() {
-            return id;
-        }
-
-        public NotifyBackURI getNotifyBackURI() {
-            return notifyBackURI;
-        }
-
-        public int getSequenceNumber() {
-            return sequenceNumber;
-        }
-
-        public void removeFromGroup(String group) {
-            groups.remove(group);
-            if (groups.isEmpty()) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE, "Disposed PushID '" + id + "' since it no longer belongs to any Push Group.");
-                }
-                pushIDMap.remove(id);
-            }
-        }
-
-        public boolean setNotifyBackURI(final NotifyBackURI notifyBackURI) {
-            boolean modified =
-                this.notifyBackURI == null ||
-                !this.notifyBackURI.getURI().equals(notifyBackURI.getURI());
-            this.notifyBackURI = notifyBackURI;
-            return modified;
-        }
-
-        public void setSequenceNumber(final int sequenceNumber) {
-            this.sequenceNumber = sequenceNumber;
-        }
-
-        public void startConfirmationTimeout(
-            final NotifyBackURI notifyBackURI, final long timeout, final int sequenceNumber) {
-
-            if (pushConfiguration != null) {
-                if (confirmationTimeout == null) {
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(
-                            Level.FINE,
-                            "Start confirmation timeout for PushID '" + id + "' (" +
-                                    "URI: '" + notifyBackURI + "', " +
-                                    "timeout: '" + timeout + "', " +
-                                    "sequence number: '" + sequenceNumber + "'" +
-                            ").\r\n\r\n" +
-                                "Confirmation Timeout Counter        : " +
-                                    confirmationTimeoutCounter.incrementAndGet() + "\r\n" +
-                                "Global Confirmation Timeout Counter : " +
-                                    globalConfirmationTimeoutCounter.incrementAndGet() + "\r\n" +
-                                "Expiry Timeout Counter              : " +
-                                    expiryTimeoutCounter.get() + "\r\n" +
-                                "Global Expiry Timeout Counter       : " +
-                                    globalExpiryTimeoutCounter.get() + "\r\n");
-                    }
-                    confirmationTimeoutSequenceNumber = sequenceNumber;
-                    try {
-                        timeoutTimer.schedule(
-                            confirmationTimeout = newConfirmationTimeout(notifyBackURI, timeout), timeout);
-                    } catch (final IllegalStateException exception) {
-                        // timeoutTimer was cancelled or its timer thread terminated.
-                    }
-                } else {
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(
-                            Level.FINE,
-                            "Confirmation timeout already scheduled for PushID '" + id + "' " +
-                                "(URI: '" + notifyBackURI + "', timeout: '" + timeout + "').");
-                    }
-                }
-            }
-        }
-
-        public void startExpiryTimeout() {
-            startExpiryTimeout(null, sequenceNumber);
-        }
-
-        public void startExpiryTimeout(final NotifyBackURI notifyBackURI, final int sequenceNumber) {
-            if (expiryTimeout == null) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Start expiry timeout for PushID '" + id + "' (" +
-                                "URI: '" + notifyBackURI + "', " +
-                                "timeout: '" + (notifyBackURI == null ? pushIdTimeout : cloudPushIdTimeout) + "', " +
-                                "sequence number: '" + sequenceNumber + "'" +
-                        ").\r\n\r\n" +
-                            "Confirmation Timeout Counter        : " +
-                                confirmationTimeoutCounter.get() + "\r\n" +
-                            "Global Confirmation Timeout Counter : " +
-                                globalConfirmationTimeoutCounter.get() + "\r\n" +
-                            "Expiry Timeout Counter              : " +
-                                expiryTimeoutCounter.incrementAndGet() + "\r\n" +
-                            "Global Expiry Timeout Counter       : " +
-                                globalExpiryTimeoutCounter.incrementAndGet() + "\r\n");
-                }
-                expiryTimeoutSequenceNumber = sequenceNumber;
-                try {
-                    timeoutTimer.schedule(
-                        expiryTimeout = newExpiryTimeout(notifyBackURI),
-                        notifyBackURI == null ? pushIdTimeout : cloudPushIdTimeout);
-                } catch (final IllegalStateException exception) {
-                    // timeoutTimer was cancelled or its timer thread terminated.
-                }
-            } else {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Expiry timeout already scheduled for PushID '" + id + "' (" +
-                            "URI: '" + notifyBackURI + "', " +
-                            "timeout: '" + (notifyBackURI == null ? pushIdTimeout : cloudPushIdTimeout) + "'" +
-                        ").");
-                }
-            }
-        }
-
-//        public void touch() {
-//            touch(System.currentTimeMillis());
-//        }
-//
-//        public void touch(final Long timestamp) {
-//            lastAccess = timestamp;
-//        }
-//
-//        public void touchIfMatching(Set pushIDs) {
-//            if (pushIDs.contains(id)) {
-//                touch();
-//                pushIDTouched(id, lastAccess);
-//            }
-//        }
-        protected ConfirmationTimeout newConfirmationTimeout(final NotifyBackURI notifyBackURI, final long timeout) {
-            return new ConfirmationTimeout(this, notifyBackURI, timeout);
-        }
-
-        protected ExpiryTimeout newExpiryTimeout(final NotifyBackURI notifyBackURI) {
-            return new ExpiryTimeout(this, notifyBackURI);
-        }
+    void removePushID(final String pushID) {
+        pushIDMap.remove(pushID);
     }
 
     private class Notification implements Runnable {
@@ -714,6 +413,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                     List<String> pushIDList = new ArrayList(Arrays.asList(group.getPushIDs()));
                     pushIDList.removeAll(exemptPushIDSet);
                     pendingNotifications.addAll(pushIDList);
+                    startConfirmationTimeout(pushIDList);
                     outboundNotifier.broadcast(pushIDList.toArray(new String[pushIDList.size()]));
                     pushed(groupName);
                 }
@@ -738,7 +438,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                 pushIDs = group.getPushIDs();
             }
             for (final String pushID : pushIDs) {
-                pushIDMap.get(pushID).pushConfiguration = config;
+                pushIDMap.get(pushID).setPushConfiguration(config);
             }
             super.run();
         }
@@ -771,92 +471,6 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
             running = false;
             queue.offer(NOOP);//add noop to unblock the queue
             return super.cancel();
-        }
-    }
-
-    protected class ConfirmationTimeout
-    extends TimerTask {
-        protected final PushID pushID;
-        protected final NotifyBackURI notifyBackURI;
-        protected final long timeout;
-
-        protected ConfirmationTimeout(final PushID pushID, final NotifyBackURI notifyBackURI, final long timeout) {
-            this.pushID = pushID;
-            this.notifyBackURI = notifyBackURI;
-            this.timeout = timeout;
-        }
-
-        @Override
-        public void run() {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Confirmation timeout occurred for PushID '" + pushID.getID() + "' " +
-                        "(URI: '" + notifyBackURI + "', timeout: '" + timeout + "').");
-            }
-            try {
-                if (notifyBackURI != null) {
-                    park(pushID.getID(), notifyBackURI);
-                }
-                NotifyBackURI notifyBackURI = parkedPushIDs.get(pushID.getID());
-                if (notifyBackURI != null &&
-                    notifyBackURI.getTimestamp() + minCloudPushInterval <=
-                        System.currentTimeMillis()) {
-
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(Level.FINE, "Cloud Push dispatched for PushID '" + pushID.getID() + "'.");
-                    }
-                    notifyBackURI.touch();
-                    getOutOfBandNotifier().broadcast(
-                        (PushNotification)pushID.pushConfiguration,
-                        new String[] {
-                            notifyBackURI.getURI()
-                        });
-                }
-                pushID.cancelConfirmationTimeout();
-            } catch (Exception exception) {
-                if (LOGGER.isLoggable(Level.WARNING)) {
-                    LOGGER.log(
-                        Level.WARNING,
-                        "Exception caught on confirmationTimeout TimerTask.",
-                        exception);
-                }
-            }
-        }
-    }
-
-    protected class ExpiryTimeout
-    extends TimerTask {
-        protected final PushID pushID;
-        protected final NotifyBackURI notifyBackURI;
-
-        protected ExpiryTimeout(final PushID pushID, final NotifyBackURI notifyBackURI) {
-            this.pushID = pushID;
-            this.notifyBackURI = notifyBackURI;
-        }
-
-        @Override
-        public void run() {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Expiry timeout occurred for PushID '" + pushID.getID() + "' (" +
-                        "URI: '" + notifyBackURI + "', " +
-                        "timeout: '" +
-                            (notifyBackURI == null ? pushIdTimeout : cloudPushIdTimeout) + "'" +
-                    ").");
-            }
-            try {
-                pushID.discard();
-                pushID.cancelExpiryTimeout();
-            } catch (Exception exception) {
-                if (LOGGER.isLoggable(Level.WARNING)) {
-                    LOGGER.log(
-                        Level.WARNING,
-                        "Exception caught on expiryTimeout TimerTask.",
-                        exception);
-                }
-            }
         }
     }
 }

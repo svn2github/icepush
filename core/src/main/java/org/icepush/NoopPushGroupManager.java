@@ -61,6 +61,10 @@ public class NoopPushGroupManager implements PushGroupManager {
         return new String[0];
     }
 
+    public PushID getPushID(final String pushIDString) {
+        return null;
+    }
+
     public void push(final String groupName) {
     }
 
@@ -73,7 +77,7 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final List<String> listenedPushIds)  {
     }
 
-    public void recordListen(final List<String> pushIdList, final int sequenceNumber) {
+    public void recordListen(final List<String> pushIdList, final long sequenceNumber) {
     }
 
     public void removeBlockingConnectionServer(final BlockingConnectionServer server) {
@@ -97,9 +101,7 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void shutdown() {
     }
 
-    public void startConfirmationTimeout(
-        final List<String> pushIDList, final NotifyBackURI notifyBackURI, final long timeout) {
-
+    public void startConfirmationTimeout(final List<String> pushIDList) {
     }
 
     public void startExpiryTimeout(final List<String> pushIDList, final NotifyBackURI notifyBackURI) {
