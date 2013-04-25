@@ -317,6 +317,19 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                     } else if (notifyBackURI != null && notifyBackURI.getURI().equals(notifyBack)) {
                         notifyBackURI.touch();
                     }
+                } else {
+                    //If notifyBackURI was set on the server side with no corresponding request from the client
+                    //then we should query the PushGroupManager for the uri and set it here.
+                    Iterator<String> idIterator = participatingPushIDs.iterator();
+                    while (idIterator.hasNext()) {
+                        String id =  idIterator.next();
+                        NotifyBackURI uri = pushGroupManager.getNotifyBackURI(id);
+                        log.log(Level.FINE, "notifyBackURI from PushGroupManager: '" + uri);
+                        if( uri != null){
+                            notifyBackURI = uri;
+                            break;
+                        }
+                    }
                 }
                 pushGroupManager.scan(participatingPushIDs.toArray(STRINGS));
                 pushGroupManager.cancelConfirmationTimeout(participatingPushIDs);

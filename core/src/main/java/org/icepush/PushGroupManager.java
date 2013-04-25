@@ -69,4 +69,7 @@ public interface PushGroupManager {
     void scan(String[] confirmedPushIDs);
 
     boolean setNotifyBackURI(List<String> pushIDList, NotifyBackURI notifyBackURI, boolean broadcast);
+
+    NotifyBackURI getNotifyBackURI(String pushID);
+
 }

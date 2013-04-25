@@ -359,8 +359,19 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         return groupMap.get(groupName);
     }
 
-    NotifyBackURI getNotifyBackURI(final String pushID) {
-        return parkedPushIDs.get(pushID);
+    public NotifyBackURI getNotifyBackURI(final String pushID) {
+        NotifyBackURI parkedURI = parkedPushIDs.get(pushID);
+        if(parkedURI != null){
+            return parkedURI;
+        }
+        //The pushid that has a registered notifyBackURI is not
+        //always parked.
+        PushID pusher = pushIDMap.get(pushID);
+        NotifyBackURI pushURI = null;
+        if( pushID != null){
+            pushURI = pusher.getNotifyBackURI();
+        }
+        return pushURI;
     }
 
     void groupTouched(final String groupName, final long timestamp) {

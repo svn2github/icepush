@@ -106,4 +106,8 @@ public class NoopPushGroupManager implements PushGroupManager {
 
     public void startExpiryTimeout(final List<String> pushIDList, final NotifyBackURI notifyBackURI) {
     }
+
+    public NotifyBackURI getNotifyBackURI(String pushID) {
+        return null;
+    }
 }
