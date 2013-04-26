@@ -99,6 +99,8 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected void addDispatches() {
+        dispatchOn(".*code\\.min\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
+                new CodeServer("ice.push/icepush.uncompressed.js"))), configuration));
         dispatchOn(".*code\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
                 new CodeServer("ice.push/icepush.js"))), configuration));
         dispatchOn(".*", new BrowserDispatcher(configuration) {
@@ -122,6 +124,7 @@ public class MainServlet implements PseudoServlet {
 
     public void service(HttpServletRequest request,
                         HttpServletResponse response) throws Exception {
+        System.out.println("service");
         try {
             dispatcher.service(request, response);
         } catch (SocketException e) {
