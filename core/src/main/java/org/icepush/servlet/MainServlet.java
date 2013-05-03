@@ -124,7 +124,6 @@ public class MainServlet implements PseudoServlet {
 
     public void service(HttpServletRequest request,
                         HttpServletResponse response) throws Exception {
-        System.out.println("service");
         try {
             dispatcher.service(request, response);
         } catch (SocketException e) {
