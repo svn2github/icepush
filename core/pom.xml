@@ -238,10 +238,6 @@
                                 <goals>
                                     <goal>sign</goal>
                                 </goals>
-                                <configuration>
-                                    <keyname>${icefaces.gpg.keyname}</keyname>
-                                    <passphrase>${icefaces.gpg.passphrase}</passphrase>
-                                </configuration>
                             </execution>
 
                         </executions>
