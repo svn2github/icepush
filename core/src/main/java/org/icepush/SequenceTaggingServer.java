@@ -16,6 +16,9 @@
 
 package org.icepush;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,7 +34,8 @@ public class SequenceTaggingServer implements Server {
 
     private Server server;
     private Slot sequenceNo;
-
+    private List<String> participatingPushIDList = new ArrayList<String>();
+    
     public SequenceTaggingServer(Slot sequenceNo, Server server) {
         this.sequenceNo = sequenceNo;
         this.server = server;
@@ -63,11 +67,21 @@ public class SequenceTaggingServer implements Server {
 
             public void respond(Response response) throws Exception {
                 try {
+                    List<String> currentParticipatingPushIDList =
+                        Arrays.asList(request.getParameterAsStrings("ice.pushid"));
+                    boolean participatingPushIDsChanged =
+                        !participatingPushIDList.containsAll(currentParticipatingPushIDList) ||
+                        !currentParticipatingPushIDList.containsAll(participatingPushIDList);
+                    if (participatingPushIDsChanged) {
+                        participatingPushIDList = currentParticipatingPushIDList;
+                    }
                     long previousSequenceNo;
                     try {
                         previousSequenceNo = request.getHeaderAsLong("ice.push.sequence");
                         if (previousSequenceNo >= sequenceNo.getLongValue()) {
                             sequenceNo.setLongValue(previousSequenceNo + 1);
+                        } else if (participatingPushIDsChanged) {
+                            sequenceNo.setLongValue(sequenceNo.getLongValue() + 1);
                         } else {
                             if (LOGGER.isLoggable(Level.WARNING)) {
                                 LOGGER.log(
@@ -81,7 +95,7 @@ public class SequenceTaggingServer implements Server {
                         // No sequence number found.
                         if (sequenceNo.getLongValue() == 0) {
                             // Start with sequence number
-                            sequenceNo.setLongValue(1);
+                            sequenceNo.setLongValue((long)1);
                         } else {
                             if (LOGGER.isLoggable(Level.WARNING)) {
                                 LOGGER.log(
