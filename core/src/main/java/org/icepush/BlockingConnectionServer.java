@@ -349,7 +349,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                     }
                 }
             } catch (RuntimeException e) {
-                log.fine("Request does not contain pushIDs.");
+                log.log(Level.FINE,"Request does not contain pushIDs.",e);
                 respondIfPendingRequest(ErrorNoopResponse);
             }
         }

@@ -364,11 +364,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         if(parkedURI != null){
             return parkedURI;
         }
-        //The pushid that has a registered notifyBackURI is not
-        //always parked.
+        //The pushid that has a registered notifyBackURI is not always parked.
         PushID pusher = pushIDMap.get(pushID);
         NotifyBackURI pushURI = null;
-        if( pushID != null){
+        if( pusher != null){
             pushURI = pusher.getNotifyBackURI();
         }
         return pushURI;
