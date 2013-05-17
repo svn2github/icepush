@@ -59,7 +59,6 @@ public class RegionTag extends BaseTag {
 
 			// Write the div;
 			w.write("<div id=\"" + id + "\">");
-			//w.flush();
 
 			// Include the page;
 			try {
