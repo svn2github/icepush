@@ -185,32 +185,20 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
 
     private static class ServerErrorResponseHandler extends FixedXMLContentHandler {
         private String message;
-        private String className;
-        private String trace;
 
-        private ServerErrorResponseHandler(Exception exception) {
+        private ServerErrorResponseHandler(Throwable exception) {
             this.message = exception.getMessage();
-            this.className = exception.getClass().getName();
-
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            PrintStream printWriter = new PrintStream(out);
-            exception.printStackTrace(printWriter);
-            this.trace = out.toString();
         }
 
         public void respond(Response response) throws Exception {
-            response.setStatus(500);
+            response.setStatus(503);
             super.respond(response);
         }
 
         public void writeTo(Writer writer) throws IOException {
-            writer.write("<server-error type=\"");
-            writer.write(className);
-            writer.write("\" message=\"");
+            writer.write("<server-error message=\"");
             writer.write(message);
-            writer.write("\">");
-            writer.write(trace);
-            writer.write("</server-error");
+            writer.write("\"/>");
             if (log.isLoggable(Level.FINE)) {
                 log.log(Level.FINE, "Sending server-error - " + message);
             }
@@ -218,13 +206,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     }
 
     private static class NoopResponseHandler extends FixedXMLContentHandler {
-        private static final String UNDEFINED = "undefined";
-
         private final String reason;
-
-        private NoopResponseHandler() {
-            this(UNDEFINED);
-        }
 
         private NoopResponseHandler(final String reason) {
             this.reason = reason;
@@ -380,9 +362,9 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                         }
                     }
                 }
-            } catch (RuntimeException e) {
-                log.log(Level.WARNING, "Failed to respond to request", e);
-                respondIfPendingRequest(new ServerErrorResponseHandler(e));
+            } catch (Throwable t) {
+                log.log(Level.WARNING, "Failed to respond to request", t);
+                respondIfPendingRequest(new ServerErrorResponseHandler(t));
             }
         }
 
