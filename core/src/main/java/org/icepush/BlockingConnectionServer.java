@@ -26,8 +26,7 @@ import org.icepush.servlet.BrowserDispatcher;
 import org.icepush.util.Slot;
 
 import javax.servlet.http.Cookie;
-import java.io.IOException;
-import java.io.Writer;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -39,7 +38,6 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private static final Logger log = Logger.getLogger(BlockingConnectionServer.class.getName());
     private static final String[] STRINGS = new String[0];
     //Define here to avoid classloading problems after application exit
-    private static final ResponseHandler ErrorNoopResponse = new NoopResponseHandler("request does not contain Push IDs");
     private static final ResponseHandler ShutdownNoopResponse = new NoopResponseHandler("shutdown");
     private static final ResponseHandler TimeoutNoopResponse = new NoopResponseHandler("response timeout");
     private final ResponseHandler CloseResponseDup = new CloseConnectionResponseHandler("duplicate") {
@@ -183,6 +181,40 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             }
         }
         return false;
+    }
+
+    private static class ServerErrorResponseHandler extends FixedXMLContentHandler {
+        private String message;
+        private String className;
+        private String trace;
+
+        private ServerErrorResponseHandler(Exception exception) {
+            this.message = exception.getMessage();
+            this.className = exception.getClass().getName();
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            PrintStream printWriter = new PrintStream(out);
+            exception.printStackTrace(printWriter);
+            this.trace = out.toString();
+        }
+
+        public void respond(Response response) throws Exception {
+            response.setStatus(500);
+            super.respond(response);
+        }
+
+        public void writeTo(Writer writer) throws IOException {
+            writer.write("<server-error type=\"");
+            writer.write(className);
+            writer.write("\" message=\"");
+            writer.write(message);
+            writer.write("\">");
+            writer.write(trace);
+            writer.write("</server-error");
+            if (log.isLoggable(Level.FINE)) {
+                log.log(Level.FINE, "Sending server-error - " + message);
+            }
+        }
     }
 
     private static class NoopResponseHandler extends FixedXMLContentHandler {
@@ -349,8 +381,8 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                     }
                 }
             } catch (RuntimeException e) {
-                log.log(Level.FINE,"Request does not contain pushIDs.",e);
-                respondIfPendingRequest(ErrorNoopResponse);
+                log.log(Level.WARNING, "Failed to respond to request", e);
+                respondIfPendingRequest(new ServerErrorResponseHandler(e));
             }
         }
 
