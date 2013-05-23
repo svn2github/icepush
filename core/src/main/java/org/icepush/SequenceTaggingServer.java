@@ -35,6 +35,7 @@ public class SequenceTaggingServer implements Server {
     private Server server;
     private Slot sequenceNo;
     private List<String> participatingPushIDList = new ArrayList<String>();
+    private boolean participatingPushIDsChanged;
     
     public SequenceTaggingServer(Slot sequenceNo, Server server) {
         this.sequenceNo = sequenceNo;
@@ -42,6 +43,14 @@ public class SequenceTaggingServer implements Server {
     }
 
     public void service(Request request) throws Exception {
+        List<String> currentParticipatingPushIDList =
+            Arrays.asList(request.getParameterAsStrings("ice.pushid"));
+        participatingPushIDsChanged =
+            !participatingPushIDList.containsAll(currentParticipatingPushIDList) ||
+            !currentParticipatingPushIDList.containsAll(participatingPushIDList);
+        if (participatingPushIDsChanged) {
+            participatingPushIDList = currentParticipatingPushIDList;
+        }
         server.service(new TaggingRequest(request));
     }
 
@@ -67,14 +76,6 @@ public class SequenceTaggingServer implements Server {
 
             public void respond(Response response) throws Exception {
                 try {
-                    List<String> currentParticipatingPushIDList =
-                        Arrays.asList(request.getParameterAsStrings("ice.pushid"));
-                    boolean participatingPushIDsChanged =
-                        !participatingPushIDList.containsAll(currentParticipatingPushIDList) ||
-                        !currentParticipatingPushIDList.containsAll(participatingPushIDList);
-                    if (participatingPushIDsChanged) {
-                        participatingPushIDList = currentParticipatingPushIDList;
-                    }
                     long previousSequenceNo;
                     try {
                         previousSequenceNo = request.getHeaderAsLong("ice.push.sequence");
