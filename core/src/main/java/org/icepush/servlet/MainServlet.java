@@ -89,7 +89,7 @@ public class MainServlet implements PseudoServlet {
         terminateConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
         monitoringScheduler = new Timer("Monitoring scheduler", true);
         configuration = new ServletContextConfiguration("org.icepush", context);
-        pushContext = new PushContext(context);
+        pushContext = PushContext.getInstance(context);
         pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context, executor, configuration);
         pushContext.setPushGroupManager(pushGroupManager);
         dispatcher = new PathDispatcher();

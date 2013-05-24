@@ -34,14 +34,10 @@ public class PushContext {
 
     /**
      * <p>
-     *     Constructs a new PushContext using the specified <code>context</code>.
+     *     Constructs a new PushContext.
      * </p>
-     *
-     * @param      context
-     *                 The ServletContext.
      */
-    public PushContext(final ServletContext context) {
-        context.setAttribute(PushContext.class.getName(), this);
+    private PushContext() {
     }
 
     /**
@@ -167,15 +163,19 @@ public class PushContext {
 
     /**
      * <p>
-     *     Gets the PushContext instance associated with the specified <code>context</code>.
+     *     Gets the PushContext instance associated with the specified <code>servletContext</code>.
      * </p>
      *
-     * @param      context
+     * @param      servletContext
      *                 The ServletContext from which to get the PushContext.
      * @return     The PushContext.
      */
-    public static synchronized PushContext getInstance(ServletContext context) {
-        return (PushContext) context.getAttribute(PushContext.class.getName());
+    public static synchronized PushContext getInstance(final ServletContext servletContext) {
+        PushContext pushContext = (PushContext)servletContext.getAttribute(PushContext.class.getName());
+        if (pushContext == null) {
+            servletContext.setAttribute(PushContext.class.getName(), pushContext = new PushContext());
+        }
+        return pushContext;
     }
 
     private static String getBrowserIDFromCookie(HttpServletRequest request) {
