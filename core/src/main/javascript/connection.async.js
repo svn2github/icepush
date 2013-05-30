@@ -155,6 +155,10 @@ var AsyncConnection;
                                 }
                             } else {
                                 info(logger, 'blocking connection stopped at server\'s request...');
+                                var reason = getHeader(response, 'X-Connection-reason');
+                                if (reason) {
+                                    info(logger, reason);
+                                }
                                 //avoid to reconnect
                                 stop(timeoutBomb);
                             }
