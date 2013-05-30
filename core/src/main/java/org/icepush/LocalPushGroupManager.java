@@ -63,8 +63,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         new CopyOnWriteArraySet<BlockingConnectionServer>();
     protected final ConcurrentMap<String, PushID> pushIDMap = new ConcurrentHashMap<String, PushID>();
     protected final ConcurrentMap<String, Group> groupMap = new ConcurrentHashMap<String, Group>();
+    private final ConcurrentMap<String, NotifyBackURI> parkedPushIDs = new ConcurrentHashMap<String, NotifyBackURI>();
     private final HashSet<String> pendingNotifications = new HashSet();
-    private final HashMap<String, NotifyBackURI> parkedPushIDs = new HashMap();
     private final NotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
     private final Timer timer = new Timer("Notification queue consumer.", true);
     private final TimerTask queueConsumer;
@@ -248,15 +248,19 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         parkedPushIDs.put(pushId, notifyBackURI);
     }
 
-    public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final List<String> listenedPushIds)  {
-        for (String parkedID : parkedPushIDs.keySet())  {
-            NotifyBackURI thisNotifyBack = parkedPushIDs.get(parkedID);
-            if (thisNotifyBack.getURI().equals(notifyBackURI.getURI()) && !listenedPushIds.contains(parkedID))  {
+    public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final List<String> listenedPushIds) {
+        for (final Map.Entry<String, NotifyBackURI> parkedPushIDEntry : parkedPushIDs.entrySet()) {
+            String parkedPushID = parkedPushIDEntry.getKey();
+            if (parkedPushIDEntry.getValue().getURI().equals(notifyBackURI.getURI()) &&
+                !listenedPushIds.contains(parkedPushID)) {
+
+                parkedPushIDs.remove(parkedPushID);
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
-                        Level.FINE, "Removed unlistened parked PushID '" + parkedID + "' for '" + notifyBackURI + "'.");
+                        Level.FINE,
+                        "Removed unlistened parked PushID '" + parkedPushID + "' for " +
+                            "NotifyBackURI '" + notifyBackURI + "'.");
                 }
-                parkedPushIDs.remove(parkedID);
             }
         }
     }
