@@ -322,29 +322,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                 lastWindow = currentWindow;
 
                 pendingRequest.put(request);
-                String notifyBack = request.getHeader("ice.notifyBack");
-                if (notifyBack != null && notifyBack.trim().length() != 0) {
-                    if (notifyBackURI == null || !notifyBackURI.getURI().equals(notifyBack)) {
-                        log.log(Level.FINE, "Found new NotifyBackURI: '" + notifyBack + "'");
-                        notifyBackURI = new NotifyBackURI(notifyBack);
-                        pushGroupManager.setNotifyBackURI(participatingPushIDs, notifyBackURI, true);
-                    } else if (notifyBackURI != null && notifyBackURI.getURI().equals(notifyBack)) {
-                        notifyBackURI.touch();
-                    }
-                } else {
-                    //If notifyBackURI was set on the server side with no corresponding request from the client
-                    //then we should query the PushGroupManager for the uri and set it here.
-                    Iterator<String> idIterator = participatingPushIDs.iterator();
-                    while (idIterator.hasNext()) {
-                        String id =  idIterator.next();
-                        NotifyBackURI uri = pushGroupManager.getNotifyBackURI(id);
-                        log.log(Level.FINE, "notifyBackURI from PushGroupManager: '" + uri);
-                        if( uri != null){
-                            notifyBackURI = uri;
-                            break;
-                        }
-                    }
-                }
+                setNotifyBackURI(request);
                 pushGroupManager.scan(participatingPushIDs.toArray(STRINGS));
                 pushGroupManager.cancelConfirmationTimeout(participatingPushIDs);
                 pushGroupManager.cancelExpiryTimeout(participatingPushIDs);
@@ -410,12 +388,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             }
             participatingPushIDs = Arrays.asList(
                     request.getParameterAsStrings("ice.pushid"));
-            String notifyBack = request.getHeader("ice.notifyBack");
-            if (notifyBack != null && notifyBack.trim().length() != 0 &&
-                    (notifyBackURI == null || !notifyBackURI.getURI().equals(notifyBack))) {
-
-                notifyBackURI = new NotifyBackURI(notifyBack);
-            }
+            setNotifyBackURI(request);
             log.log(
                 Level.FINE,
                 "ICEpush metric:" +
@@ -451,5 +424,30 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
 
     private void recordResponseTime() {
         responseTimestamp = System.currentTimeMillis();
+    }
+
+    private void setNotifyBackURI(final Request request) {
+        String notifyBack = request.getHeader("ice.notifyBack");
+        if (notifyBack != null && notifyBack.trim().length() != 0) {
+            if (this.notifyBackURI == null || !this.notifyBackURI.getURI().equals(notifyBack)) {
+                log.log(Level.FINE, "Found new NotifyBackURI on Request: '" + notifyBack + "'.");
+                this.notifyBackURI = new NotifyBackURI(notifyBack);
+                pushGroupManager.setNotifyBackURI(participatingPushIDs, this.notifyBackURI, true);
+            } else if (this.notifyBackURI != null && this.notifyBackURI.getURI().equals(notifyBack)) {
+                this.notifyBackURI.touch();
+            }
+        } else {
+            //If notifyBackURI was set on the server side with no corresponding request from the client
+            //then we should query the PushGroupManager for the uri and set it here.
+            Iterator<String> idIterator = participatingPushIDs.iterator();
+            while (idIterator.hasNext()) {
+                NotifyBackURI notifyBackURI = pushGroupManager.getNotifyBackURI(idIterator.next());
+                if (notifyBackURI != null) {
+                    log.log(Level.FINE, "Found NotifyBackURI on PushGroupManager: '" + notifyBackURI + "'.");
+                    this.notifyBackURI = notifyBackURI;
+                    break;
+                }
+            }
+        }
     }
 }
