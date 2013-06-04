@@ -73,7 +73,7 @@ if (!window.ice.icepush) {
             try {
                 var idsCookie = lookupCookie(PushIDs);
                 var registeredIDs = split(value(idsCookie), ' ');
-                update(idsCookie, join(concatenate(registeredIDs, ids), ' '));
+                update(idsCookie, join(asSet(concatenate(registeredIDs, ids)), ' '));
             } catch (e) {
                 Cookie(PushIDs, join(ids, ' '));
             }
