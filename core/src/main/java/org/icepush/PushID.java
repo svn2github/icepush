@@ -11,6 +11,8 @@ import java.util.logging.Logger;
 
 public class PushID
 implements Serializable {
+    private static final long serialVersionUID = 2845881329862716766L;
+
     private static final Logger LOGGER = Logger.getLogger(PushID.class.getName());
 
     // These counters are only used by LOGGER
@@ -29,7 +31,7 @@ implements Serializable {
     private transient TimerTask expiryTimeout;
     private NotifyBackURI notifyBackURI;
     private transient PushConfiguration pushConfiguration;
-    private transient Status status = newStatus();
+    private Status status = newStatus();
 
     // These counters are only used by LOGGER
     private AtomicInteger confirmationTimeoutCounter = new AtomicInteger(0);
@@ -377,6 +379,8 @@ implements Serializable {
 
     public static class Status
     implements Serializable {
+        private static final long serialVersionUID = 8842472472789699224L;
+
         private long backupConnectionRecreationTimeout;
         private long connectionRecreationTimeout = -1;
         private long sequenceNumber = -1;
