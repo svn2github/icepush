@@ -21,6 +21,39 @@ if (!window.ice) {
 
 if (!window.ice.icepush) {
     (function(namespace) {
+        var idOf = operator();
+        var touch = operator();
+        var hasExpired = operator();
+        var serialize = operator();
+        function PushRegistration(id, time) {
+            var accessTime = time || (new Date()).getTime();
+            return object(function(method) {
+                method(idOf, function(self) {
+                    return id;
+                });
+
+                method(serialize, function(self) {
+                    return id + '***' + accessTime;
+                });
+
+                method(hasExpired, function(self, interval) {
+                    return accessTime + interval < (new Date()).getTime();
+                });
+
+                method(touch, function(self) {
+                    accessTime = (new Date()).getTime();
+                });
+
+                method(equal, function(self, other) {
+                    return id == idOf(other);
+                });
+            });
+        }
+        function deserialize(data) {
+            var atoms = split(data, '***');
+            return PushRegistration(atoms[0], asNumber(atoms[1]));
+        }
+
         window.ice.icepush = true;
         //include functional.js
         //include oo.js
@@ -69,21 +102,35 @@ if (!window.ice.icepush) {
         namespace.info = info;
         var pushIdentifiers = [];
 
+        function getPushRegistrations() {
+            var idsCookie = lookupCookie(PushIDs);
+            return collect(split(value(idsCookie), ' '), deserialize);
+        }
+
+        function withPushRegistrations(processor) {
+            var idsCookie = lookupCookie(PushIDs, function() {
+                return Cookie(PushIDs, '');
+            });
+            var registrations = collect(split(value(idsCookie), ' '), deserialize);
+            var newRegistrations = processor(registrations);
+            var serializedRegistrations = join(collect(newRegistrations, serialize), ' ');
+            update(idsCookie, serializedRegistrations);
+        }
+
         function enlistPushIDsWithBrowser(ids) {
-            try {
-                var idsCookie = lookupCookie(PushIDs);
-                var registeredIDs = split(value(idsCookie), ' ');
-                update(idsCookie, join(concatenate(registeredIDs, ids), ' '));
-            } catch (e) {
-                Cookie(PushIDs, join(ids, ' '));
-            }
+            withPushRegistrations(function(registrations) {
+                var addedRegistrations = collect(ids, PushRegistration);
+                return asSet(concatenate(registrations, addedRegistrations));
+            });
         }
 
         function delistPushIDsWithBrowser(ids) {
             if (existsCookie(PushIDs)) {
-                var idsCookie = lookupCookie(PushIDs);
-                var registeredIDs = split(value(idsCookie), ' ');
-                update(idsCookie, join(complement(registeredIDs, ids), ' '));
+                withPushRegistrations(function(oldRegistrations) {
+                    return select(oldRegistrations, function(registration) {
+                        return contains(idOf(registration), ids);
+                    });
+                });
             }
         }
 
@@ -255,9 +302,8 @@ if (!window.ice.icepush) {
             });
 
             //purge discarded pushIDs from the notification list
-            function purgeUnusedPushIDs(ids) {
-                var registeredIDsCookie = lookupCookie(PushIDs);
-                var registeredIDs = split(value(registeredIDsCookie), ' ');
+            function purgeNonRegisteredIDs(ids) {
+                var registeredIDs = collect(getPushRegistrations(), idOf);
                 return intersect(ids, registeredIDs);
             }
 
@@ -275,6 +321,36 @@ if (!window.ice.icepush) {
                 }
             }
 
+            //dynamically read expiration interval from configuration
+            function expirationInterval() {
+                return attributeAsNumber(configuration, 'pushIdTimeout', 2 * 60 * 1000);//2 minutes;
+            }
+            var registrationExpiryMonitor = Delay(function() {
+                var interval = expirationInterval();
+                withPushRegistrations(function(registrations) {
+                    return reject(registrations, function(registration) {
+                        var isRegistrationExpired = hasExpired(registration, interval);
+                        if (isRegistrationExpired) {
+                            info(logger, 'Push ID "' + idOf(registration) + '" is not being used anymore, discarding it now.')
+                        }
+                        return isRegistrationExpired;
+                    });
+                });
+            }, 45 * 1000);
+            run(registrationExpiryMonitor);
+
+            function touchRegistrationsFor(receivedPushIDs) {
+                withPushRegistrations(function(currentRegistrations) {
+                    each(currentRegistrations, function (registration) {
+                        if (contains(receivedPushIDs, idOf(registration))) {
+                            touch(registration);
+                        }
+                    });
+
+                    return currentRegistrations;
+                });
+            }
+
             //choose between localStorage or cookie based inter-window communication
             var notificationBroadcaster = window.localStorage ?
                 LocalStorageNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications) : CookieBasedNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications);
@@ -283,9 +359,10 @@ if (!window.ice.icepush) {
             register(commandDispatcher, 'notified-pushids', function(message) {
                 var text = message.firstChild;
                 if (text && !blank(text.data)) {
-                    var receivedPushIDs = split(text.data, ' ');
+                    var receivedPushIDs = asSet(split(text.data, ' '));
                     debug(logger, 'received notifications: ' + receivedPushIDs);
-                    notifyWindows(notificationBroadcaster, purgeUnusedPushIDs(asSet(receivedPushIDs)));
+                    notifyWindows(notificationBroadcaster, purgeNonRegisteredIDs(receivedPushIDs));
+                    touchRegistrationsFor(receivedPushIDs);
                 } else {
                     warn(logger, "No notification was received.");
                 }
@@ -386,7 +463,7 @@ if (!window.ice.icepush) {
                 }
             };
 
-            //make public park push ID feature
+            //make public park push idOf feature
             var deviceURI;
             namespace.push.parkInactivePushIds = function(url) {
                 deviceURI = url;

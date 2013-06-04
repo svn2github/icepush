@@ -29,7 +29,6 @@ var shutdown = operator();
 var AsyncConnection;
 
 (function() {
-    var PushIDs = 'ice.pushids';
     var ConnectionRunning = 'ice.connection.running';
     var ConnectionLease = 'ice.connection.lease';
     var ConnectionContextPath = 'ice.connection.contextpath';
@@ -52,7 +51,7 @@ var AsyncConnection;
 
     function registeredPushIds() {
         try {
-            return split(lookupCookieValue(PushIDs), ' ');
+            return collect(getPushRegistrations(), idOf);
         } catch (e) {
             return [];
         }
