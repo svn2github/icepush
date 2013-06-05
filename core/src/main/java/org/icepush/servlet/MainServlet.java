@@ -99,10 +99,14 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected void addDispatches() {
-        dispatchOn(".*code\\.min\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
-                new CodeServer("ice.push/icepush.uncompressed.js"))), configuration));
         dispatchOn(".*code\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
+                new CodeServer("ice.push/icepush.uncompressed.js"))), configuration));
+        dispatchOn(".*code\\.min\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
                 new CodeServer("ice.push/icepush.js"))), configuration));
+        dispatchOn(".*support\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
+                new CodeServer("ice.core/bridge-support.uncompressed.js"))), configuration));
+        dispatchOn(".*support\\.min\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
+                new CodeServer("ice.core/bridge-support.js"))), configuration));
         dispatchOn(".*", new BrowserDispatcher(configuration) {
             protected PseudoServlet newServer(String browserID) {
                 return createBrowserBoundServlet(browserID);

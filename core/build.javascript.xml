@@ -21,46 +21,30 @@
     <property name="src.dir" location="src/main/javascript"/>
     <property name="lib.dir" location="src/main/javascript/lib"/>
     <property name="build.dir" location="${basedir}/build/javascript"/>
-    <property name="build.res.dir" location="${build.dir}/META-INF/resources/ice.push"/>
+    <property name="res.dir" location="${build.dir}/META-INF/resources"/>
+    <property name="build.res.dir" location="${res.dir}/ice.push"/>
     <property name="tmp" value="${build.dir}/tmp.js"/>
 
     <target name="prepare" description="Collate bridge code">
         <tstamp/>
         <mkdir dir="${build.dir}"/>
         <mkdir dir="${build.res.dir}"/>
-        <loadfile property="functional.js" srcFile="${lib.dir}/functional.js"/>
-        <loadfile property="oo.js" srcFile="${lib.dir}/oo.js"/>
-        <loadfile property="collection.js" srcFile="${lib.dir}/collection.js"/>
-        <loadfile property="string.js" srcFile="${lib.dir}/string.js"/>
-        <loadfile property="window.js" srcFile="${lib.dir}/window.js"/>
-        <loadfile property="http.js" srcFile="${lib.dir}/http.js"/>
-        <loadfile property="cookie.js" srcFile="${lib.dir}/cookie.js"/>
-        <loadfile property="logger.js" srcFile="${lib.dir}/logger.js"/>
-        <loadfile property="delay.js" srcFile="${lib.dir}/delay.js"/>
-        <loadfile property="element.js" srcFile="${lib.dir}/element.js"/>
-        <loadfile property="event.js" srcFile="${lib.dir}/event.js"/>
         <loadfile property="configuration.js" srcFile="${lib.dir}/configuration.js"/>
         <loadfile property="command.js" srcFile="${src.dir}/command.js"/>
         <loadfile property="connection.async.js" srcFile="${src.dir}/connection.async.js"/>
         <loadfile property="inter.window.notification.js" srcFile="${src.dir}/inter.window.notification.js"/>
         <copy file="${src.dir}/application.js" tofile="${tmp}" overwrite="yes">
             <filterset begintoken="//include " endtoken=".js">
-                <filter token="functional" value="${functional.js}"/>
-                <filter token="oo" value="${oo.js}"/>
-                <filter token="collection" value="${collection.js}"/>
-                <filter token="string" value="${string.js}"/>
-                <filter token="window" value="${window.js}"/>
-                <filter token="http" value="${http.js}"/>
-                <filter token="cookie" value="${cookie.js}"/>
-                <filter token="logger" value="${logger.js}"/>
-                <filter token="delay" value="${delay.js}"/>
-                <filter token="element" value="${element.js}"/>
-                <filter token="event" value="${event.js}"/>
                 <filter token="configuration" value="${configuration.js}"/>
                 <filter token="command" value="${command.js}"/>
                 <filter token="connection.async" value="${connection.async.js}"/>
                 <filter token="inter.window.notification" value="${inter.window.notification.js}"/>
             </filterset>
+        </copy>
+        <copy todir="${res.dir}">
+            <fileset dir="src/main/resources/META-INF/">
+                <include name="**/**"/>
+            </fileset>
         </copy>
     </target>
 

@@ -22,17 +22,20 @@ if (!window.ice) {
 if (!window.ice.icepush) {
     (function(namespace) {
         window.ice.icepush = true;
-        //include functional.js
-        //include oo.js
-        //include collection.js
-        //include string.js
-        //include window.js
-        //include logger.js
-        //include cookie.js
-        //include delay.js
-        //include element.js
-        //include event.js
-        //include http.js
+
+        ice.evaluate(ice.importFrom('ice.lib.functional'));
+        ice.evaluate(ice.importFrom('ice.lib.oo'));
+        ice.evaluate(ice.importFrom('ice.lib.collection'));
+        ice.evaluate(ice.importFrom('ice.lib.string'));
+        ice.evaluate(ice.importFrom('ice.lib.delay'));
+        ice.evaluate(ice.importFrom('ice.lib.cookie'));
+        ice.evaluate(ice.importFrom('ice.lib.window'));
+        ice.evaluate(ice.importFrom('ice.lib.event'));
+        ice.evaluate(ice.importFrom('ice.lib.element'));
+        ice.evaluate(ice.importFrom('ice.lib.logger'));
+        ice.evaluate(ice.importFrom('ice.lib.query'));
+        ice.evaluate(ice.importFrom('ice.lib.http'));
+
         //include configuration.js
         //include command.js
         //include connection.async.js
