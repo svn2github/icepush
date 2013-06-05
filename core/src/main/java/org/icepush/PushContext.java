@@ -179,6 +179,11 @@ public class PushContext {
     }
 
     private static String getBrowserIDFromCookie(HttpServletRequest request) {
+        String browserID = request.getHeader(BrowserIDCookieName);
+        if (null != browserID)  {
+            return browserID;
+        }
+
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {

@@ -217,6 +217,7 @@ if (!window.ice.icepush) {
         };
 
         function Bridge() {
+            var browserID;
             var windowID = namespace.windowID;
             var logger = childLogger(namespace.logger, windowID);
             var publicConfiguration = namespace.push.configuration;
@@ -240,7 +241,9 @@ if (!window.ice.icepush) {
                 changeHeartbeatInterval(asyncConnection, attributeAsNumber(configuration, 'heartbeatTimeout', 15000));
             });
             register(commandDispatcher, 'browser', function(message) {
-                Cookie(BrowserIDCookieName, message.getAttribute('id'));
+                browserID = message.getAttribute('id');
+                Cookie(BrowserIDCookieName, browserID);
+                
             });
             register(commandDispatcher, 'back-off', function(message) {
                 debug(logger, 'received back-off');
@@ -305,6 +308,7 @@ if (!window.ice.icepush) {
             onSend(asyncConnection, function(request) {
                 //send current sequence number
                 setHeader(request, 'ice.push.sequence', sequenceNo);
+                setHeader(request, 'ice.push.browser', browserID);
                 if (heartbeatTimestamp) {
                     setHeader(request, 'ice.push.heartbeatTimestamp', heartbeatTimestamp);
                 }

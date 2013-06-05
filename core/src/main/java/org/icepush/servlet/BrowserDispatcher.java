@@ -17,7 +17,7 @@
 package org.icepush.servlet;
 
 import org.icepush.Configuration;
-import org.icepush.http.Request;
+import org.icepush.PushContext;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -31,6 +31,7 @@ import java.util.logging.Logger;
 
 public abstract class BrowserDispatcher implements PseudoServlet {
     private final static Logger log = Logger.getLogger(BrowserDispatcher.class.getName());
+    private static final String BrowserIDCookieName = "ice.push.browser";
     private final Map browserBoundServlets = new HashMap();
     private final long browserTimeout;
 
@@ -71,17 +72,17 @@ public abstract class BrowserDispatcher implements PseudoServlet {
     }
 
     public static String getBrowserIDFromCookie(HttpServletRequest request) {
-        return getBrowserIDFromCookies(request.getCookies());
-    }
-
-    public static String getBrowserIDFromCookie(Request request) {
+        String browserID = request.getHeader(BrowserIDCookieName);
+        if (null != browserID)  {
+            return browserID;
+        }
         return getBrowserIDFromCookies(request.getCookies());
     }
 
     public static String getBrowserIDFromCookies(Cookie[] cookies)  {
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if ("ice.push.browser".equals(cookie.getName())) {
+                if (BrowserIDCookieName.equals(cookie.getName())) {
                     return cookie.getValue();
                 }
             }

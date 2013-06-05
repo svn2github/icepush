@@ -36,6 +36,7 @@ import java.util.logging.Logger;
 
 public class BlockingConnectionServer extends TimerTask implements Server, NotificationBroadcaster.Receiver {
     private static final Logger log = Logger.getLogger(BlockingConnectionServer.class.getName());
+    private static final String BrowserIDCookieName = "ice.push.browser";
     private static final String[] STRINGS = new String[0];
     //Define here to avoid classloading problems after application exit
     private static final ResponseHandler ShutdownNoopResponse = new NoopResponseHandler("shutdown");
@@ -381,8 +382,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         }
 
         if (log.isLoggable(Level.FINE)) {
-            String browserID = BrowserDispatcher
-                    .getBrowserIDFromCookie(request);
+            String browserID = getBrowserIDFromCookie(request);
             if (null == browserID)  {
                 browserID = "undefined";
             }
@@ -402,10 +402,14 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     }
 
     private static String getBrowserIDFromCookie(final Request request) {
+        String browserID = request.getHeader(BrowserIDCookieName);
+        if (null != browserID)  {
+            return browserID;
+        }
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if ("ice.push.browser".equals(cookie.getName())) {
+                if (BrowserIDCookieName.equals(cookie.getName())) {
                     return cookie.getValue();
                 }
             }
