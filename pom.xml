@@ -20,13 +20,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.icefaces</groupId>
+	     <groupId>com.icesoft.icefaces-ee</groupId>
         <artifactId>bundle-parent</artifactId>
-        <version>3.4.0-SNAPSHOT</version>
+        <version>3.3.0.GA</version>
         <relativePath>..</relativePath>
     </parent>
 
-    <groupId>org.icepush</groupId>
+    <groupId>com.icesoft.icepush-ee</groupId>
     <artifactId>icepush-parent</artifactId>
     <packaging>pom</packaging>
     <name>${icepush.product.name} Parent</name>
