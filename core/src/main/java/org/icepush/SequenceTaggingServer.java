@@ -84,9 +84,9 @@ public class SequenceTaggingServer implements Server {
                         } else if (participatingPushIDsChanged) {
                             sequenceNo.setLongValue(sequenceNo.getLongValue() + 1);
                         } else {
-                            if (LOGGER.isLoggable(Level.WARNING)) {
+                            if (LOGGER.isLoggable(Level.FINE)) {
                                 LOGGER.log(
-                                    Level.WARNING,
+                                    Level.FINE,
                                     "Request's 'ice.push.sequence' [" + previousSequenceNo + "] is less than " +
                                         "the server-side sequence number [" + sequenceNo.getLongValue() + "].");
                             }
@@ -98,9 +98,9 @@ public class SequenceTaggingServer implements Server {
                             // Start with sequence number
                             sequenceNo.setLongValue((long)1);
                         } else {
-                            if (LOGGER.isLoggable(Level.WARNING)) {
+                            if (LOGGER.isLoggable(Level.FINE)) {
                                 LOGGER.log(
-                                    Level.WARNING,
+                                    Level.FINE,
                                     "Request's 'ice.push.sequence' header is missing, " +
                                         "while server-side sequence number is '" + sequenceNo.getLongValue() + "'.");
                             }
