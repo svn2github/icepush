@@ -429,13 +429,9 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private void setNotifyBackURI(final Request request) {
         String notifyBack = request.getHeader("ice.notifyBack");
         if (notifyBack != null && notifyBack.trim().length() != 0) {
-            if (this.notifyBackURI == null || !this.notifyBackURI.getURI().equals(notifyBack)) {
-                log.log(Level.FINE, "Found new NotifyBackURI on Request: '" + notifyBack + "'.");
-                this.notifyBackURI = new NotifyBackURI(notifyBack);
-                pushGroupManager.setNotifyBackURI(participatingPushIDs, this.notifyBackURI, true);
-            } else if (this.notifyBackURI != null && this.notifyBackURI.getURI().equals(notifyBack)) {
-                this.notifyBackURI.touch();
-            }
+            log.log(Level.FINE, "Found new NotifyBackURI on Request: '" + notifyBack + "'.");
+            this.notifyBackURI = new NotifyBackURI(notifyBack);
+            pushGroupManager.setNotifyBackURI(participatingPushIDs, this.notifyBackURI, true);
         } else {
             //If notifyBackURI was set on the server side with no corresponding request from the client
             //then we should query the PushGroupManager for the uri and set it here.

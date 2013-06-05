@@ -238,6 +238,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
             if (pushID != null) {
                 if (pushID.setNotifyBackURI(notifyBackURI)) {
                     modified = true;
+                } else {
+                    pushID.getNotifyBackURI().touch();
                 }
             }
         }

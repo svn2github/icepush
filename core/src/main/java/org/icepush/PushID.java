@@ -147,11 +147,13 @@ implements Serializable {
     }
 
     public boolean setNotifyBackURI(final NotifyBackURI notifyBackURI) {
-        boolean _modified =
+        boolean _isNew =
             this.notifyBackURI == null ||
             !this.notifyBackURI.getURI().equals(notifyBackURI.getURI());
-        this.notifyBackURI = notifyBackURI;
-        return _modified;
+        if (_isNew) {
+            this.notifyBackURI = notifyBackURI;
+        }
+        return _isNew;
     }
 
     public void setPushConfiguration(final PushConfiguration pushConfiguration) {
