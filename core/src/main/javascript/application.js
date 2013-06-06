@@ -35,6 +35,7 @@ if (!window.ice.icepush) {
         ice.evaluate(ice.importFrom('ice.lib.logger'));
         ice.evaluate(ice.importFrom('ice.lib.query'));
         ice.evaluate(ice.importFrom('ice.lib.http'));
+        ice.evaluate(ice.importFrom('ice.lib.configuration'));
 
         //include configuration.js
         //include command.js
