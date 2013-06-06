@@ -814,6 +814,7 @@ ice.lib.configuration = ice.module(function(exportAs) {
 });
 ice.lib.window = ice.module(function(exportAs) {
     eval(ice.importFrom('ice.lib.functional'));
+    eval(ice.importFrom('ice.lib.collection'));
     function registerListener(eventType, obj, listener) {
         if (obj.addEventListener) {
             obj.addEventListener(eventType, listener, false);
@@ -844,6 +845,7 @@ ice.lib.window = ice.module(function(exportAs) {
 ice.lib.cookie = ice.module(function(exportAs) {
     eval(ice.importFrom('ice.lib.oo'));
     eval(ice.importFrom('ice.lib.string'));
+    eval(ice.importFrom('ice.lib.collection'));
     function lookupCookieValue(name) {
         var tupleString = detect(split(asString(document.cookie), '; '), function(tuple) {
             return startsWith(tuple, name);

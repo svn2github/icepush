@@ -23,19 +23,19 @@ if (!window.ice.icepush) {
     (function(namespace) {
         window.ice.icepush = true;
 
-        ice.evaluate(ice.importFrom('ice.lib.functional'));
-        ice.evaluate(ice.importFrom('ice.lib.oo'));
-        ice.evaluate(ice.importFrom('ice.lib.collection'));
-        ice.evaluate(ice.importFrom('ice.lib.string'));
-        ice.evaluate(ice.importFrom('ice.lib.delay'));
-        ice.evaluate(ice.importFrom('ice.lib.cookie'));
-        ice.evaluate(ice.importFrom('ice.lib.window'));
-        ice.evaluate(ice.importFrom('ice.lib.event'));
-        ice.evaluate(ice.importFrom('ice.lib.element'));
-        ice.evaluate(ice.importFrom('ice.lib.logger'));
-        ice.evaluate(ice.importFrom('ice.lib.query'));
-        ice.evaluate(ice.importFrom('ice.lib.http'));
-        ice.evaluate(ice.importFrom('ice.lib.configuration'));
+        eval(ice.importFrom('ice.lib.functional'));
+        eval(ice.importFrom('ice.lib.oo'));
+        eval(ice.importFrom('ice.lib.collection'));
+        eval(ice.importFrom('ice.lib.string'));
+        eval(ice.importFrom('ice.lib.delay'));
+        eval(ice.importFrom('ice.lib.cookie'));
+        eval(ice.importFrom('ice.lib.window'));
+        eval(ice.importFrom('ice.lib.event'));
+        eval(ice.importFrom('ice.lib.element'));
+        eval(ice.importFrom('ice.lib.logger'));
+        eval(ice.importFrom('ice.lib.query'));
+        eval(ice.importFrom('ice.lib.http'));
+        eval(ice.importFrom('ice.lib.configuration'));
 
         //include configuration.js
         //include command.js
