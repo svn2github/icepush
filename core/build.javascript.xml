@@ -49,27 +49,27 @@
     <target name="build.bridge.compressed" depends="prepare, file-checks, use-first-location, use-second-location" />
 
     <target name="file-checks">
-        <available file="../lib/yui-compressor.jar" property="use-first-location" />
-        <available file="../../lib/yui-compressor.jar" property="use-second-location" />
+        <available file="../lib/shrinksafe.jar" property="first-location" />
+        <available file="../../lib/shrinksafe.jar" property="second-location" />
     </target>
 
-    <target name="use-first-location">
+    <target name="use-first-location" if="first-location">
         <echo message="Compressing Javascript code..."/>
-        <java jar="../lib/yui-compressor.jar" fork="yes">
-            <arg line="--preserve-semi"/>
-            <arg value="-o"/>
-            <arg value="${build.res.dir}/icepush.js"/>
+        <java jar="../lib/shrinksafe.jar" fork="true" output="${build.res.dir}/icepush.js">
             <arg value="${tmp}"/>
+            <classpath>
+                <pathelement location="../lib/js.jar"/>
+            </classpath>
         </java>
     </target>
 
-    <target name="use-second-location">
+    <target name="use-second-location" if="second-location">
         <echo message="Compressing Javascript code..."/>
-        <java jar="../../lib/yui-compressor.jar" fork="yes">
-            <arg line="--preserve-semi"/>
-            <arg value="-o"/>
-            <arg value="${build.res.dir}/icepush.js"/>
+        <java jar="../../lib/shrinksafe.jar" fork="true" output="${build.res.dir}/icepush.js">
             <arg value="${tmp}"/>
+            <classpath>
+                <pathelement location="../../lib/js.jar"/>
+            </classpath>
         </java>
     </target>
 
