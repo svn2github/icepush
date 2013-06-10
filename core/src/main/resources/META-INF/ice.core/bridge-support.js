@@ -845,8 +845,15 @@ eval(ice.importFrom("ice.lib.collection"));
 function _129(_12a,obj,_12b){
 if(obj.addEventListener){
 obj.addEventListener(_12a,_12b,false);
+return function(){
+obj.removeEventListener(_12a,_12b,false);
+};
 }else{
-obj.attachEvent("on"+_12a,_12b);
+var type="on"+_12a;
+obj.attachEvent(type,_12b);
+return function(){
+obj.detachEvent(type,_12b);
+};
 }
 };
 var _12c=curry(_129,"load");

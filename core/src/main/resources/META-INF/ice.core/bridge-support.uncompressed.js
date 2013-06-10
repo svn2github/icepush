@@ -818,8 +818,15 @@ ice.lib.window = ice.module(function(exportAs) {
     function registerListener(eventType, obj, listener) {
         if (obj.addEventListener) {
             obj.addEventListener(eventType, listener, false);
+            return function() {
+                obj.removeEventListener(eventType, listener, false);
+            }
         } else {
-            obj.attachEvent('on' + eventType, listener);
+            var type = 'on' + eventType;
+            obj.attachEvent(type, listener);
+            return function() {
+                obj.detachEvent(type, listener);
+            }
         }
     }
     var onLoad = curry(registerListener, 'load');
