@@ -26,6 +26,7 @@ import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.jar.JarEntry;
@@ -68,18 +69,18 @@ public class AnnotationScanner {
         this.servletContext = servletContext;
     }
 
-    public Class[] getClasses()
+    public Set<Class> getClassSet()
     throws IOException {
-        List<Class> _classList = new ArrayList<Class>();
-        List<JarFile> _webArchiveList = getWebArchives();
-        for (JarFile _jarFile : _webArchiveList) {
-            _classList.addAll(getClasses(_jarFile));
+        Set<Class> _classSet = new HashSet<Class>();
+        Set<JarFile> _webArchiveList = getWebArchives();
+        for (final JarFile _jarFile : _webArchiveList) {
+            _classSet.addAll(getClassSet(_jarFile));
         }
-        return _classList.toArray(new Class[_classList.size()]);
+        return _classSet;
     }
 
-    private List<Class> getClasses(final JarFile jarFile) {
-        List<Class> _classList = new ArrayList<Class>();
+    private Set<Class> getClassSet(final JarFile jarFile) {
+        Set<Class> _classSet = new HashSet<Class>();
         ClassLoader _classLoader = getContextClassLoader();
         if (_classLoader == null) {
             _classLoader = this.getClass().getClassLoader();
@@ -137,11 +138,11 @@ public class AnnotationScanner {
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(Level.FINE, "Add class: [" + _class.getName() + "]");
                     }
-                    _classList.add(_class);
+                    _classSet.add(_class);
                 }
             }
         }
-        return _classList;
+        return _classSet;
     }
 
     private static ClassLoader getContextClassLoader() {
@@ -169,8 +170,8 @@ public class AnnotationScanner {
         }
     }
 
-    private List<JarFile> getWebArchives() {
-        List<JarFile> _webArchiveList = new ArrayList<JarFile>();
+    private Set<JarFile> getWebArchives() {
+        Set<JarFile> _webArchiveSet = new HashSet<JarFile>();
         Set<String> _resourcePaths = servletContext.getResourcePaths(WEB_INF_LIB_PREFIX);
         if (_resourcePaths != null) {
             for (String _resourcePath : _resourcePaths) {
@@ -191,7 +192,7 @@ public class AnnotationScanner {
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(Level.FINE, "Add jar: [" + _resourcePath + "]");
                     }
-                    _webArchiveList.add(_jarFile);
+                    _webArchiveSet.add(_jarFile);
                 } catch (IOException exception) {
                     // todo: Is this the right thing to do here?
                     if (LOGGER.isLoggable(Level.FINEST)) {
@@ -200,6 +201,6 @@ public class AnnotationScanner {
                 }
             }
         }
-        return _webArchiveList;
+        return _webArchiveSet;
     }
 }

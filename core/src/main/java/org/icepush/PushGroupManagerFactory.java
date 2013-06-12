@@ -41,22 +41,24 @@ public class PushGroupManagerFactory {
         final ServletContext servletContext, final ScheduledThreadPoolExecutor executor,
         final Configuration configuration) {
 
-        String _pushGroupManager = (String)servletContext.getAttribute("org.icepush.PushGroupManager");
-        if (_pushGroupManager == null) {
-            _pushGroupManager = configuration.getAttribute("pushGroupManager", null);
+        String _pushGroupManagerClassName = (String)servletContext.getAttribute("org.icepush.PushGroupManager");
+        if (_pushGroupManagerClassName == null) {
+            _pushGroupManagerClassName = configuration.getAttribute("pushGroupManager", null);
         }
-        if (_pushGroupManager == null || _pushGroupManager.trim().length() == 0) {
+        if (_pushGroupManagerClassName == null || _pushGroupManagerClassName.trim().length() == 0) {
             LOGGER.log(Level.FINE, "Using annotation scanner to find @ExtendedPushGroupManager.");
             Set<String> _annotationSet = new HashSet<String>();
             _annotationSet.add("Lorg/icepush/ExtendedPushGroupManager;");
             AnnotationScanner _annotationScanner = new AnnotationScanner(_annotationSet, servletContext);
             try {
-                Class[] _classes = _annotationScanner.getClasses();
                 // throws IOException
-                for (Class _class : _classes) {
+                Set<Class> _classSet = _annotationScanner.getClassSet();
+                _classSet.remove(PushGroupManagerFactory.class);
+                for (final Class _class : _classSet) {
                     try {
+                        LOGGER.log(Level.FINE, "Found class: '" + _class + "'");
                         if (executor == null) {
-                            return
+                            PushGroupManager _pushGroupManager =
                                 (PushGroupManager)
                                     _class.
                                         // throws NoSuchMethodException, SecurityException
@@ -65,8 +67,10 @@ public class PushGroupManagerFactory {
                                         //     IllegalAccessException, IllegalArgumentException, InstantiationException,
                                         //     InvocationTargetException, ExceptionInInitializerError
                                         newInstance(servletContext);
+                            LOGGER.log(Level.FINE, "Using class: '" + _class + "'");
+                            return _pushGroupManager;
                         } else {
-                            return
+                            PushGroupManager _pushGroupManager =
                                 (PushGroupManager)
                                     _class.
                                         // throws NoSuchMethodException, SecurityException
@@ -75,6 +79,8 @@ public class PushGroupManagerFactory {
                                         //     IllegalAccessException, IllegalArgumentException, InstantiationException,
                                         //     InvocationTargetException, ExceptionInInitializerError
                                         newInstance(servletContext, executor);
+                            LOGGER.log(Level.FINE, "Using class: '" + _class + "'");
+                            return _pushGroupManager;
                         }
                     } catch (NoSuchMethodException exception) {
                         LOGGER.log(Level.FINE, "Can't get constructor!", exception);
@@ -109,13 +115,13 @@ public class PushGroupManagerFactory {
                 // Do nothing.
             }
         } else {
-            LOGGER.log(Level.FINE, "PushGroupManager: " + _pushGroupManager);
+            LOGGER.log(Level.FINE, "PushGroupManager: " + _pushGroupManagerClassName);
             try {
                 if (executor == null) {
                     return
                         (PushGroupManager)
                             // throws ClassNotFoundException, ExceptionInInitializerError
-                            Class.forName(_pushGroupManager).
+                            Class.forName(_pushGroupManagerClassName).
                                 // throws NoSuchMethodException, SecurityException
                                 getConstructor(ServletContext.class).
                                 // throws
@@ -125,7 +131,7 @@ public class PushGroupManagerFactory {
                 } else {
                     return
                         (PushGroupManager)
-                            Class.forName(_pushGroupManager).
+                            Class.forName(_pushGroupManagerClassName).
                                 // throws NoSuchMethodException, SecurityException
                                 getConstructor(ServletContext.class, ScheduledThreadPoolExecutor.class).
                                 // throws
