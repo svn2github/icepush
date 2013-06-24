@@ -367,7 +367,6 @@ var AsyncConnection;
             });
 
             method(startConnection, function(self) {
-                initializeConnection();
                 createBlockingConnectionMonitor();
                 paused = false;
             });
