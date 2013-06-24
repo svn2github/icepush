@@ -21,6 +21,7 @@ var onReceive = operator();
 var onServerError = operator();
 var whenDown = operator();
 var whenTrouble = operator();
+var startConnection = operator();
 var resumeConnection = operator();
 var pauseConnection = operator();
 var controlRequest = operator();
@@ -342,8 +343,6 @@ var AsyncConnection;
             }, pollingPeriod));
         }
 
-        createBlockingConnectionMonitor();
-
         info(logger, 'connection monitoring started within window ' + namespace.windowID);
 
         return object(function(method) {
@@ -365,6 +364,12 @@ var AsyncConnection;
 
             method(whenTrouble, function(self, callback) {
                 append(connectionTroubleListeners, callback);
+            });
+
+            method(startConnection, function(self) {
+                initializeConnection();
+                createBlockingConnectionMonitor();
+                paused = false;
             });
 
             method(resumeConnection, function(self) {
