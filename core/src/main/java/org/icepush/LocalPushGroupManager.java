@@ -292,10 +292,15 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     public void startConfirmationTimeout(final List<String> pushIDList) {
+        Set<NotifyBackURI> notifyBackURISet = new HashSet<NotifyBackURI>();
         for (final String pushIDString : pushIDList) {
             PushID pushID = pushIDMap.get(pushIDString);
             if (pushID != null) {
-                pushID.startConfirmationTimeout(pushID.getSequenceNumber());
+                NotifyBackURI notifyBackURI = pushID.getNotifyBackURI();
+                if (notifyBackURI != null && !notifyBackURISet.contains(notifyBackURI)) {
+                    notifyBackURISet.add(notifyBackURI);
+                    pushID.startConfirmationTimeout(pushID.getSequenceNumber());
+                }
             }
         }
     }
