@@ -26,7 +26,6 @@
     <property name="root.offset" value=".."/>
     <property name="java.dir" location="src/main/java"/>
     <property name="javadocs.dir" location="${build.dir}/javadocs"/>
-    <property name="push.product" value="ICEpush"/>
     <property file="${root.offset}/build.properties"/>
     <property name="product.info" value="org/icepush/ProductInfo.java"/>
 
@@ -52,7 +51,7 @@
               overwrite="true"/>
         <replace file="${java.dir}/${product.info}" >
             <replacefilter token="@company@"           value="${company}"/>
-            <replacefilter token="@product@"           value="${product}"/>
+            <replacefilter token="@product@"           value="${icepush.product}"/>
             <replacefilter token="@release.type@"      value="${release.type}"/>
             <replacefilter token="@version.primary@"   value="${version.primary}"/>
             <replacefilter token="@version.secondary@" value="${version.secondary}"/>
