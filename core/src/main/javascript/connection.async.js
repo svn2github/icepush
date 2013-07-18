@@ -317,6 +317,8 @@ var AsyncConnection;
                             //but only when at least one pushId is registered
                             if (notEmpty(registeredPushIds())) {
                                 initializeConnection();
+                            } else {
+                                stop(timeoutBomb);
                             }
                         }
                         updateLease();
