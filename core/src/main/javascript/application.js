@@ -101,10 +101,10 @@ if (!window.ice.icepush) {
             pushIdentifiers = complement(pushIdentifiers, ids);
         }
 
-        onBeforeUnload(window, function() {
-            delistPushIDsWithBrowser(pushIdentifiers);
-            pushIdentifiers = [];
-        });
+//        onBeforeUnload(window, function() {
+//            delistPushIDsWithBrowser(pushIdentifiers);
+//            pushIdentifiers = [];
+//        });
 
         function throwServerError(response) {
             throw 'Server internal error: ' + contentAsText(response);
@@ -408,6 +408,8 @@ if (!window.ice.icepush) {
                     header('ice.notifyBack', deviceURI)
                 }
             });
+
+            //include pushid.expiry.js
 
             info(logger, 'bridge loaded!');
 
