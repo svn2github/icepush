@@ -310,9 +310,13 @@ if (!window.ice.icepush) {
             onUnload(window, dispose);
 
             onSend(asyncConnection, function(request) {
-                //send current sequence number
-                setHeader(request, 'ice.push.sequence', sequenceNo);
-                setHeader(request, 'ice.push.browser', browserID);
+                if(sequenceNo){
+                    //send current sequence number
+                    setHeader(request, 'ice.push.sequence', sequenceNo);
+                }
+                if( browserID ){
+                    setHeader(request, 'ice.push.browser', browserID);
+                }
                 if (heartbeatTimestamp) {
                     setHeader(request, 'ice.push.heartbeatTimestamp', heartbeatTimestamp);
                 }
