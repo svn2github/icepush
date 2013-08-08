@@ -10,27 +10,31 @@ import java.util.logging.Logger;
 
 public class PushStormDetectionServer implements Server {
     private static final Logger log = Logger.getLogger(PushStormDetectionServer.class.getName());
-    private static final long LoopInterval = 700;
-    private static final long MaxTightLoopRequests = 25;
+    private static final long DefaultLoopInterval = 700;
+    private static final long DefaultMaxTightLoopRequests = 25;
     private static final ResponseHandler PushStormResponse = new PushStormResponseHandler();
 
     private Server server;
     private long lastTimeAccess = System.currentTimeMillis();
     private int successiveTightLoopRequests = 0;
+    private long loopInterval;
+    private long maxTightLoopRequests;
 
-    public PushStormDetectionServer(Server server) {
+    public PushStormDetectionServer(Server server, Configuration configuration) {
         this.server = server;
+        loopInterval = configuration.getAttributeAsLong("notificationStormLoopInterval", DefaultLoopInterval);
+        maxTightLoopRequests = configuration.getAttributeAsLong("notificationStormMaximumRequests", DefaultMaxTightLoopRequests);
     }
 
     public void service(Request request) throws Exception {
-        if (System.currentTimeMillis() - lastTimeAccess < LoopInterval) {
+        if (System.currentTimeMillis() - lastTimeAccess < loopInterval) {
             ++successiveTightLoopRequests;
         } else {
             successiveTightLoopRequests = 0;
         }
         lastTimeAccess = System.currentTimeMillis();
 
-        if (successiveTightLoopRequests > MaxTightLoopRequests) {
+        if (successiveTightLoopRequests > maxTightLoopRequests) {
             request.respondWith(PushStormResponse);
         } else {
             server.service(request);

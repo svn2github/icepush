@@ -56,7 +56,7 @@ public class BrowserBoundServlet extends PathDispatcher {
         return new PushStormDetectionServer(
                 new ConfigurationServer(pushContext, context, configuration,
                     new SequenceTaggingServer(sequenceNo,
-                        new BlockingConnectionServer(pushGroupManager, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration))));
+                        new BlockingConnectionServer(pushGroupManager, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration))), configuration);
     }
 
     private class CreatePushID extends AbstractPseudoServlet {
