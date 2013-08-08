@@ -20,15 +20,27 @@ import org.icepush.http.Response;
 import org.icepush.http.ResponseHandler;
 import org.icepush.http.standard.ResponseHandlerServer;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
+import java.util.ArrayList;
+import java.util.Collections;
 
 public class CodeServer extends ResponseHandlerServer {
-    public CodeServer(final String resourceName) {
+    public CodeServer(final String[] resources) {
         super(new ResponseHandler() {
             public void respond(Response response) throws Exception {
                 response.setHeader("Content-Type", "text/javascript");
-                InputStream code = CodeServer.class.getResourceAsStream("/META-INF/resources/" + resourceName);
-                response.writeBodyFrom(code);
+                ArrayList<InputStream> streams = new ArrayList();
+                for (int i = 0; i < resources.length; i++) {
+                    String resource = resources[i];
+                    InputStream code = CodeServer.class.getResourceAsStream("/META-INF/resources/" + resource);
+                    ByteArrayInputStream separator = new ByteArrayInputStream("\n\r".getBytes("UTF-8"));
+                    streams.add(code);
+                    streams.add(separator);
+                }
+
+                response.writeBodyFrom(new SequenceInputStream(Collections.enumeration(streams)));
             }
         });
     }
