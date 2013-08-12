@@ -126,7 +126,8 @@ var AsyncConnection;
                     offerCandidature();
                 } else {
                     debug(logger, 'connect...');
-                    listener = postAsynchronously(channel, namespace.push.configuration.blockingConnectionURI, function(q) {
+                    var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
+                    listener = postAsynchronously(channel, uri, function(q) {
                         each(lastSentPushIds, curry(addNameValue, q, 'ice.pushid'));
                         askForConfiguration(q);
                     }, function(request) {
@@ -394,7 +395,8 @@ var AsyncConnection;
 
             method(controlRequest, function(self, parameterCallback, headerCallback, responseCallback) {
                 if (paused) {
-                    postAsynchronously(channel, namespace.push.configuration.blockingConnectionURI, function(q) {
+                    var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
+                    postAsynchronously(channel, uri, function(q) {
                         each(lastSentPushIds, curry(addNameValue, q, 'ice.pushid'));
                         parameterCallback(curry(addNameValue, q));
                     }, function(request) {

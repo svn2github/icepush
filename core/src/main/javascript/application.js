@@ -110,6 +110,30 @@ if (!window.ice.icepush) {
             throw 'Server internal error: ' + contentAsText(response);
         }
 
+        function resolveURI(path) {
+            ///just use the path if it is an absolute URL
+            if (contains(path, "http://") || contains(path, "https://")) {
+                return path;
+            }
+
+            var contextPath = namespace.push.configuration.contextPath;
+            if (contextPath) {
+                if (endsWith(contextPath, '/')) {
+                    contextPath = substring(contextPath, 0, size(contextPath) - 1);
+                }
+            } else {
+                var pathName = window.location.pathname;
+                try {
+                    var i = lastIndexOf(pathName, '/');
+                    contextPath = substring(pathName, 0, i);
+                } catch (e) {
+                    contextPath = pathName;
+                }
+            }
+
+            return contextPath + '/' + path;
+        }
+
         var currentNotifications = [];
         var apiChannel = Client(true);
         //public API
@@ -141,7 +165,8 @@ if (!window.ice.icepush) {
 
             createPushId: function() {
                 var id;
-                postSynchronously(apiChannel, namespace.push.configuration.createPushIdURI || 'create-push-id.icepush', noop, FormPost, $witch(function (condition) {
+                var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
+                postSynchronously(apiChannel, uri, noop, FormPost, $witch(function (condition) {
                     condition(OK, function(response) {
                         id = contentAsText(response);
                     });
@@ -151,7 +176,8 @@ if (!window.ice.icepush) {
             },
 
             notify: function(group) {
-                postAsynchronously(apiChannel, namespace.push.configuration.notifyURI || 'notify.icepush', function(q) {
+                var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
+                postAsynchronously(apiChannel, uri, function(q) {
                     addNameValue(q, 'group', group);
                 }, FormPost, $witch(function(condition) {
                     condition(ServerInternalError, throwServerError);
@@ -159,7 +185,8 @@ if (!window.ice.icepush) {
             },
 
             addGroupMember: function(group, id) {
-                postAsynchronously(apiChannel, namespace.push.configuration.addGroupMemberURI || 'add-group-member.icepush', function(q) {
+                var uri = resolveURI(namespace.push.configuration.addGroupMemberURI || 'add-group-member.icepush');
+                postAsynchronously(apiChannel, uri, function(q) {
                     addNameValue(q, 'group', group);
                     addNameValue(q, 'id', id);
                 }, FormPost, $witch(function(condition) {
@@ -168,7 +195,8 @@ if (!window.ice.icepush) {
             },
 
             removeGroupMember: function(group, id) {
-                postAsynchronously(apiChannel, namespace.push.configuration.removeGroupMemberURI || 'remove-group-member.icepush', function(q) {
+                var uri = resolveURI(namespace.push.configuration.removeGroupMemberURI || 'remove-group-member.icepush');
+                postAsynchronously(apiChannel, uri, function(q) {
                     addNameValue(q, 'group', group);
                     addNameValue(q, 'id', id);
                 }, FormPost, $witch(function(condition) {
@@ -247,7 +275,7 @@ if (!window.ice.icepush) {
             register(commandDispatcher, 'browser', function(message) {
                 browserID = message.getAttribute('id');
                 Cookie(BrowserIDCookieName, browserID);
-                
+
             });
             register(commandDispatcher, 'back-off', function(message) {
                 debug(logger, 'received back-off');
