@@ -101,10 +101,10 @@ if (!window.ice.icepush) {
             pushIdentifiers = complement(pushIdentifiers, ids);
         }
 
-//        onBeforeUnload(window, function() {
-//            delistPushIDsWithBrowser(pushIdentifiers);
-//            pushIdentifiers = [];
-//        });
+        onBeforeUnload(window, function() {
+            delistPushIDsWithBrowser(pushIdentifiers);
+            pushIdentifiers = [];
+        });
 
         function throwServerError(response) {
             throw 'Server internal error: ' + contentAsText(response);
