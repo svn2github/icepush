@@ -117,6 +117,11 @@ if (!window.ice.icepush) {
             }
 
             var contextPath = namespace.push.configuration.contextPath;
+
+            if (startsWith(path, contextPath)) {
+                return path;
+            }
+
             if (contextPath) {
                 if (endsWith(contextPath, '/')) {
                     contextPath = substring(contextPath, 0, size(contextPath) - 1);
