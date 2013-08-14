@@ -19,6 +19,7 @@ package org.icepush;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class NoopPushGroupManager implements PushGroupManager {
     public final static PushGroupManager Instance = new NoopPushGroupManager();
@@ -26,7 +27,10 @@ public class NoopPushGroupManager implements PushGroupManager {
     private NoopPushGroupManager() {
     }
 
-    public void addBlockingConnectionServer(final BlockingConnectionServer server) {
+    public void addBlockingConnectionServer(final String browserID, final BlockingConnectionServer server) {
+    }
+
+    public void addBrowser(final Browser browser) {
     }
 
     public void addMember(final String groupName, final String pushId) {
@@ -41,20 +45,25 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void backOff(final String browserID, final long delay) {
     }
 
-    public void cancelConfirmationTimeout(final List<String> pushIDList) {
+    public void cancelExpiryTimeout(final Browser browser) {
     }
 
-    public void cancelExpiryTimeout(final List<String> pushIDList) {
-    }
-
-    public void clearPendingNotifications(final List<String> pushIdList) {
+    public void clearPendingNotifications(final Set<String> pushIDSet) {
     }
 
     public void deleteNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
     }
 
+    public Browser getBrowser(final String browserID) {
+        return null;
+    }
+
     public Map<String, String[]> getGroupMap() {
         return Collections.EMPTY_MAP;
+    }
+
+    public OutOfBandNotifier getOutOfBandNotifier() {
+        return null;
     }
 
     public String[] getPendingNotifications() {
@@ -74,13 +83,13 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void park(final String pushId, final NotifyBackURI notifyBackURI) {
     }
     
-    public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final List<String> listenedPushIds)  {
+    public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final Set<String> listenedPushIDSet)  {
     }
 
-    public void recordListen(final List<String> pushIdList, final long sequenceNumber) {
+    public void removeBlockingConnectionServer(final String browserID) {
     }
 
-    public void removeBlockingConnectionServer(final BlockingConnectionServer server) {
+    public void removeBrowser(final Browser browser) {
     }
 
     public void removeMember(final String groupName, final String pushId) {
@@ -92,22 +101,9 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void scan(final String[] confirmedPushIDs) {
     }
 
-    public boolean setNotifyBackURI(
-        final List<String> pushIDList, final NotifyBackURI notifyBackURI, final boolean broadcast) {
-
-        return false;
-    }
-
     public void shutdown() {
     }
 
-    public void startConfirmationTimeout(final List<String> pushIDList) {
-    }
-
-    public void startExpiryTimeout(final List<String> pushIDList, final NotifyBackURI notifyBackURI) {
-    }
-
-    public NotifyBackURI getNotifyBackURI(String pushID) {
-        return null;
+    public void startExpiryTimeout(final Browser browser) {
     }
 }

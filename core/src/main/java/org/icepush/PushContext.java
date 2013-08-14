@@ -16,12 +16,13 @@
  */
 package org.icepush;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import javax.servlet.ServletContext;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class PushContext {
     private static final Logger log = Logger.getLogger(PushContext.class.getName());

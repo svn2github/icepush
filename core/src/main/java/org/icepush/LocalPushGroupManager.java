@@ -16,14 +16,11 @@
  */
 package org.icepush;
 
-import org.icepush.servlet.ServletContextConfiguration;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
@@ -31,12 +28,13 @@ import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
+
+import org.icepush.servlet.ServletContextConfiguration;
 
 public class LocalPushGroupManager extends AbstractPushGroupManager implements PushGroupManager {
     private static final Logger LOGGER = Logger.getLogger(LocalPushGroupManager.class.getName());
@@ -59,8 +57,9 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         public void run() {
         }
     };
-    private final Set<BlockingConnectionServer> blockingConnectionServerSet =
-        new CopyOnWriteArraySet<BlockingConnectionServer>();
+    private final Map<String, BlockingConnectionServer> blockingConnectionServerMap =
+        new ConcurrentHashMap<String, BlockingConnectionServer>();
+    protected final Map<String, Browser> browserMap = new ConcurrentHashMap<String, Browser>();
     protected final ConcurrentMap<String, PushID> pushIDMap = new ConcurrentHashMap<String, PushID>();
     protected final ConcurrentMap<String, Group> groupMap = new ConcurrentHashMap<String, Group>();
     private final ConcurrentMap<String, NotifyBackURI> parkedPushIDs = new ConcurrentHashMap<String, NotifyBackURI>();
@@ -70,11 +69,9 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private final TimerTask queueConsumer;
     private final BlockingQueue<Runnable> queue;
     private final long groupTimeout;
-    private final long pushIdTimeout;
-    private final long cloudPushIdTimeout;
-    private final long minCloudPushInterval;
+    private final long cloudPushIDTimeout;
+    private final long pushIDTimeout;
     private final ServletContext context;
-    private final Timer timeoutTimer = new Timer("Timeout timer", true);
 
     private long lastTouchScan = System.currentTimeMillis();
     private long lastExpiryScan = System.currentTimeMillis();
@@ -83,9 +80,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         this.context = servletContext;
         Configuration configuration = new ServletContextConfiguration("org.icepush", servletContext);
         this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", 2 * 60 * 1000);
-        this.pushIdTimeout = configuration.getAttributeAsLong("pushIdTimeout", 2 * 60 * 1000);
-        this.cloudPushIdTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", 30 * 60 * 1000);
-        this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", 10 * 1000);
+        this.pushIDTimeout = configuration.getAttributeAsLong("pushIdTimeout", 2 * 60 * 1000);
+        this.cloudPushIDTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", 30 * 60 * 1000);
         int notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", 1000);
         this.queue = new LinkedBlockingQueue<Runnable>(notificationQueueSize);
         this.queueConsumer = new QueueConsumerTask();
@@ -111,8 +107,12 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
-    public void addBlockingConnectionServer(final BlockingConnectionServer server) {
-        blockingConnectionServerSet.add(server);
+    public void addBlockingConnectionServer(final String browserID, final BlockingConnectionServer server) {
+        blockingConnectionServerMap.put(browserID, server);
+    }
+
+    public void addBrowser(final Browser browser) {
+        browserMap.put(browser.getID(), browser);
     }
 
     public void addMember(final String groupName, final String id) {
@@ -139,21 +139,22 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     public void backOff(final String browserID, final long delay) {
-        for (final BlockingConnectionServer server : blockingConnectionServerSet) {
-            server.backOff(browserID, delay);
+        BlockingConnectionServer server = blockingConnectionServerMap.get(browserID);
+        if (server != null) {
+            server.backOff(delay);
         }
+    }
+
+    public void clearPendingNotifications(final Set<String> pushIDSet) {
+        pendingNotifications.removeAll(pushIDSet);
     }
 
     public void deleteNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
         outboundNotifier.deleteReceiver(observer);
     }
 
-    public void clearPendingNotifications(final List<String> pushIdList) {
-        pendingNotifications.removeAll(pushIdList);
-    }
-
-    public String[] getPendingNotifications() {
-        return pendingNotifications.toArray(STRINGS);
+    public Browser getBrowser(final String browserID) {
+        return browserMap.get(browserID);
     }
 
     public Map<String, String[]> getGroupMap() {
@@ -162,6 +163,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
             groupMap.put(group.getName(), group.getPushIDs());
         }
         return groupMap;
+    }
+
+    public String[] getPendingNotifications() {
+        return pendingNotifications.toArray(STRINGS);
     }
 
     public void push(final String groupName) {
@@ -196,22 +201,12 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         queue.add(notification);
     }
 
-    public void recordListen(final List<String> pushIDList, final long sequenceNumber) {
-        for (final String pushIDString : pushIDList) {
-            PushID pushID = pushIDMap.get(pushIDString);
-            if (pushID != null) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Record listen for PushID '" + pushIDString + "' (Sequence# " + sequenceNumber + ").");
-                }
-                pushID.setSequenceNumber(sequenceNumber);
-            }
-        }
+    public void removeBlockingConnectionServer(final String browserID) {
+        blockingConnectionServerMap.remove(browserID);
     }
 
-    public void removeBlockingConnectionServer(final BlockingConnectionServer server) {
-        blockingConnectionServerSet.remove(server);
+    public void removeBrowser(final Browser browser) {
+        browserMap.remove(browser.getID());
     }
 
     public void removeMember(final String groupName, final String pushId) {
@@ -229,32 +224,15 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
-    public boolean setNotifyBackURI(
-        final List<String> pushIDList, final NotifyBackURI notifyBackURI, final boolean broadcast) {
-
-        boolean modified = false;
-        for (final String pushIDString : pushIDList) {
-            PushID pushID = pushIDMap.get(pushIDString);
-            if (pushID != null) {
-                if (pushID.setNotifyBackURI(notifyBackURI)) {
-                    modified = true;
-                } else {
-                    pushID.getNotifyBackURI().touch();
-                }
-            }
-        }
-        return modified;
-    }
-
     public void park(final String pushId, final NotifyBackURI notifyBackURI) {
         parkedPushIDs.put(pushId, notifyBackURI);
     }
 
-    public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final List<String> listenedPushIds) {
+    public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final Set<String> listenedPushIDSet) {
         for (final Map.Entry<String, NotifyBackURI> parkedPushIDEntry : parkedPushIDs.entrySet()) {
             String parkedPushID = parkedPushIDEntry.getKey();
             if (parkedPushIDEntry.getValue().getURI().equals(notifyBackURI.getURI()) &&
-                !listenedPushIds.contains(parkedPushID)) {
+                !listenedPushIDSet.contains(parkedPushID)) {
 
                 parkedPushIDs.remove(parkedPushID);
                 if (LOGGER.isLoggable(Level.FINE)) {
@@ -270,20 +248,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     public void shutdown() {
         queueConsumer.cancel();
         timer.cancel();
-        timeoutTimer.cancel();
     }
 
-    public void cancelConfirmationTimeout(final List<String> pushIDList) {
-        for (final String pushIDString : pushIDList) {
-            PushID pushID = pushIDMap.get(pushIDString);
-            if (pushID != null) {
-                pushID.cancelConfirmationTimeout();
-            }
-        }
-    }
-
-    public void cancelExpiryTimeout(final List<String> pushIDList) {
-        for (final String pushIDString : pushIDList) {
+    public void cancelExpiryTimeout(final Browser browser) {
+        for (final String pushIDString : browser.getPushIDSet()) {
             PushID pushID = pushIDMap.get(pushIDString);
             if (pushID != null) {
                 pushID.cancelExpiryTimeout();
@@ -291,27 +259,29 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
-    public void startConfirmationTimeout(final List<String> pushIDList) {
-        Set<NotifyBackURI> notifyBackURISet = new HashSet<NotifyBackURI>();
-        for (final String pushIDString : pushIDList) {
-            PushID pushID = pushIDMap.get(pushIDString);
-            if (pushID != null) {
-                NotifyBackURI notifyBackURI = pushID.getNotifyBackURI();
-                if (notifyBackURI != null && !notifyBackURISet.contains(notifyBackURI)) {
-                    notifyBackURISet.add(notifyBackURI);
-                    pushID.startConfirmationTimeout(pushID.getSequenceNumber());
+    public void startConfirmationTimeout(final Set<String> pushIDSet) {
+        for (final String pushIDString : pushIDSet) {
+            PushID _pushID = pushIDMap.get(pushIDString);
+            if (_pushID != null) {
+                Browser _browser = _pushID.getBrowser();
+                if (_browser != null) {
+                    _browser.startConfirmationTimeout();
                 }
             }
         }
     }
 
-    public void startExpiryTimeout(final List<String> pushIDList, final NotifyBackURI notifyBackURI) {
-        for (final String pushIDString : pushIDList) {
+    public void startExpiryTimeout(final Browser browser) {
+        for (final String pushIDString : browser.getPushIDSet()) {
             PushID pushID = pushIDMap.get(pushIDString);
             if (pushID != null) {
-                pushID.startExpiryTimeout(notifyBackURI, pushID.getSequenceNumber());
+                pushID.startExpiryTimeout(browser, pushID.getBrowser().getSequenceNumber());
             }
         }
+    }
+
+    public Map<String, Browser> getBrowserMap() {
+        return Collections.unmodifiableMap(browserMap);
     }
 
     public Map<String, PushID> getPushIDMap() {
@@ -332,56 +302,31 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
+    public OutOfBandNotifier getOutOfBandNotifier() {
+        Object attribute = context.getAttribute(OutOfBandNotifier.class.getName());
+        return attribute == null ? NOOPOutOfBandNotifier : (OutOfBandNotifier) attribute;
+    }
+
     public PushID getPushID(final String pushID) {
         return pushIDMap.get(pushID);
     }
 
     protected long getCloudPushIDTimeout() {
-        return cloudPushIdTimeout;
-    }
-
-    protected long getMinCloudPushInterval() {
-        return minCloudPushInterval;
+        return cloudPushIDTimeout;
     }
 
     protected long getPushIDTimeout() {
-        return pushIdTimeout;
-    }
-
-    protected Timer getTimeoutTimer() {
-        return timeoutTimer;
+        return pushIDTimeout;
     }
 
     protected PushID newPushID(final String id, final String groupName) {
-        PushID pushID =
-            new PushID(
-                id, groupName, getPushIDTimeout(), getCloudPushIDTimeout(), getTimeoutTimer(),
-                getMinCloudPushInterval(), this);
+        PushID pushID = new PushID(id, groupName, getPushIDTimeout(), getCloudPushIDTimeout(), this);
         pushID.startExpiryTimeout();
         return pushID;
     }
 
-    OutOfBandNotifier getOutOfBandNotifier() {
-        Object attribute = context.getAttribute(OutOfBandNotifier.class.getName());
-        return attribute == null ? NOOPOutOfBandNotifier : (OutOfBandNotifier) attribute;
-    }
-
     Group getGroup(final String groupName) {
         return groupMap.get(groupName);
-    }
-
-    public NotifyBackURI getNotifyBackURI(final String pushID) {
-        NotifyBackURI parkedURI = parkedPushIDs.get(pushID);
-        if(parkedURI != null){
-            return parkedURI;
-        }
-        //The pushid that has a registered notifyBackURI is not always parked.
-        PushID pusher = pushIDMap.get(pushID);
-        NotifyBackURI pushURI = null;
-        if( pusher != null){
-            pushURI = pusher.getNotifyBackURI();
-        }
-        return pushURI;
     }
 
     void groupTouched(final String groupName, final long timestamp) {
@@ -431,11 +376,11 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(Level.FINE, "Push Notification triggered for Push Group '" + groupName + "'.");
                     }
-                    List<String> pushIDList = new ArrayList(Arrays.asList(group.getPushIDs()));
-                    pushIDList.removeAll(exemptPushIDSet);
-                    pendingNotifications.addAll(pushIDList);
-                    startConfirmationTimeout(pushIDList);
-                    outboundNotifier.broadcast(pushIDList.toArray(new String[pushIDList.size()]));
+                    Set<String> pushIDSet = new HashSet<String>(Arrays.asList(group.getPushIDs()));
+                    pushIDSet.removeAll(exemptPushIDSet);
+                    pendingNotifications.addAll(pushIDSet);
+                    startConfirmationTimeout(pushIDSet);
+                    outboundNotifier.broadcast(pushIDSet.toArray(new String[pushIDSet.size()]));
                     pushed(groupName);
                 }
             } finally {
@@ -459,7 +404,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                 pushIDs = group.getPushIDs();
             }
             for (final String pushID : pushIDs) {
-                pushIDMap.get(pushID).setPushConfiguration(config);
+                pushIDMap.get(pushID).getBrowser().setPushConfiguration(config);
             }
             super.run();
         }

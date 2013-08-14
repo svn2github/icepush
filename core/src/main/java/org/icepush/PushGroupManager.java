@@ -18,58 +18,56 @@ package org.icepush;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public interface PushGroupManager {
+    void addBlockingConnectionServer(String browserID, BlockingConnectionServer server);
+
+    void addBrowser(Browser browser);
+
     void addMember(String groupName, String pushId);
 
+    void addNotificationReceiver(NotificationBroadcaster.Receiver receiver);
+
+    void addPushGroupListener(PushGroupListener listener);
+
+    void backOff(String browserID, long delay);
+
+    void cancelExpiryTimeout(Browser browser);
+
+    void clearPendingNotifications(Set<String> pushIDSet);
+
+    void deleteNotificationReceiver(NotificationBroadcaster.Receiver observer);
+
+    Browser getBrowser(String browserID);
+
+    Map<String, String[]> getGroupMap();
+
+    OutOfBandNotifier getOutOfBandNotifier();
+
+    String[] getPendingNotifications();
+
     PushID getPushID(String pushIDString);
+
+    void park(String pushId, NotifyBackURI notifyBackURI);
 
     void push(String groupName);
 
     void push(String groupName, PushConfiguration config);
 
-    void park(String pushId, NotifyBackURI notifyBackURI);
-    
-    void pruneParkedIDs(NotifyBackURI notifyBackURI, List<String> listenedPushIds);
+    void pruneParkedIDs(NotifyBackURI notifyBackURI, Set<String> listenedPushIDSet);
 
-    String[] getPendingNotifications();
+    void removeBlockingConnectionServer(String browserID);
 
-    void clearPendingNotifications(List<String> pushIdList);
-
-    void addNotificationReceiver(NotificationBroadcaster.Receiver receiver);
-
-    void deleteNotificationReceiver(NotificationBroadcaster.Receiver observer);
+    void removeBrowser(Browser browser);
 
     void removeMember(String groupName, String pushId);
 
-    void addPushGroupListener(PushGroupListener listener);
-
     void removePushGroupListener(PushGroupListener listener);
-
-    Map<String, String[]> getGroupMap();
-
-    void shutdown();
-
-    void recordListen(List<String> pushIDList, long sequenceNumber);
-
-    void startConfirmationTimeout(List<String> pushIDList);
-
-    void cancelConfirmationTimeout(List<String> pushIDList);
-
-    void startExpiryTimeout(List<String> pushIDList, NotifyBackURI notifyBackURI);
-
-    void cancelExpiryTimeout(List<String> pushIDList);
-
-    void addBlockingConnectionServer(BlockingConnectionServer server);
-
-    void removeBlockingConnectionServer(BlockingConnectionServer server);
-
-    void backOff(String browserID, long delay);
 
     void scan(String[] confirmedPushIDs);
 
-    boolean setNotifyBackURI(List<String> pushIDList, NotifyBackURI notifyBackURI, boolean broadcast);
+    void shutdown();
 
-    NotifyBackURI getNotifyBackURI(String pushID);
-
+    void startExpiryTimeout(Browser browser);
 }

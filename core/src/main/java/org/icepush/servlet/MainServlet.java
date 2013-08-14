@@ -16,17 +16,6 @@
  */
 package org.icepush.servlet;
 
-import org.icepush.*;
-import org.icepush.http.standard.CacheControlledServer;
-import org.icepush.http.standard.CompressingServer;
-import org.icepush.util.ExtensionRegistry;
-
-import javax.servlet.ServletContext;
-import javax.servlet.ServletContextEvent;
-import javax.servlet.ServletContextListener;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.net.SocketException;
 import java.net.URI;
 import java.util.HashMap;
@@ -35,6 +24,27 @@ import java.util.Timer;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.servlet.ServletContext;
+import javax.servlet.ServletContextEvent;
+import javax.servlet.ServletContextListener;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.icepush.CodeServer;
+import org.icepush.Configuration;
+import org.icepush.NotificationProvider;
+import org.icepush.OutOfBandNotifier;
+import org.icepush.ProductInfo;
+import org.icepush.PushContext;
+import org.icepush.PushGroupManager;
+import org.icepush.PushGroupManagerFactory;
+import org.icepush.PushInternalContext;
+import org.icepush.PushNotification;
+import org.icepush.http.standard.CacheControlledServer;
+import org.icepush.http.standard.CompressingServer;
+import org.icepush.util.ExtensionRegistry;
 
 public class MainServlet implements PseudoServlet {
     private static final Logger log = Logger.getLogger(MainServlet.class.getName());
@@ -84,7 +94,10 @@ public class MainServlet implements PseudoServlet {
         if(printProductInfo){
             log.info(new ProductInfo().toString());
         }
-
+        PushInternalContext.getInstance().
+            setAttribute(Timer.class.getName() + "$expiry", new Timer("Expiry Timeout timer", true));
+        PushInternalContext.getInstance().
+            setAttribute(Timer.class.getName() + "$confirmation", new Timer("Confirmation Timeout timer", true));
         context = servletContext;
         terminateConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
         monitoringScheduler = new Timer("Monitoring scheduler", true);
@@ -154,6 +167,10 @@ public class MainServlet implements PseudoServlet {
         dispatcher.shutdown();
         pushGroupManager.shutdown();
         monitoringScheduler.cancel();
+        ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")).cancel();
+        PushInternalContext.getInstance().removeAttribute(Timer.class.getName() + "$confirmation");
+        ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$expiry")).cancel();
+        PushInternalContext.getInstance().removeAttribute(Timer.class.getName() + "$expiry");
     }
 
     public static void trace(String message)  {
