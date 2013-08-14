@@ -16,8 +16,10 @@
  */
 package org.icepush;
 
-import org.icepush.servlet.ServletContextConfiguration;
-import org.icepush.util.ExtensionRegistry;
+import java.net.URI;
+import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.mail.MessagingException;
 import javax.mail.Session;
@@ -28,12 +30,13 @@ import javax.mail.internet.MimeMessage;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
-import java.net.URI;
-import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-public class EmailNotificationProvider implements NotificationProvider {
+import org.icepush.servlet.ServletContextConfiguration;
+import org.icepush.util.ExtensionRegistry;
+
+public class EmailNotificationProvider
+extends AbstractNotificationProvider
+implements NotificationProvider {
     private static final Logger log = Logger.getLogger(EmailNotificationProvider.class.getName());
     private static final String SECURITY_NONE = "NONE";
     private static final String SECURITY_SSL = "SSL";
@@ -99,8 +102,8 @@ public class EmailNotificationProvider implements NotificationProvider {
         outOfBandNotifier.registerProvider("mail", this);
     }
 
-    public void send(final String uri, final PushNotification notification) {
-        (new SendMessage(uri, notification)).start();
+    public void send(final Browser browser, final PushNotification notification) {
+        (new SendMessage(browser, notification)).start();
     }
 
     public static class AutoRegister implements ServletContextListener {
@@ -125,16 +128,16 @@ public class EmailNotificationProvider implements NotificationProvider {
     }
 
     private class SendMessage extends Thread {
-        private final String uri;
+        private final Browser browser;
         private final PushNotification notification;
 
-        public SendMessage(String uri, PushNotification notification) {
-            this.uri = uri;
+        public SendMessage(final Browser browser, final PushNotification notification) {
+            this.browser = browser;
             this.notification = notification;
         }
 
         public void run() {
-            URI destinationURI = URI.create(uri);
+            URI destinationURI = URI.create(browser.getNotifyBackURI().getURI());
 
             MimeMessage mimeMessage = new MimeMessage(session);
             try {
@@ -145,6 +148,7 @@ public class EmailNotificationProvider implements NotificationProvider {
                 Transport transport = session.getTransport(protocol);
                 transport.connect(host, port, user, password);
                 transport.sendMessage(mimeMessage, new InternetAddress[]{address});
+                notificationSent(new NotificationEvent(browser, EmailNotificationProvider.this));
             } catch (MessagingException ex) {
                 log.log(Level.WARNING, "Failed to send email message.", ex);
             }

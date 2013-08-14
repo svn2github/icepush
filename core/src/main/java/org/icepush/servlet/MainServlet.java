@@ -32,6 +32,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.icepush.Browser;
 import org.icepush.CodeServer;
 import org.icepush.Configuration;
 import org.icepush.NotificationProvider;
@@ -216,19 +217,19 @@ public class MainServlet implements PseudoServlet {
             }
         }
 
-        public void broadcast(PushNotification notification, String[] uris) {
-            for (int i = 0; i < uris.length; i++) {
-                String notifyURI = uris[i];
-                URI uri = URI.create(notifyURI);
+        public void broadcast(final PushNotification notification, final Browser[] browsers) {
+            for (final Browser browser : browsers) {
+                String notifyBackURI = browser.getNotifyBackURI().getURI();
+                URI uri = URI.create(notifyBackURI);
                 String protocol = uri.getScheme();
-                NotificationProvider provider = (NotificationProvider) providers.get(protocol);
+                NotificationProvider provider = (NotificationProvider)providers.get(protocol);
                 if (provider == null) {
                     log.warning("No notification providers for '" + uri + "' URI registered");
                 } else {
                     try {
-                        provider.send(notifyURI, notification);
+                        provider.send(browser, notification);
                     } catch (Throwable t) {
-                        log.log(Level.WARNING, "Exception sending message to " + notifyURI + ", " + t);
+                        log.log(Level.WARNING, "Exception sending message to " + browser + ", " + t);
                     }
                 }
             }

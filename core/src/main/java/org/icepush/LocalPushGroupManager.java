@@ -41,8 +41,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private static final String[] STRINGS = new String[0];
     private static final int GROUP_SCANNING_TIME_RESOLUTION = 3000; // ms
     private static final OutOfBandNotifier NOOPOutOfBandNotifier = new OutOfBandNotifier() {
-        public void broadcast(PushNotification notification, String[] uris) {
-            System.out.println("message send " + notification + " to " + Arrays.asList(uris));
+        public void broadcast(final PushNotification notification, final Browser[] browsers) {
+            System.out.println("Message send " + notification + " to " + Arrays.asList(browsers));
         }
 
         public void registerProvider(String protocol, NotificationProvider provider) {

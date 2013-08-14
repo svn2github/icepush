@@ -2,7 +2,6 @@ package org.icepush;
 
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -184,6 +183,18 @@ implements Serializable {
         return false;
     }
 
+    @Override
+    public String toString() {
+        return
+            new StringBuilder().
+                append("Browser[").
+                    append("id: '").append(id).append("', ").
+                    append("notifyBackURI: '").append(notifyBackURI).append("', ").
+                    append("pushIDSet: '").append(pushIDSet).append("'").
+                append("]").
+                    toString();
+    }
+
     protected TimerTask getConfirmationTimeout() {
         return confirmationTimeout;
     }
@@ -318,8 +329,8 @@ implements Serializable {
                         _notifyBackURI.touch();
                         pushGroupManager.getOutOfBandNotifier().broadcast(
                             (PushNotification)browser.getPushConfiguration(),
-                            new String[] {
-                                _notifyBackURI.getURI()
+                            new Browser[] {
+                                browser
                             });
                     }
                 }

@@ -18,7 +18,11 @@ package org.icepush;
 
 public interface NotificationProvider {
 
-    void send(String uri, PushNotification notification);
+    void addNotificationProviderListener(NotificationProviderListener listener);
+
+    void send(Browser browser, PushNotification notification);
 
     void registerWith(OutOfBandNotifier outOfBandNotifier);
+
+    void removeNotificationProviderListener(NotificationProviderListener listener);
 }

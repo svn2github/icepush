@@ -22,7 +22,7 @@ public class NotifyBackURI
 implements Serializable {
     private final String uri;
 
-    private long timestamp = -1L;
+    private transient long timestamp = -1L;
 
     public NotifyBackURI(final String uri)
     throws IllegalArgumentException {
@@ -41,7 +41,13 @@ implements Serializable {
     }
 
     public String toString() {
-        return new StringBuilder().append(uri.toString()).append(" [last: ").append(timestamp).append("]").toString();
+        return
+            new StringBuilder().
+                append("NotifyBackURI[").
+                    append("uri: '").append(uri.toString()).append("', ").
+                    append("timestamp: '").append(timestamp).append("'").
+                append("]").
+                    toString();
     }
 
     public void touch() {
