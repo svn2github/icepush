@@ -102,8 +102,8 @@ implements NotificationProvider {
         outOfBandNotifier.registerProvider("mail", this);
     }
 
-    public void send(final Browser browser, final PushNotification notification) {
-        (new SendMessage(browser, notification)).start();
+    public void send(final Browser browser, final String groupName, final PushNotification notification) {
+        (new SendMessage(browser, groupName, notification)).start();
     }
 
     public static class AutoRegister implements ServletContextListener {
@@ -129,10 +129,12 @@ implements NotificationProvider {
 
     private class SendMessage extends Thread {
         private final Browser browser;
+        private final String groupName;
         private final PushNotification notification;
 
-        public SendMessage(final Browser browser, final PushNotification notification) {
+        public SendMessage(final Browser browser, final String groupName, final PushNotification notification) {
             this.browser = browser;
+            this.groupName = groupName;
             this.notification = notification;
         }
 
@@ -148,7 +150,7 @@ implements NotificationProvider {
                 Transport transport = session.getTransport(protocol);
                 transport.connect(host, port, user, password);
                 transport.sendMessage(mimeMessage, new InternetAddress[]{address});
-                notificationSent(new NotificationEvent(browser, EmailNotificationProvider.this));
+                notificationSent(new NotificationEvent(browser, groupName, EmailNotificationProvider.this));
             } catch (MessagingException ex) {
                 log.log(Level.WARNING, "Failed to send email message.", ex);
             }

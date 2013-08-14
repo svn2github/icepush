@@ -41,8 +41,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private static final String[] STRINGS = new String[0];
     private static final int GROUP_SCANNING_TIME_RESOLUTION = 3000; // ms
     private static final OutOfBandNotifier NOOPOutOfBandNotifier = new OutOfBandNotifier() {
-        public void broadcast(final PushNotification notification, final Browser[] browsers) {
-            System.out.println("Message send " + notification + " to " + Arrays.asList(browsers));
+        public void broadcast(final PushNotification notification, final Browser[] browsers, final String groupName) {
+            System.out.println("Message send " + notification + " to " + Arrays.asList(browsers) + " for " + groupName);
         }
 
         public void registerProvider(String protocol, NotificationProvider provider) {
@@ -259,13 +259,13 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
-    public void startConfirmationTimeout(final Set<String> pushIDSet) {
+    public void startConfirmationTimeout(final Set<String> pushIDSet, final String groupName) {
         for (final String pushIDString : pushIDSet) {
             PushID _pushID = pushIDMap.get(pushIDString);
             if (_pushID != null) {
                 Browser _browser = _pushID.getBrowser();
                 if (_browser != null) {
-                    _browser.startConfirmationTimeout();
+                    _browser.startConfirmationTimeout(groupName);
                 }
             }
         }
@@ -379,7 +379,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                     Set<String> pushIDSet = new HashSet<String>(Arrays.asList(group.getPushIDs()));
                     pushIDSet.removeAll(exemptPushIDSet);
                     pendingNotifications.addAll(pushIDSet);
-                    startConfirmationTimeout(pushIDSet);
+                    startConfirmationTimeout(pushIDSet, groupName);
                     outboundNotifier.broadcast(pushIDSet.toArray(new String[pushIDSet.size()]));
                     pushed(groupName);
                 }

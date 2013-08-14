@@ -217,7 +217,7 @@ public class MainServlet implements PseudoServlet {
             }
         }
 
-        public void broadcast(final PushNotification notification, final Browser[] browsers) {
+        public void broadcast(final PushNotification notification, final Browser[] browsers, final String groupName) {
             for (final Browser browser : browsers) {
                 String notifyBackURI = browser.getNotifyBackURI().getURI();
                 URI uri = URI.create(notifyBackURI);
@@ -227,7 +227,7 @@ public class MainServlet implements PseudoServlet {
                     log.warning("No notification providers for '" + uri + "' URI registered");
                 } else {
                     try {
-                        provider.send(browser, notification);
+                        provider.send(browser, groupName, notification);
                     } catch (Throwable t) {
                         log.log(Level.WARNING, "Exception sending message to " + browser + ", " + t);
                     }

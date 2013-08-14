@@ -118,17 +118,17 @@ implements Serializable {
         status.setSequenceNumber(sequenceNumber);
     }
 
-    public boolean startConfirmationTimeout() {
-        return startConfirmationTimeout(getSequenceNumber());
+    public boolean startConfirmationTimeout(final String groupName) {
+        return startConfirmationTimeout(groupName, getSequenceNumber());
     }
 
-    public boolean startConfirmationTimeout(final long sequenceNumber) {
+    public boolean startConfirmationTimeout(final String groupName, final long sequenceNumber) {
         if (notifyBackURI != null) {
             long now = System.currentTimeMillis();
             long timeout = status.getConnectionRecreationTimeout() * 2;
             LOGGER.log(Level.FINE, "Calculated confirmation timeout: '" + timeout + "'");
             if (notifyBackURI.getTimestamp() + minCloudPushInterval <= now + timeout) {
-                return startConfirmationTimeout(sequenceNumber, timeout);
+                return startConfirmationTimeout(groupName, sequenceNumber, timeout);
             } else {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
@@ -145,7 +145,7 @@ implements Serializable {
         return false;
     }
 
-    public boolean startConfirmationTimeout(final long sequenceNumber, final long timeout) {
+    public boolean startConfirmationTimeout(final String groupName, final long sequenceNumber, final long timeout) {
         if (notifyBackURI != null &&
             notifyBackURI.getTimestamp() + minCloudPushInterval <= System.currentTimeMillis() + timeout &&
             pushConfiguration != null) {
@@ -166,7 +166,7 @@ implements Serializable {
                 }
                 try {
                     ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")).
-                        schedule(confirmationTimeout = newConfirmationTimeout(timeout), timeout);
+                        schedule(confirmationTimeout = newConfirmationTimeout(groupName, timeout), timeout);
                     return true;
                 } catch (final IllegalStateException exception) {
                     // timeoutTimer was cancelled or its timer thread terminated.
@@ -207,8 +207,8 @@ implements Serializable {
         return pushGroupManager;
     }
 
-    protected ConfirmationTimeout newConfirmationTimeout(final long timeout) {
-        return new ConfirmationTimeout(this, timeout, getMinCloudPushInterval(), getPushGroupManager());
+    protected ConfirmationTimeout newConfirmationTimeout(final String groupName, final long timeout) {
+        return new ConfirmationTimeout(this, groupName, timeout, getMinCloudPushInterval(), getPushGroupManager());
     }
 
     protected Status newStatus() {
@@ -295,14 +295,17 @@ implements Serializable {
         private static final Logger LOGGER = Logger.getLogger(ConfirmationTimeout.class.getName());
 
         protected final Browser browser;
+        protected final String groupName;
         protected final long minCloudPushInterval;
         protected final PushGroupManager pushGroupManager;
         protected final long timeout;
 
         protected ConfirmationTimeout(
-            final Browser browser, final long timeout, final long minCloudPushInterval, final PushGroupManager pushGroupManager) {
+            final Browser browser, final String groupName, final long timeout, final long minCloudPushInterval,
+            final PushGroupManager pushGroupManager) {
 
             this.browser = browser;
+            this.groupName = groupName;
             this.timeout = timeout;
             this.minCloudPushInterval = minCloudPushInterval;
             this.pushGroupManager = pushGroupManager;
@@ -331,7 +334,8 @@ implements Serializable {
                             (PushNotification)browser.getPushConfiguration(),
                             new Browser[] {
                                 browser
-                            });
+                            },
+                            groupName);
                     }
                 }
                 browser.cancelConfirmationTimeout();
