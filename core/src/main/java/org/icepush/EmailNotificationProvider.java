@@ -16,6 +16,9 @@
  */
 package org.icepush;
 
+import static org.icepush.NotificationEvent.NotificationType;
+import static org.icepush.NotificationEvent.TargetType;
+
 import java.net.URI;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -150,7 +153,10 @@ implements NotificationProvider {
                 Transport transport = session.getTransport(protocol);
                 transport.connect(host, port, user, password);
                 transport.sendMessage(mimeMessage, new InternetAddress[]{address});
-                notificationSent(new NotificationEvent(browser, groupName, EmailNotificationProvider.this));
+                notificationSent(
+                    new NotificationEvent(
+                        TargetType.BROWSER_ID, browser.getID(), groupName, NotificationType.CLOUD_PUSH,
+                        EmailNotificationProvider.this));
             } catch (MessagingException ex) {
                 log.log(Level.WARNING, "Failed to send email message.", ex);
             }

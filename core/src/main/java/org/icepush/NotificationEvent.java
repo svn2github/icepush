@@ -8,34 +8,45 @@ public class NotificationEvent
 extends EventObject {
     private static final Logger LOGGER = Logger.getLogger(NotificationEvent.class.getName());
 
-    private final Browser browser;
-    private final PushID pushID;
+    public static enum NotificationType {
+        PUSH,
+        CLOUD_PUSH
+    }
+
+    public static enum TargetType {
+        BROWSER_ID,
+        PUSH_ID
+    }
+
+    private final TargetType targetType;
+    private final String targetID;
     private final String groupName;
+    private final NotificationType notificationType;
 
-    public NotificationEvent(final Browser browser, final String groupName, final Object source) {
-        this(browser, null, groupName, source);
-    }
+    public NotificationEvent(
+        final TargetType targetType, final String targetID, final String groupName,
+        final NotificationType notificationType, final Object source) {
 
-    public NotificationEvent(final PushID pushID, final String groupName, final Object source) {
-        this(null, pushID, groupName, source);
-    }
-
-    private NotificationEvent(final Browser browser, final PushID pushID, final String groupName, final Object source) {
         super(source);
-        this.browser = browser;
-        this.pushID = pushID;
+        this.targetType = targetType;
+        this.targetID = targetID;
         this.groupName = groupName;
-    }
-
-    public Browser getBrowser() {
-        return browser;
+        this.notificationType = notificationType;
     }
 
     public String getGroupName() {
         return groupName;
     }
 
-    public PushID getPushID() {
-        return pushID;
+    public NotificationType getNotificationType() {
+        return notificationType;
+    }
+
+    public String getTargetID() {
+        return targetID;
+    }
+
+    public TargetType getTargetType() {
+        return targetType;
     }
 }
