@@ -122,7 +122,7 @@ public class ConfigurationServer implements Server {
         }
 
         public void writeTo(Writer writer) throws IOException {
-            writer.write("<browser id=\"" + context.generateBrowserID() + "\"/>");
+            writer.write("<browser id=\"" + Browser.generateBrowserID() + "\"/>");
             log.fine("BrowserID set through blocking connection.");
         }
     }
