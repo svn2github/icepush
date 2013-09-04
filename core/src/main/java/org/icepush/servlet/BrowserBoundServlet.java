@@ -23,11 +23,14 @@ import org.icepush.util.Slot;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.Map;
 import java.util.Timer;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 public class BrowserBoundServlet extends PathDispatcher {
     private final static Logger log = Logger.getLogger(BrowserBoundServlet.class.getName());
+    private static final Pattern NAME_VALUE = Pattern.compile("\\=");
     protected PushContext pushContext;
     protected ServletContext context;
     protected PushGroupManager pushGroupManager;
@@ -69,7 +72,19 @@ public class BrowserBoundServlet extends PathDispatcher {
     private class NotifyPushID extends AbstractPseudoServlet {
         public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
             String group = request.getParameter("group");
-            pushContext.push(group);
+            String[] options = request.getParameterValues("option");
+            if (options != null && options.length > 0) {
+                PushConfiguration configuration = new PushConfiguration();
+                Map<String,Object> attributes = configuration.getAttributes();
+                for (int i = 0; i < options.length; i++) {
+                    String option = options[i];
+                    String[] nameValue = NAME_VALUE.split(option);
+                    attributes.put(nameValue[0], nameValue[1]);
+                }
+                pushContext.push(group, configuration);
+            } else {
+                pushContext.push(group);
+            }
             response.setContentType("text/plain");
             response.setContentLength(0);
         }

@@ -180,10 +180,16 @@ if (!window.ice.icepush) {
                 return id;
             },
 
-            notify: function(group) {
+            notify: function(group, options) {
                 var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
                     addNameValue(q, 'group', group);
+
+                    for (var name in options) {
+                        if (options.hasOwnProperty(name)) {
+                            addNameValue(q, 'option', name + '=' + options[name]);
+                        }
+                    }
                 }, FormPost, $witch(function(condition) {
                     condition(ServerInternalError, throwServerError);
                 }));
