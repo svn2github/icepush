@@ -30,7 +30,6 @@ public class PushContext {
     //assign noop manager to avoid NPEs before the real manager is assign during startup
     private PushGroupManager pushGroupManager = NoopPushGroupManager.Instance;
 
-    private int browserCounter = 0;
     private int subCounter = 0;
 
     /**
@@ -72,10 +71,9 @@ public class PushContext {
     public synchronized String createPushId(HttpServletRequest request, HttpServletResponse response) {
         String browserID = getBrowserIDFromCookie(request);
         if (browserID == null) {
-            String currentBrowserID = (String)
-                    request.getAttribute(BrowserIDCookieName);
+            String currentBrowserID = (String)request.getAttribute(BrowserIDCookieName);
             if (null == currentBrowserID) {
-                browserID = generateBrowserID();
+                browserID = Browser.generateBrowserID();
                 Cookie cookie = new Cookie(BrowserIDCookieName, browserID);
                 cookie.setPath("/");
                 response.addCookie(cookie);
@@ -195,10 +193,6 @@ public class PushContext {
         }
 
         return null;
-    }
-
-    synchronized String generateBrowserID() {
-        return Long.toString(++browserCounter, 36) + Long.toString(System.currentTimeMillis(), 36);
     }
 
     private synchronized String generateSubID() {

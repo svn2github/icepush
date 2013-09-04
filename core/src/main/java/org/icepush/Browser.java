@@ -13,6 +13,8 @@ public class Browser
 implements Serializable {
     private static final Logger LOGGER = Logger.getLogger(Browser.class.getName());
 
+    private static AtomicInteger browserCounter = new AtomicInteger(0);
+
     // This counter is only used by LOGGER
     private static AtomicInteger globalConfirmationTimeoutCounter = new AtomicInteger(0);
 
@@ -65,6 +67,10 @@ implements Serializable {
             return true;
         }
         return false;
+    }
+
+    public static String generateBrowserID() {
+        return Long.toString(browserCounter.incrementAndGet(), 36) + Long.toString(System.currentTimeMillis(), 36);
     }
 
     public String getID() {
