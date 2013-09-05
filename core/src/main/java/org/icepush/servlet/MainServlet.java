@@ -32,17 +32,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.icepush.Browser;
-import org.icepush.CodeServer;
-import org.icepush.Configuration;
-import org.icepush.NotificationProvider;
-import org.icepush.OutOfBandNotifier;
-import org.icepush.ProductInfo;
-import org.icepush.PushContext;
-import org.icepush.PushGroupManager;
-import org.icepush.PushGroupManagerFactory;
-import org.icepush.PushInternalContext;
-import org.icepush.PushNotification;
+import org.icepush.*;
 import org.icepush.http.standard.CacheControlledServer;
 import org.icepush.http.standard.CompressingServer;
 import org.icepush.util.ExtensionRegistry;
@@ -107,23 +97,21 @@ public class MainServlet implements PseudoServlet {
         pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context, executor, configuration);
         pushContext.setPushGroupManager(pushGroupManager);
         dispatcher = new PathDispatcher();
-        createOutOfBandNotifier(servletContext);
+        new DefaultOutOfBandNotifier(servletContext);
+
         addDispatches();
     }
 
     protected void addDispatches() {
         dispatchOn(".*code\\.min\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
-            new CodeServer(new String[] {"ice.core/bridge-support.js", "ice.push/icepush.js"}))), configuration));
+                new CodeServer(new String[] {"ice.core/bridge-support.js", "ice.push/icepush.js"}))), configuration));
         dispatchOn(".*code\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
-            new CodeServer(new String[] {"ice.core/bridge-support.uncompressed.js", "ice.push/icepush.uncompressed.js"}))), configuration));
-        dispatchOn(".*",
-            new ConfigurationServlet(
-                pushContext, context, configuration,
-                new BrowserDispatcher(configuration) {
-                    protected PseudoServlet newServer(String browserID) {
-                        return createBrowserBoundServlet(browserID);
-                    }
-                }));
+                new CodeServer(new String[] {"ice.core/bridge-support.uncompressed.js", "ice.push/icepush.uncompressed.js"}))), configuration));
+        dispatchOn(".*", new CheckBrowserIDServlet(new ConfigurationServlet(pushContext, context, configuration, new BrowserDispatcher(configuration) {
+            protected PseudoServlet newServer(String browserID) {
+                return createBrowserBoundServlet(browserID);
+            }
+        })));
     }
 
     protected PseudoServlet createBrowserBoundServlet(String browserID) {

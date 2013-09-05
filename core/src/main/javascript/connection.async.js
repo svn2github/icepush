@@ -110,8 +110,11 @@ var AsyncConnection;
         }
 
         function askForConfiguration(query) {
-            addNameValue(query, 'ice.sendConfiguration', '');
-            askForConfiguration = noop;
+            //request configuration once, but only after ice.push.browser cookie is set
+            if (existsCookie(BrowserIDCookieName)) {
+                addNameValue(query, 'ice.sendConfiguration', '');
+                askForConfiguration = noop;
+            }
         }
 
         function requestForBlockingResponse() {

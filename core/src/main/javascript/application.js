@@ -139,6 +139,20 @@ if (!window.ice.icepush) {
             return contextPath + '/' + path;
         }
 
+        function isXMLResponse(response) {
+            var mimeType = getHeader(response, 'Content-Type');
+            return mimeType && startsWith(mimeType, 'text/xml');
+        }
+
+        var commandDispatcher = CommandDispatcher();
+        register(commandDispatcher, 'noop', NoopCommand);
+        register(commandDispatcher, 'parsererror', ParsingError);
+        register(commandDispatcher, 'macro', Macro(commandDispatcher));
+        register(commandDispatcher, 'browser', function(message) {
+            browserID = message.getAttribute('id');
+            Cookie(BrowserIDCookieName, browserID);
+        });
+
         var currentNotifications = [];
         var apiChannel = Client(true);
         //public API
@@ -173,7 +187,12 @@ if (!window.ice.icepush) {
                 var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
                 postSynchronously(apiChannel, uri, noop, FormPost, $witch(function (condition) {
                     condition(OK, function(response) {
-                        id = contentAsText(response);
+                        if (isXMLResponse(response)) {
+                            deserializeAndExecute(commandDispatcher, contentAsDOM(response).documentElement);
+                            id = namespace.push.createPushId();
+                        } else {
+                            id = contentAsText(response);
+                        }
                     });
                     condition(ServerInternalError, throwServerError);
                 }));
@@ -263,30 +282,22 @@ if (!window.ice.icepush) {
             var browserID;
             var windowID = namespace.windowID;
             var logger = childLogger(namespace.logger, windowID);
+            var sequenceNo = 0;
+            var heartbeatTimestamp;
+
             var publicConfiguration = namespace.push.configuration;
             var configurationElement = document.documentElement;//documentElement is used as a noop config. element
             var configuration = XMLDynamicConfiguration(function() {
                 return configurationElement;
             });
-            var commandDispatcher = CommandDispatcher();
-            var sequenceNo = 0;
-            var heartbeatTimestamp;
             var asyncConnection = AsyncConnection(logger, windowID, configuration);
 
-            register(commandDispatcher, 'noop', NoopCommand);
-            register(commandDispatcher, 'parsererror', ParsingError);
-            register(commandDispatcher, 'macro', Macro(commandDispatcher));
             register(commandDispatcher, 'configuration', function(message) {
                 configurationElement = message;
                 //update public values
                 publicConfiguration.contextPath = attributeAsString(configuration, 'contextPath', publicConfiguration.contextPath);
                 publicConfiguration.blockingConnectionURI = attributeAsString(configuration, 'blockingConnectionURI', publicConfiguration.blockingConnectionURI || 'listen.icepush');
                 changeHeartbeatInterval(asyncConnection, attributeAsNumber(configuration, 'heartbeatTimeout', 15000));
-            });
-            register(commandDispatcher, 'browser', function(message) {
-                browserID = message.getAttribute('id');
-                Cookie(BrowserIDCookieName, browserID);
-
             });
             register(commandDispatcher, 'back-off', function(message) {
                 debug(logger, 'received back-off');
@@ -299,6 +310,7 @@ if (!window.ice.icepush) {
                     }, delay));
                 }
             });
+
 
             //purge discarded pushIDs from the notification list
             function purgeUnusedPushIDs(ids) {
@@ -362,10 +374,10 @@ if (!window.ice.icepush) {
             });
 
             onReceive(asyncConnection, function(response) {
-                var mimeType = getHeader(response, 'Content-Type');
-                if (mimeType && startsWith(mimeType, 'text/xml')) {
+                if (isXMLResponse(response)) {
                     deserializeAndExecute(commandDispatcher, contentAsDOM(response).documentElement);
                 } else {
+                    var mimeType = getHeader(response, 'Content-Type');
                     warn(logger, 'unknown content in response - ' + mimeType + ', expected text/xml');
                 }
 

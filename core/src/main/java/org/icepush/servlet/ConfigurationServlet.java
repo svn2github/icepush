@@ -41,8 +41,6 @@ public class ConfigurationServlet implements PseudoServlet {
     private boolean nonDefaultConfiguration;
 
     private FixedXMLContentHandler configureBridge;
-    private FixedXMLContentHandler setBrowserID;
-    private ResponseHandler setBrowserIDAndConfigureBridgeMacro;
     private boolean redirect;
 
     public ConfigurationServlet(final PushContext context, final ServletContext servletContext, final Configuration configuration, final PseudoServlet pseudoServlet) {
@@ -70,8 +68,6 @@ public class ConfigurationServlet implements PseudoServlet {
         redirect = contextPath != null && !servletContext.getContextPath().equals(contextPath);
         nonDefaultConfiguration = configurationMessage.length() != "<configuration/>".length();
         configureBridge = new ConfigureBridge(configurationMessage);
-        setBrowserID = new SetBrowserID(context);
-        setBrowserIDAndConfigureBridgeMacro = new SetBrowserIDAndConfigureBridgeMacro();
     }
 
     private static String normalizeContextPath(String path) {
@@ -85,17 +81,8 @@ public class ConfigurationServlet implements PseudoServlet {
     public void service(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
         ServletRequestResponse requestResponse = new ServletRequestResponse(request, response, configuration);
         String browserID = Browser.getBrowserID(request);
-        if (redirect || requestResponse.containsParameter("ice.sendConfiguration")) {
-            boolean browserIDNotSet = browserID == null;
-            if (nonDefaultConfiguration && browserIDNotSet) {
-                requestResponse.respondWith(setBrowserIDAndConfigureBridgeMacro);
-            } else if (nonDefaultConfiguration) {
-                requestResponse.respondWith(configureBridge);
-            } else if (browserIDNotSet) {
-                requestResponse.respondWith(setBrowserID);
-            } else {
-                pseudoServlet.service(request, response);
-            }
+        if ((redirect || requestResponse.containsParameter("ice.sendConfiguration")) && nonDefaultConfiguration) {
+            requestResponse.respondWith(configureBridge);
         } else {
             pseudoServlet.service(request, response);
         }
@@ -115,28 +102,6 @@ public class ConfigurationServlet implements PseudoServlet {
         public void writeTo(Writer writer) throws IOException {
             writer.write(configurationMessage);
             log.fine("Re-configured bridge.");
-        }
-    }
-
-    private static class SetBrowserID extends FixedXMLContentHandler {
-        private PushContext context;
-
-        public SetBrowserID(PushContext context) {
-            this.context = context;
-        }
-
-        public void writeTo(Writer writer) throws IOException {
-            writer.write("<browser id=\"" + Browser.generateBrowserID() + "\"/>");
-            log.fine("BrowserID set through blocking connection.");
-        }
-    }
-
-    private class SetBrowserIDAndConfigureBridgeMacro extends FixedXMLContentHandler {
-        public void writeTo(Writer writer) throws IOException {
-            writer.write("<macro>");
-            configureBridge.writeTo(writer);
-            setBrowserID.writeTo(writer);
-            writer.write("</macro>");
         }
     }
 }

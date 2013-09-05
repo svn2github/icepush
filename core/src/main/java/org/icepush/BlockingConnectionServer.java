@@ -81,9 +81,9 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     public BlockingConnectionServer(
         final String browserID, final PushGroupManager pushGroupManager, final Timer monitoringScheduler, final Slot heartbeat,
         final boolean terminateBlockingConnectionOnShutdown, final Configuration configuration) {
+        this.pushGroupManager = pushGroupManager;
 
         this.browser = newBrowser(browserID);
-        this.pushGroupManager = pushGroupManager;
         this.pushGroupManager.addBlockingConnectionServer(browser.getID(), this);
         this.monitoringScheduler = monitoringScheduler;
         this.heartbeatInterval = heartbeat;
