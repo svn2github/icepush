@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
@@ -63,7 +64,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     protected final ConcurrentMap<String, PushID> pushIDMap = new ConcurrentHashMap<String, PushID>();
     protected final ConcurrentMap<String, Group> groupMap = new ConcurrentHashMap<String, Group>();
     private final ConcurrentMap<String, NotifyBackURI> parkedPushIDs = new ConcurrentHashMap<String, NotifyBackURI>();
-    private final HashSet<String> pendingNotifications = new HashSet();
+    private final Set<NotificationEntry> pendingNotificationSet = new HashSet<NotificationEntry>();
     private final NotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
     private final Timer timer = new Timer("Notification queue consumer.", true);
     private final TimerTask queueConsumer;
@@ -146,7 +147,12 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     public void clearPendingNotifications(final Set<String> pushIDSet) {
-        pendingNotifications.removeAll(pushIDSet);
+        Iterator<NotificationEntry> pendingNotificationIterator = pendingNotificationSet.iterator();
+        while (pendingNotificationIterator.hasNext()) {
+            if (pushIDSet.contains(pendingNotificationIterator.next().getPushID())) {
+                pendingNotificationIterator.remove();
+            }
+        }
     }
 
     public void deleteNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
@@ -165,8 +171,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         return groupMap;
     }
 
-    public String[] getPendingNotifications() {
-        return pendingNotifications.toArray(STRINGS);
+    public Set<NotificationEntry> getPendingNotificationSet() {
+        return new HashSet<NotificationEntry>(pendingNotificationSet);
     }
 
     public void push(final String groupName) {
@@ -259,13 +265,13 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         }
     }
 
-    public void startConfirmationTimeout(final Set<String> pushIDSet, final String groupName) {
-        for (final String pushIDString : pushIDSet) {
-            PushID _pushID = pushIDMap.get(pushIDString);
+    public void startConfirmationTimeout(final Set<NotificationEntry> notificationSet) {
+        for (final NotificationEntry notificationEntry : notificationSet) {
+            PushID _pushID = pushIDMap.get(notificationEntry.getPushID());
             if (_pushID != null) {
                 Browser _browser = _pushID.getBrowser();
                 if (_browser != null) {
-                    _browser.startConfirmationTimeout(groupName);
+                    _browser.startConfirmationTimeout(notificationEntry.getGroupName());
                 }
             }
         }
@@ -275,7 +281,11 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         for (final String pushIDString : browser.getPushIDSet()) {
             PushID pushID = pushIDMap.get(pushIDString);
             if (pushID != null) {
-                pushID.startExpiryTimeout(browser, pushID.getBrowser().getSequenceNumber());
+                try {
+                    pushID.startExpiryTimeout(browser, browser.getSequenceNumber());
+                } catch (final NullPointerException exception) {
+                    throw exception;
+                }
             }
         }
     }
@@ -342,11 +352,11 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     void removePendingNotification(final String pushID) {
-        pendingNotifications.remove(pushID);
+        clearPendingNotifications(new HashSet<String>(Arrays.asList(pushID)));
     }
 
-    void removePendingNotifications(final Set<String> pushIDList) {
-        pendingNotifications.removeAll(pushIDList);
+    void removePendingNotifications(final Set<String> pushIDSet) {
+        clearPendingNotifications(pushIDSet);
     }
 
     void removePushID(final String pushID) {
@@ -378,9 +388,13 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                     }
                     Set<String> pushIDSet = new HashSet<String>(Arrays.asList(group.getPushIDs()));
                     pushIDSet.removeAll(exemptPushIDSet);
-                    pendingNotifications.addAll(pushIDSet);
-                    startConfirmationTimeout(pushIDSet, groupName);
-                    outboundNotifier.broadcast(pushIDSet.toArray(new String[pushIDSet.size()]));
+                    Set<NotificationEntry> notificationSet = new HashSet<NotificationEntry>();
+                    for (final String pushID : pushIDSet) {
+                        notificationSet.add(new NotificationEntry(pushID, groupName));
+                    }
+                    pendingNotificationSet.addAll(notificationSet);
+                    startConfirmationTimeout(notificationSet);
+                    outboundNotifier.broadcast(notificationSet);
                     pushed(groupName);
                 }
             } finally {
@@ -404,7 +418,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                 pushIDs = group.getPushIDs();
             }
             for (final String pushID : pushIDs) {
-                pushIDMap.get(pushID).getBrowser().setPushConfiguration(config);
+                Browser browser = pushIDMap.get(pushID).getBrowser();
+                if (browser != null) {
+                    browser.setPushConfiguration(config);
+                }
             }
             super.run();
         }

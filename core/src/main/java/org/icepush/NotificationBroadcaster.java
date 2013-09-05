@@ -16,6 +16,7 @@
  */
 package org.icepush;
 
+import java.util.Set;
 
 public interface NotificationBroadcaster {
 
@@ -23,9 +24,9 @@ public interface NotificationBroadcaster {
 
     void deleteReceiver(Receiver observer);
 
-    void broadcast(String[] notifiedPushIds);
+    void broadcast(Set<NotificationEntry> notificationSet);
 
     public interface Receiver {
-        void receive(String[] pushIds);
+        void receive(Set<NotificationEntry> notificationSet);
     }
 }

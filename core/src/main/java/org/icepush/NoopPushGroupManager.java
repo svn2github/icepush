@@ -17,7 +17,6 @@
 package org.icepush;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -66,8 +65,8 @@ public class NoopPushGroupManager implements PushGroupManager {
         return null;
     }
 
-    public String[] getPendingNotifications() {
-        return new String[0];
+    public Set<NotificationEntry> getPendingNotificationSet() {
+        return Collections.emptySet();
     }
 
     public PushID getPushID(final String pushIDString) {

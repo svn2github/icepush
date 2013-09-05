@@ -16,7 +16,6 @@
  */
 package org.icepush;
 
-import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.logging.Level;
@@ -31,12 +30,12 @@ public class LocalNotificationBroadcaster implements NotificationBroadcaster {
         receivers.add(receiver);
     }
 
-    public void broadcast(final String[] notifiedPushIds) {
+    public void broadcast(final Set<NotificationEntry> notificationSet) {
         if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(Level.FINE, "Local Notification Broadcaster broadcasting " + Arrays.asList(notifiedPushIds));
+            LOGGER.log(Level.FINE, "Local Notification Broadcaster broadcasting " + notificationSet);
         }
         for (final Receiver receiver : receivers) {
-            receiver.receive(notifiedPushIds);
+            receiver.receive(notificationSet);
         }
     }
 

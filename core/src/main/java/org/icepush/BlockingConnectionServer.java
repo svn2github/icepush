@@ -16,21 +16,23 @@
  */
 package org.icepush;
 
+import static org.icepush.NotificationEvent.NotificationType;
+import static org.icepush.NotificationEvent.TargetType;
+
 import java.io.IOException;
 import java.io.Writer;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.servlet.http.Cookie;
 
 import org.icepush.http.Request;
 import org.icepush.http.Response;
@@ -42,7 +44,6 @@ import org.icepush.util.Slot;
 
 public class BlockingConnectionServer extends TimerTask implements Server, NotificationBroadcaster.Receiver {
     private static final Logger LOGGER = Logger.getLogger(BlockingConnectionServer.class.getName());
-    private static final String BrowserIDCookieName = "ice.push.browser";
     private static final String[] STRINGS = new String[0];
     //Define here to avoid classloading problems after application exit
     private static final ResponseHandler ShutdownNoopResponse = new NoopResponseHandler("shutdown");
@@ -67,11 +68,11 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private Browser browser;
     private long responseTimeoutTime;
     private Server activeServer;
-    private ConcurrentLinkedQueue<String> notifiedPushIDs = new ConcurrentLinkedQueue<String>();
+    private ConcurrentLinkedQueue<NotificationEntry> notifiedPushIDs = new ConcurrentLinkedQueue<NotificationEntry>();
     private Timer monitoringScheduler;
 
     private String lastWindow = "";
-    private String[] lastNotifications = new String[]{};
+    private Set<NotificationEntry> lastNotifications = new HashSet<NotificationEntry>();
     private long defaultConnectionRecreationTimeout;
     private long responseTimestamp = System.currentTimeMillis();
     private long requestTimestamp = System.currentTimeMillis();
@@ -139,17 +140,21 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         return pushGroupManager;
     }
 
-    protected Browser newBrowser(final String id) {
-        return new Browser(id, getMinCloudPushInterval(), getPushGroupManager());
+    protected Browser newBrowser(final String browserID) {
+        return new Browser(browserID, getMinCloudPushInterval(), getPushGroupManager());
     }
 
-    private boolean sendNotifications(final String[] ids) {
+    private boolean sendNotifications(final Set<NotificationEntry> notificationSet) {
         //stop sending notifications if pushID are not used anymore by the browser
-        List<String> pushIDs = new ArrayList<String>(Arrays.asList(ids));
-        pushIDs.retainAll(browser.getPushIDSet());
-        boolean anyNotifications = !pushIDs.isEmpty();
+        Iterator<NotificationEntry> notificationEntryIterator = notificationSet.iterator();
+        while (notificationEntryIterator.hasNext()) {
+            if (!browser.getPushIDSet().contains(notificationEntryIterator.next().getPushID())) {
+                notificationEntryIterator.remove();
+            }
+        }
+        boolean anyNotifications = !notificationSet.isEmpty();
         if (anyNotifications) {
-            notifiedPushIDs.addAll(pushIDs);
+            notifiedPushIDs.addAll(notificationSet);
             resetTimeout();
             respondIfNotificationsAvailable();
         }
@@ -173,20 +178,35 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private synchronized void respondIfNotificationsAvailable() {
         if (!notifiedPushIDs.isEmpty()) {
             //save notifications, maybe they will need to be resent when blocking connection switches to another window
-            lastNotifications = new HashSet<String>(notifiedPushIDs).toArray(STRINGS);
-            respondIfPendingRequest(new NotificationHandler(lastNotifications) {
-                public void writeTo(Writer writer) throws IOException {
-                    super.writeTo(writer);
+            lastNotifications = new HashSet<NotificationEntry>(notifiedPushIDs);
+            respondIfPendingRequest(
+                new NotificationHandler(lastNotifications) {
+                    public void writeTo(Writer writer) throws IOException {
+                        super.writeTo(writer);
 
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(
-                            Level.FINE,
-                            "Push Notifications available for PushIDs '" + notifiedPushIDs + "', trying to respond.");
+                        if (LOGGER.isLoggable(Level.FINE)) {
+                            LOGGER.log(
+                                Level.FINE,
+                                "Push Notifications available for PushIDs '" + pushIDSet + "', trying to respond.");
+                        }
+                        pushGroupManager.clearPendingNotifications(browser.getPushIDSet());
+                        notifiedPushIDs.removeAll(lastNotifications);
+                        Set<String> groupNameSet = new HashSet<String>();
+                        for (final NotificationEntry notificationEntry : lastNotifications) {
+                            String groupName = notificationEntry.getGroupName();
+                            if (groupNameSet.add(groupName)) {
+                                notificationSent(
+                                    new NotificationEvent(
+                                        TargetType.BROWSER_ID, browser.getID(), groupName,
+                                        NotificationEvent.NotificationType.PUSH, this));
+                            }
+                            notificationSent(
+                                new NotificationEvent(
+                                    TargetType.PUSH_ID, notificationEntry.getPushID(), groupName, NotificationType.PUSH,
+                                    this));
+                        }
                     }
-                    pushGroupManager.clearPendingNotifications(browser.getPushIDSet());
-                    notifiedPushIDs.removeAll(Arrays.asList(lastNotifications));
-                }
-            });
+                });
         }
     }
 
@@ -195,7 +215,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     }
 
     private boolean respondIfPendingRequest(ResponseHandler handler) {
-        Request previousRequest = (Request) pendingRequest.poll();
+        Request previousRequest = pendingRequest.poll();
         if (previousRequest != null) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
@@ -290,32 +310,35 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     }
 
     private class NotificationHandler extends FixedXMLContentHandler {
-        private String[] pushIDs;
+        protected Set<String> pushIDSet = new HashSet<String>();
 
-        private NotificationHandler(String[] pushIDs) {
-            this.pushIDs = pushIDs;
+        private NotificationHandler(final Set<NotificationEntry> notificationSet) {
+            for (final NotificationEntry notificationEntry : notificationSet) {
+                pushIDSet.add(notificationEntry.getPushID());
+            }
         }
 
         public void writeTo(Writer writer) throws IOException {
             writer.write("<notified-pushids>");
-            for (int i = 0; i < pushIDs.length; i++) {
-                String id = pushIDs[i];
-                if (i > 0) {
+            boolean first = true;
+            for (final String pushID : pushIDSet) {
+                if (!first) {
                     writer.write(' ');
                 }
-                writer.write(id);
+                writer.write(pushID);
+                first = false;
             }
             writer.write("</notified-pushids>");
             if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "Sending Notified PushIDs '" + Arrays.toString(pushIDs) + "'.");
+                LOGGER.log(Level.FINE, "Sending Notified PushIDs '" + pushIDSet + "'.");
             }
         }
     }
 
-    public void receive(final String[] pushIDs) {
-        List<String> pushIDList = new ArrayList<String>(Arrays.asList(pushIDs));
-        pushIDList.retainAll(browser.getPushIDSet());
-        sendNotifications(pushIDs);
+    public void receive(final Set<NotificationEntry> notificationSet) {
+        Set<NotificationEntry> _copyOfNotificationSet = new HashSet<NotificationEntry>();
+        _copyOfNotificationSet.addAll(notificationSet);
+        sendNotifications((_copyOfNotificationSet));
     }
 
     private class RunningServer implements Server {
@@ -357,7 +380,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                     pushGroupManager.pruneParkedIDs(browser.getNotifyBackURI(), browser.getPushIDSet());
                 }
                 if (!respondIfBackOffRequested()) {
-                    if (!sendNotifications(pushGroupManager.getPendingNotifications())) {
+                    if (!sendNotifications(pushGroupManager.getPendingNotificationSet())) {
                         if (resend) {
                             resendLastNotifications();
                         } else {
@@ -427,6 +450,23 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         String notifyBack = request.getHeader("ice.notifyBack");
         if (notifyBack != null && notifyBack.trim().length() != 0) {
             browser.setNotifyBackURI(new NotifyBackURI(notifyBack), true);
+        }
+    }
+
+    private final Set<NotificationListener>
+        listenerSet = new CopyOnWriteArraySet<NotificationListener>();
+
+    public void addNotificationListener(final NotificationListener listener) {
+        listenerSet.add(listener);
+    }
+
+    public void removeNotificationListener(final NotificationListener listener) {
+        listenerSet.remove(listener);
+    }
+
+    protected void notificationSent(final NotificationEvent event) {
+        for (final NotificationListener listener : listenerSet) {
+            listener.notificationSent(event);
         }
     }
 }

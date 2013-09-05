@@ -16,7 +16,6 @@
  */
 package org.icepush;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -45,7 +44,7 @@ public interface PushGroupManager {
 
     OutOfBandNotifier getOutOfBandNotifier();
 
-    String[] getPendingNotifications();
+    Set<NotificationEntry> getPendingNotificationSet();
 
     PushID getPushID(String pushIDString);
 
