@@ -37,17 +37,25 @@ import org.icepush.util.Slot;
 
 public class BrowserBoundServlet extends PathDispatcher {
     private final static Logger log = Logger.getLogger(BrowserBoundServlet.class.getName());
+
     private static final Pattern NAME_VALUE = Pattern.compile("\\=");
+
+    protected String browserID;
     protected PushContext pushContext;
-    protected ServletContext context;
+    protected ServletContext servletContext;
     protected PushGroupManager pushGroupManager;
     protected Timer monitoringScheduler;
     protected Configuration configuration;
     protected boolean terminateBlockingConnectionOnShutdown;
 
-    public BrowserBoundServlet(PushContext pushContext, ServletContext context, final PushGroupManager pushGroupManager, final Timer monitoringScheduler, Configuration configuration, boolean terminateBlockingConnectionOnShutdown) {
+    public BrowserBoundServlet(
+        final String browserID, final PushContext pushContext, final ServletContext servletContext,
+        final PushGroupManager pushGroupManager, final Timer monitoringScheduler, final Configuration configuration,
+        boolean terminateBlockingConnectionOnShutdown) {
+
+        this.browserID = browserID;
         this.pushContext = pushContext;
-        this.context = context;
+        this.servletContext = servletContext;
         this.pushGroupManager = pushGroupManager;
         this.monitoringScheduler = monitoringScheduler;
         this.configuration = configuration;
@@ -68,7 +76,7 @@ public class BrowserBoundServlet extends PathDispatcher {
         return
             new PushStormDetectionServer(
                 new SequenceTaggingServer(sequenceNo,
-                    new BlockingConnectionServer(pushGroupManager, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration)), configuration);
+                    new BlockingConnectionServer(browserID, pushGroupManager, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration)), configuration);
     }
 
     private class CreatePushID extends AbstractPseudoServlet {

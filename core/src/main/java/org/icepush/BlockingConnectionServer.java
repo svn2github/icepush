@@ -78,10 +78,12 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private long backOffDelay = 0;
 
     public BlockingConnectionServer(
-        final PushGroupManager pushGroupManager, final Timer monitoringScheduler, final Slot heartbeat,
+        final String browserID, final PushGroupManager pushGroupManager, final Timer monitoringScheduler, final Slot heartbeat,
         final boolean terminateBlockingConnectionOnShutdown, final Configuration configuration) {
 
+        this.browser = newBrowser(browserID);
         this.pushGroupManager = pushGroupManager;
+        this.pushGroupManager.addBlockingConnectionServer(browser.getID(), this);
         this.monitoringScheduler = monitoringScheduler;
         this.heartbeatInterval = heartbeat;
         this.defaultConnectionRecreationTimeout = configuration.getAttributeAsLong("connectionRecreationTimeout", 5000);
@@ -328,10 +330,6 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         public void service(final Request request) throws Exception {
             resetTimeout();
             try {
-                if (browser == null) {
-                    browser = newBrowser(getBrowserIDFromCookie(request));
-                    pushGroupManager.addBlockingConnectionServer(browser.getID(), BlockingConnectionServer.this);
-                }
                 browser.setPushIDSet(new HashSet<String>(Arrays.asList(request.getParameterAsStrings("ice.pushid"))));
                 adjustConnectionRecreationTimeout(request);
 
@@ -408,10 +406,6 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         }
 
         if (LOGGER.isLoggable(Level.FINE)) {
-            String browserID = getBrowserIDFromCookie(request);
-            if (null == browserID)  {
-                browserID = "undefined";
-            }
             setNotifyBackURI(request);
             LOGGER.log(
                 Level.FINE,
@@ -419,26 +413,10 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                     " IP: " + request.getRemoteAddr() +
                     " pushIds: " + browser.getPushIDSet() +
                     " Cloud Push ID: " + browser.getNotifyBackURI() +
-                    " Browser: " + browserID +
+                    " Browser: " + browser.getID() +
                     " last request: " + elapsed +
                     " Latency: " + currentResponseDelay);
         }
-    }
-
-    private static String getBrowserIDFromCookie(final Request request) {
-        String browserID = request.getHeader(BrowserIDCookieName);
-        if (null != browserID)  {
-            return browserID;
-        }
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (BrowserIDCookieName.equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
-            }
-        }
-        return null;
     }
 
     private void recordResponseTime() {

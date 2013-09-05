@@ -127,7 +127,7 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected PseudoServlet createBrowserBoundServlet(String browserID) {
-        return new BrowserBoundServlet(pushContext, context, pushGroupManager, monitoringScheduler, configuration, terminateConnectionOnShutdown);
+        return new BrowserBoundServlet(browserID, pushContext, context, pushGroupManager, monitoringScheduler, configuration, terminateConnectionOnShutdown);
     }
 
     protected void createOutOfBandNotifier(final ServletContext servletContext) {
