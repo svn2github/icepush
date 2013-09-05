@@ -26,7 +26,6 @@ import javax.servlet.http.HttpServletResponse;
 
 public class PushContext {
     private static final Logger log = Logger.getLogger(PushContext.class.getName());
-    private static final String BrowserIDCookieName = "ice.push.browser";
     //assign noop manager to avoid NPEs before the real manager is assign during startup
     private PushGroupManager pushGroupManager = NoopPushGroupManager.Instance;
 
@@ -69,15 +68,15 @@ public class PushContext {
      */
 
     public synchronized String createPushId(HttpServletRequest request, HttpServletResponse response) {
-        String browserID = getBrowserIDFromCookie(request);
+        String browserID = Browser.getBrowserID(request);
         if (browserID == null) {
-            String currentBrowserID = (String)request.getAttribute(BrowserIDCookieName);
+            String currentBrowserID = (String)request.getAttribute(Browser.BROWSER_ID_NAME);
             if (null == currentBrowserID) {
                 browserID = Browser.generateBrowserID();
-                Cookie cookie = new Cookie(BrowserIDCookieName, browserID);
+                Cookie cookie = new Cookie(Browser.BROWSER_ID_NAME, browserID);
                 cookie.setPath("/");
                 response.addCookie(cookie);
-                request.setAttribute(BrowserIDCookieName, browserID);
+                request.setAttribute(Browser.BROWSER_ID_NAME, browserID);
             } else {
                 browserID = currentBrowserID;
             }
@@ -175,24 +174,6 @@ public class PushContext {
             servletContext.setAttribute(PushContext.class.getName(), pushContext = new PushContext());
         }
         return pushContext;
-    }
-
-    private static String getBrowserIDFromCookie(HttpServletRequest request) {
-        String browserID = request.getHeader(BrowserIDCookieName);
-        if (null != browserID)  {
-            return browserID;
-        }
-
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (BrowserIDCookieName.equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
-            }
-        }
-
-        return null;
     }
 
     private synchronized String generateSubID() {

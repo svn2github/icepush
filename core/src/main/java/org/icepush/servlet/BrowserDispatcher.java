@@ -16,12 +16,6 @@
  */
 package org.icepush.servlet;
 
-import org.icepush.Configuration;
-import org.icepush.PushContext;
-
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -29,9 +23,14 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.icepush.Browser;
+import org.icepush.Configuration;
+
 public abstract class BrowserDispatcher implements PseudoServlet {
     private final static Logger log = Logger.getLogger(BrowserDispatcher.class.getName());
-    private static final String BrowserIDCookieName = "ice.push.browser";
     private final Map browserBoundServlets = new HashMap();
     private final long browserTimeout;
 
@@ -41,7 +40,7 @@ public abstract class BrowserDispatcher implements PseudoServlet {
 
     public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
         discardUnusedServlets();
-        String browserID = getBrowserIDFromCookie(request);
+        String browserID = Browser.getBrowserID(request);
         checkSession(browserID);
         lookupServer(browserID).service(request, response);
     }
@@ -69,26 +68,6 @@ public abstract class BrowserDispatcher implements PseudoServlet {
         synchronized (browserBoundServlets) {
             return (PseudoServlet)browserBoundServlets.get(browserID);
         }
-    }
-
-    public static String getBrowserIDFromCookie(HttpServletRequest request) {
-        String browserID = request.getHeader(BrowserIDCookieName);
-        if (null != browserID)  {
-            return browserID;
-        }
-        return getBrowserIDFromCookies(request.getCookies());
-    }
-
-    public static String getBrowserIDFromCookies(Cookie[] cookies)  {
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (BrowserIDCookieName.equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
-            }
-        }
-
-        return null;
     }
 
     private void discardUnusedServlets() {

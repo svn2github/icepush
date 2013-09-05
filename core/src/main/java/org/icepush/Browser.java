@@ -9,9 +9,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+
 public class Browser
 implements Serializable {
     private static final Logger LOGGER = Logger.getLogger(Browser.class.getName());
+
+    public static final String BROWSER_ID_NAME = "ice.push.browser";
 
     private static AtomicInteger browserCounter = new AtomicInteger(0);
 
@@ -71,6 +76,14 @@ implements Serializable {
 
     public static String generateBrowserID() {
         return Long.toString(browserCounter.incrementAndGet(), 36) + Long.toString(System.currentTimeMillis(), 36);
+    }
+
+    public static String getBrowserID(final HttpServletRequest request) {
+        String _browserID = getBrowserIDFromHeader(request);
+        if (_browserID == null) {
+            _browserID = getBrowserIDFromCookie(request);
+        }
+        return _browserID;
     }
 
     public String getID() {
@@ -223,6 +236,22 @@ implements Serializable {
 
     protected void setStatus(final Status status) {
         this.status = status;
+    }
+
+    private static String getBrowserIDFromCookie(final HttpServletRequest request) {
+        Cookie[] _cookies = request.getCookies();
+        if (_cookies != null) {
+            for (final Cookie _cookie : _cookies) {
+                if (_cookie.getName().equals(BROWSER_ID_NAME)) {
+                    return _cookie.getValue();
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String getBrowserIDFromHeader(final HttpServletRequest request) {
+        return request.getHeader(BROWSER_ID_NAME);
     }
 
     public static class Status
