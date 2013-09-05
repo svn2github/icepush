@@ -24,7 +24,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.icepush.Configuration;
-import org.icepush.ConfigurationServer;
 import org.icepush.http.ResponseHandler;
 import org.icepush.http.Server;
 
@@ -59,7 +58,7 @@ public class AsyncAdaptingServlet implements PseudoServlet {
             asyncContext = request.isAsyncStarted() ? request.getAsyncContext() : request.startAsync();
 
             //PUSH-218: temporarily disabling modification of the context parameter
-            long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout);
+            long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServlet.DefaultHeartbeatTimeout);
             asyncContext.setTimeout(heartbeatTimeout * 2);
         }
 

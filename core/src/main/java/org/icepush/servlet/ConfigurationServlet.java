@@ -14,27 +14,30 @@
  * governing permissions and limitations under the License.
  *
  */
-package org.icepush;
+package org.icepush.servlet;
 
-import org.icepush.http.Request;
-import org.icepush.http.ResponseHandler;
-import org.icepush.http.Server;
-import org.icepush.http.standard.Cookie;
-import org.icepush.http.standard.FixedXMLContentHandler;
-
-import javax.servlet.ServletContext;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.logging.Logger;
 
-public class ConfigurationServer implements Server {
-    private static final Logger log = Logger.getLogger(ConfigurationServer.class.getName());
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.icepush.Browser;
+import org.icepush.Configuration;
+import org.icepush.PushContext;
+import org.icepush.http.ResponseHandler;
+import org.icepush.http.standard.FixedXMLContentHandler;
+
+public class ConfigurationServlet implements PseudoServlet {
+    private static final Logger log = Logger.getLogger(ConfigurationServlet.class.getName());
     private static final String defaultServerErrorRetries = "1000 2000 4000";
     private static final int defaultEmptyResponseRetries = 3;
     public static final int DefaultHeartbeatTimeout = 15000;
-    private static final String BrowserIDCookieName = "ice.push.browser";
 
-    private Server blockingConnectionServer;
+    private Configuration configuration;
+    private PseudoServlet pseudoServlet;
     private boolean nonDefaultConfiguration;
 
     private FixedXMLContentHandler configureBridge;
@@ -42,13 +45,14 @@ public class ConfigurationServer implements Server {
     private ResponseHandler setBrowserIDAndConfigureBridgeMacro;
     private boolean redirect;
 
-    public ConfigurationServer(final PushContext context, final ServletContext servletContext, Configuration configuration, final Server server) {
-        blockingConnectionServer = server;
-        String contextPath = normalizeContextPath(configuration.getAttribute("contextPath", (String) servletContext.getAttribute("contextPath")));
+    public ConfigurationServlet(final PushContext context, final ServletContext servletContext, final Configuration configuration, final PseudoServlet pseudoServlet) {
+        this.pseudoServlet = pseudoServlet;
+        this.configuration = configuration;
+        String contextPath = normalizeContextPath(this.configuration.getAttribute("contextPath", (String)servletContext.getAttribute("contextPath")));
         //PUSH-218: temporarily disabling modification of the context parameter
-        long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", DefaultHeartbeatTimeout);
-        String serverErrorRetries = configuration.getAttribute("serverErrorRetryTimeouts", defaultServerErrorRetries);
-        int emptyResponseRetries = configuration.getAttributeAsInteger("emptyResponseRetries", defaultEmptyResponseRetries);
+        long heartbeatTimeout = this.configuration.getAttributeAsLong("heartbeatTimeout", DefaultHeartbeatTimeout);
+        String serverErrorRetries = this.configuration.getAttribute("serverErrorRetryTimeouts", defaultServerErrorRetries);
+        int emptyResponseRetries = this.configuration.getAttributeAsInteger("emptyResponseRetries", defaultEmptyResponseRetries);
 
         String configurationMessage = "<configuration" +
                 (heartbeatTimeout != DefaultHeartbeatTimeout ?
@@ -78,27 +82,27 @@ public class ConfigurationServer implements Server {
         }
     }
 
-    public void service(Request request) throws Exception {
-        Cookie browserIDCookie = Cookie.readCookie(request, BrowserIDCookieName);
-        if (redirect || request.containsParameter("ice.sendConfiguration")) {
-            boolean browserIDNotSet = browserIDCookie == null;
-
+    public void service(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
+        ServletRequestResponse requestResponse = new ServletRequestResponse(request, response, configuration);
+        String browserID = Browser.getBrowserID(request);
+        if (redirect || requestResponse.containsParameter("ice.sendConfiguration")) {
+            boolean browserIDNotSet = browserID == null;
             if (nonDefaultConfiguration && browserIDNotSet) {
-                request.respondWith(setBrowserIDAndConfigureBridgeMacro);
+                requestResponse.respondWith(setBrowserIDAndConfigureBridgeMacro);
             } else if (nonDefaultConfiguration) {
-                request.respondWith(configureBridge);
+                requestResponse.respondWith(configureBridge);
             } else if (browserIDNotSet) {
-                request.respondWith(setBrowserID);
+                requestResponse.respondWith(setBrowserID);
             } else {
-                blockingConnectionServer.service(request);
+                pseudoServlet.service(request, response);
             }
         } else {
-            blockingConnectionServer.service(request);
+            pseudoServlet.service(request, response);
         }
     }
 
     public void shutdown() {
-        blockingConnectionServer.shutdown();
+        pseudoServlet.shutdown();
     }
 
     private static class ConfigureBridge extends FixedXMLContentHandler {

@@ -16,17 +16,24 @@
  */
 package org.icepush.servlet;
 
-import org.icepush.*;
-import org.icepush.http.Server;
-import org.icepush.util.Slot;
-
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
 import java.util.Timer;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.icepush.BlockingConnectionServer;
+import org.icepush.Configuration;
+import org.icepush.PushConfiguration;
+import org.icepush.PushContext;
+import org.icepush.PushGroupManager;
+import org.icepush.PushStormDetectionServer;
+import org.icepush.SequenceTaggingServer;
+import org.icepush.http.Server;
+import org.icepush.util.Slot;
 
 public class BrowserBoundServlet extends PathDispatcher {
     private final static Logger log = Logger.getLogger(BrowserBoundServlet.class.getName());
@@ -54,12 +61,14 @@ public class BrowserBoundServlet extends PathDispatcher {
     }
 
     protected Server createBlockingConnectionServer() {
-        Slot heartbeatInterval = new Slot(configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout));
+        Slot heartbeatInterval =
+            new Slot(
+                configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServlet.DefaultHeartbeatTimeout));
         Slot sequenceNo = new Slot(0L);
-        return new PushStormDetectionServer(
-                new ConfigurationServer(pushContext, context, configuration,
-                    new SequenceTaggingServer(sequenceNo,
-                        new BlockingConnectionServer(pushGroupManager, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration))), configuration);
+        return
+            new PushStormDetectionServer(
+                new SequenceTaggingServer(sequenceNo,
+                    new BlockingConnectionServer(pushGroupManager, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration)), configuration);
     }
 
     private class CreatePushID extends AbstractPseudoServlet {
