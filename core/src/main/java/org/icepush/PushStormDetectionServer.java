@@ -12,6 +12,7 @@ public class PushStormDetectionServer implements Server {
     private static final Logger log = Logger.getLogger(PushStormDetectionServer.class.getName());
     private static final long DefaultLoopInterval = 700;
     private static final long DefaultMaxTightLoopRequests = 25;
+    private static final long DefaultBackOffInterval = -1;
     private static final ResponseHandler PushStormResponse = new PushStormResponseHandler();
 
     private Server server;
@@ -20,10 +21,19 @@ public class PushStormDetectionServer implements Server {
     private long loopInterval;
     private long maxTightLoopRequests;
 
+    private BackOffResponseHandler backOffResponseHandler;
+
     public PushStormDetectionServer(Server server, Configuration configuration) {
         this.server = server;
         loopInterval = configuration.getAttributeAsLong("notificationStormLoopInterval", DefaultLoopInterval);
         maxTightLoopRequests = configuration.getAttributeAsLong("notificationStormMaximumRequests", DefaultMaxTightLoopRequests);
+
+        try {
+            long backOffInterval = configuration.getAttributeAsLong("notificationStormBackOffInterval");
+            backOffResponseHandler = new BackOffResponseHandler(backOffInterval);
+        } catch (ConfigurationException e) {
+            backOffResponseHandler = null;
+        }
     }
 
     public void service(Request request) throws Exception {
@@ -35,7 +45,11 @@ public class PushStormDetectionServer implements Server {
         lastTimeAccess = System.currentTimeMillis();
 
         if (successiveTightLoopRequests > maxTightLoopRequests) {
-            request.respondWith(PushStormResponse);
+            if (backOffResponseHandler == null) {
+                request.respondWith(PushStormResponse);
+            } else {
+                request.respondWith(backOffResponseHandler);
+            }
         } else {
             server.service(request);
         }

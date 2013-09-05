@@ -276,21 +276,6 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         }
     }
 
-    private static class BackOffResponseHandler extends FixedXMLContentHandler {
-        private long delay;
-
-        private BackOffResponseHandler(long delay) {
-            this.delay = delay;
-        }
-
-        public void writeTo(Writer writer) throws IOException {
-            writer.write("<back-off delay=\"" + delay + "\"/>");
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "Sending back-off - " + delay + "ms.");
-            }
-        }
-    }
-
     private class CloseConnectionResponseHandler implements ResponseHandler {
         private String reason = "undefined";
 
