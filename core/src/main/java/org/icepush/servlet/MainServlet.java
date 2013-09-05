@@ -107,8 +107,7 @@ public class MainServlet implements PseudoServlet {
         pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context, executor, configuration);
         pushContext.setPushGroupManager(pushGroupManager);
         dispatcher = new PathDispatcher();
-        new DefaultOutOfBandNotifier(servletContext);
-
+        createOutOfBandNotifier(servletContext);
         addDispatches();
     }
 
@@ -129,6 +128,10 @@ public class MainServlet implements PseudoServlet {
 
     protected PseudoServlet createBrowserBoundServlet(String browserID) {
         return new BrowserBoundServlet(pushContext, context, pushGroupManager, monitoringScheduler, configuration, terminateConnectionOnShutdown);
+    }
+
+    protected void createOutOfBandNotifier(final ServletContext servletContext) {
+        new DefaultOutOfBandNotifier(servletContext);
     }
 
     public void dispatchOn(String pattern, PseudoServlet servlet) {
