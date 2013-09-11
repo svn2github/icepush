@@ -29,6 +29,7 @@
 		<ant dir="./core" />
 		<ant dir="./samples/basic" />
 		<ant dir="./samples/jsp" />
+		<ant dir="./samples/pushservice" />
 		
 	</target>
 	
@@ -38,6 +39,7 @@
 
 		<ant target="clean" dir="./samples/basic"/>
 		<ant target="clean" dir="./samples/jsp"/>
+		<ant target="clean" dir="./samples/pushservice"/>
 				
 	</target>
 	
