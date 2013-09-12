@@ -35,6 +35,11 @@ public class PageNotifier extends HttpServlet {
     public void init(ServletConfig servletConfig) throws ServletException {
         timer = new Timer(true);
         pushContext = PushContext.getInstance(servletConfig.getServletContext());
+        timer.scheduleAtFixedRate(new TimerTask() {
+            public void run() {
+                pushContext.push("A");
+            }
+        }, 0, 5000);
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -49,18 +54,13 @@ public class PageNotifier extends HttpServlet {
         w.write("</head><body>");
 
         w.write("<script type=\"text/javascript\">");
-        w.write("ice.push.register(['" + idA + "', '" + idB + "'], function(pushIds) { ice.info(ice.logger, ice.push.getCurrentNotifications());document.getElementById('notifications').innerHTML = ice.push.getCurrentNotifications(); });");
+        w.write("ice.push.register(['" + idA + "'], function(pushIds) { ice.info(ice.logger, ice.push.getCurrentNotifications());document.getElementById('notifications').innerHTML = ice.push.getCurrentNotifications(); });");
         w.write("</script><h2>Basic ICEpush Test</h2><div>Current Push Notifications: <span id='notifications'></span></div>");
         w.write("</body></html>");
         response.setContentType("text/html");
 
         pushContext.addGroupMember("A", idA);
-        pushContext.addGroupMember("A", idB);
-        timer.scheduleAtFixedRate(new TimerTask() {
-            public void run() {
-                pushContext.push("A");
-            }
-        }, 0, 5000);
+        //pushContext.addGroupMember("A", idB);
     }
 
     public void destroy() {

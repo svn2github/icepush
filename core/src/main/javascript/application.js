@@ -41,6 +41,7 @@ if (!window.ice.icepush) {
         //include command.js
         //include connection.async.js
         //include inter.window.notification.js
+        //include pushid.expiry.js
 
         var notificationListeners = [];
         namespace.onNotification = function(callback) {
@@ -73,6 +74,18 @@ if (!window.ice.icepush) {
         namespace.info = info;
         var pushIdentifiers = [];
 
+        function registeredWindowPushIds() {
+            return pushIdentifiers;
+        }
+
+        function registeredPushIds() {
+            try {
+                return split(lookupCookieValue(PushIDs), ' ');
+            } catch (e) {
+                return [];
+            }
+        }
+
         function enlistPushIDsWithBrowser(ids) {
             try {
                 var idsCookie = lookupCookie(PushIDs);
@@ -101,10 +114,10 @@ if (!window.ice.icepush) {
             pushIdentifiers = complement(pushIdentifiers, ids);
         }
 
-        onBeforeUnload(window, function() {
-            delistPushIDsWithBrowser(pushIdentifiers);
-            pushIdentifiers = [];
-        });
+//        onBeforeUnload(window, function() {
+//            delistPushIDsWithBrowser(pushIdentifiers);
+//            pushIdentifiers = [];
+//        });
 
         function throwServerError(response) {
             throw 'Server internal error: ' + contentAsText(response);
@@ -145,7 +158,6 @@ if (!window.ice.icepush) {
         }
 
         var commandDispatcher = CommandDispatcher();
-        register(commandDispatcher, 'noop', NoopCommand);
         register(commandDispatcher, 'parsererror', ParsingError);
         register(commandDispatcher, 'macro', Macro(commandDispatcher));
         register(commandDispatcher, 'browser', function(message) {
@@ -295,6 +307,7 @@ if (!window.ice.icepush) {
             var configuration = XMLDynamicConfiguration(function() {
                 return configurationElement;
             });
+            var pushIdLiveliness = PushIDLiveliness(registeredWindowPushIds);
             var asyncConnection = AsyncConnection(logger, windowID, configuration);
 
             register(commandDispatcher, 'configuration', function(message) {
@@ -318,7 +331,7 @@ if (!window.ice.icepush) {
 
 
             //purge discarded pushIDs from the notification list
-            function purgeUnusedPushIDs(ids) {
+            function purgeNonRegisteredPushIDs(ids) {
                 var registeredIDsCookie = lookupCookie(PushIDs);
                 var registeredIDs = split(value(registeredIDsCookie), ' ');
                 return intersect(ids, registeredIDs);
@@ -338,17 +351,36 @@ if (!window.ice.icepush) {
                 }
             }
 
+            function removeUnusedPushIDs() {
+                var unresponsivePushIds = testLiveliness(pushIdLiveliness, registeredPushIds());
+                //collect pushIDs that have not confirmed their notification
+                var ids = [];
+                for (var p in unresponsivePushIds) {
+                    if (unresponsivePushIds.hasOwnProperty(p) && unresponsivePushIds[p] > 3) {
+                        append(ids, p);
+                    }
+                }
+                //remove unused pushIDs
+                if (notEmpty(ids)) {
+                    info(logger, 'expirying unused ids: ' + ids);
+                    delistPushIDsWithBrowser(ids);
+                }
+            }
+
             //choose between localStorage or cookie based inter-window communication
             var notificationBroadcaster = window.localStorage ?
                 LocalStorageNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications) : CookieBasedNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications);
 
+            //register command that handles the noop message
+            register(commandDispatcher, 'noop', removeUnusedPushIDs);
             //register command that handles the notified-pushids message
             register(commandDispatcher, 'notified-pushids', function(message) {
                 var text = message.firstChild;
                 if (text && !blank(text.data)) {
                     var receivedPushIDs = split(text.data, ' ');
                     debug(logger, 'received notifications: ' + receivedPushIDs);
-                    notifyWindows(notificationBroadcaster, purgeUnusedPushIDs(asSet(receivedPushIDs)));
+                    notifyWindows(notificationBroadcaster, purgeNonRegisteredPushIDs(asSet(receivedPushIDs)));
+                    removeUnusedPushIDs();
                 } else {
                     warn(logger, "No notification was received.");
                 }
@@ -468,8 +500,6 @@ if (!window.ice.icepush) {
                     header('ice.notifyBack', deviceURI)
                 }
             });
-
-            //include pushid.expiry.js
 
             info(logger, 'bridge loaded!');
 

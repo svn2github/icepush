@@ -14,48 +14,67 @@
  * governing permissions and limitations under the License.
  */
 
-(function() {
-    var expiryIntervalFactor = 3;
-    var pushIDIntervals = [];
+var testLiveliness = operator();
+var PushIDLiveliness;
+(function () {
+    if (window.localStorage) {
+        PushIDLiveliness = function PushIDLiveliness(pushIdentifiers) {
+            var notificationResponsivness = {};
 
-    function now() {
-        return (new Date()).getTime();
-    }
-
-    namespace.onNotification(function(ids) {
-        each(ids, function(id) {
-           //update associated pushID notification interval and last notification time
-            var tuple = detect(pushIDIntervals, function(entry) {
-                return entry.pushid == id;
+            var testChannel = "ice.push.liveliness";
+            var testLivelinessBroadcaster = LocalStorageNotificationBroadcaster(testChannel, function () {
+                notifyWindows(confirmLivelinessBroadcaster, pushIdentifiers());
             });
 
-            if (tuple) {
-                var newInterval = now() - tuple.timestamp;
-                if (tuple.interval == Number.MAX_VALUE || newInterval > tuple.interval) {
-                    tuple.interval = newInterval;
-                }
-                tuple.timestamp = now();
-            } else {
-                append(pushIDIntervals, {pushid: id, interval: Number.MAX_VALUE, timestamp: now()});
-            }
-        });
-    })
+            var confirmationChannel = "ice.push.confirm";
+            var confirmLivelinessBroadcaster = LocalStorageNotificationBroadcaster(confirmationChannel, function (confirmedIDs) {
+                each(confirmedIDs, function (id) {
+                    var count = notificationResponsivness[id];
+                    if (count) {
+                        notificationResponsivness[id] = count - 1;
+                    } else {
+                        delete notificationResponsivness[id];
+                    }
+                });
+            });
 
-    run(Delay(function() {
-        var idsToDiscard = [];
-        var newPushIDIntervals = [];
-        each(pushIDIntervals, function(entry) {
-            if (entry.interval * expiryIntervalFactor < now() - entry.timestamp) {
-                append(idsToDiscard, entry.pushid);
-            } else {
-                append(newPushIDIntervals, entry);
-            }
-        });
-        pushIDIntervals = newPushIDIntervals;
+            return object(function (method) {
+                method(testLiveliness, function (self, ids) {
+                    //cleanup IDs where not interested in anymore
+                    var discardUnresponsiveIds = [];
+                    for (var id in notificationResponsivness) {
+                        if (notificationResponsivness.hasOwnProperty(id)) {
+                            if (not(contains(ids, id))) {
+                                append(discardUnresponsiveIds, id);
+                            }
+                        }
+                    }
+                    each(discardUnresponsiveIds, function (id) {
+                        delete notificationResponsivness[id];
+                    });
 
-        if (notEmpty(idsToDiscard)) {
-            info(logger, 'PushIds ' + join(idsToDiscard, ', ') + ' are expired.');
-            delistPushIDsWithBrowser(idsToDiscard);
+                    each(ids, function (id) {
+                        var count = notificationResponsivness[id];
+                        if (count) {
+                            notificationResponsivness[id] = count + 1;
+                        } else {
+                            notificationResponsivness[id] = 1;
+                        }
+                    });
+
+                    notifyWindows(testLivelinessBroadcaster, ids);
+
+                    return notificationResponsivness;
+                });
+            });
         }
-    }, 60 * 1000));//1 minute poll interval
+    } else {
+        //no-op implementation
+        PushIDLiveliness = object(function (method) {
+            method(testLiveliness, function (self, ids) {
+                return {};
+            });
+        });
+    }
 })();
+

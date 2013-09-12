@@ -51,14 +51,6 @@ var AsyncConnection;
         };
     }
 
-    function registeredPushIds() {
-        try {
-            return split(lookupCookieValue(PushIDs), ' ');
-        } catch (e) {
-            return [];
-        }
-    }
-
     AsyncConnection = function(logger, windowID, configuration) {
         var logger = childLogger(logger, 'async-connection');
         var channel = Client(false);
