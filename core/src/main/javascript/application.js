@@ -182,14 +182,19 @@ if (!window.ice.icepush) {
                 return currentNotifications;
             },
 
-            createPushId: function() {
+            createPushId: function(retries) {
                 var id;
                 var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
                 postSynchronously(apiChannel, uri, noop, FormPost, $witch(function (condition) {
                     condition(OK, function(response) {
                         if (isXMLResponse(response)) {
+                            if (retries && retries > 1) {
+                                error(namespace.logger, 'failed to set ice.push.browser cookie');
+                                return;
+                            }
                             deserializeAndExecute(commandDispatcher, contentAsDOM(response).documentElement);
-                            id = namespace.push.createPushId();
+                            retries = retries ? retries + 1 : 1;
+                            id = namespace.push.createPushId(retries);
                         } else {
                             id = contentAsText(response);
                         }
