@@ -39,6 +39,7 @@ if (!window.ice.icepush) {
 
         //include configuration.js
         //include command.js
+        //include slot.js
         //include connection.async.js
         //include inter.window.notification.js
         //include pushid.expiry.js
@@ -65,7 +66,7 @@ if (!window.ice.icepush) {
 
         //constants
         var PushIDs = 'ice.pushids';
-        var BrowserIDCookieName = 'ice.push.browser';
+        var BrowserIDName = 'ice.push.browser';
         var NotifiedPushIDs = 'ice.notified.pushids';
 
         var handler = window.console ? ConsoleLogHandler(debug) : WindowLogHandler(debug, window.location.href);
@@ -160,9 +161,10 @@ if (!window.ice.icepush) {
         var commandDispatcher = CommandDispatcher();
         register(commandDispatcher, 'parsererror', ParsingError);
         register(commandDispatcher, 'macro', Macro(commandDispatcher));
+
+        var browserID = Slot(BrowserIDName);
         register(commandDispatcher, 'browser', function(message) {
-            browserID = message.getAttribute('id');
-            Cookie(BrowserIDCookieName, browserID);
+            setValue(browserID, message.getAttribute('id'));
         });
 
         var currentNotifications = [];
@@ -197,7 +199,9 @@ if (!window.ice.icepush) {
             createPushId: function(retries) {
                 var id;
                 var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
-                postSynchronously(apiChannel, uri, noop, FormPost, $witch(function (condition) {
+                postSynchronously(apiChannel, uri, function (query) {
+                    addNameValue(query, BrowserIDName, getValue(browserID));
+                }, FormPost, $witch(function (condition) {
                     condition(OK, function(response) {
                         if (isXMLResponse(response)) {
                             if (retries && retries > 1) {
@@ -219,6 +223,7 @@ if (!window.ice.icepush) {
             notify: function(group, options) {
                 var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
+                    addNameValue(q, BrowserIDName, getValue(browserID));
                     addNameValue(q, 'group', group);
 
                     for (var name in options) {
@@ -234,6 +239,7 @@ if (!window.ice.icepush) {
             addGroupMember: function(group, id) {
                 var uri = resolveURI(namespace.push.configuration.addGroupMemberURI || 'add-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
+                    addNameValue(q, BrowserIDName, getValue(browserID));
                     addNameValue(q, 'group', group);
                     addNameValue(q, 'id', id);
                 }, FormPost, $witch(function(condition) {
@@ -244,6 +250,7 @@ if (!window.ice.icepush) {
             removeGroupMember: function(group, id) {
                 var uri = resolveURI(namespace.push.configuration.removeGroupMemberURI || 'remove-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
+                    addNameValue(q, BrowserIDName, getValue(browserID));
                     addNameValue(q, 'group', group);
                     addNameValue(q, 'id', id);
                 }, FormPost, $witch(function(condition) {
@@ -253,6 +260,7 @@ if (!window.ice.icepush) {
 
             get: function(uri, parameters, responseCallback) {
                 getAsynchronously(apiChannel, uri, function(query) {
+                    addNameValue(query, BrowserIDName, getValue(browserID));
                     parameters(curry(addNameValue, query));
                 }, noop, $witch(function(condition) {
                     condition(OK, function(response) {
@@ -264,6 +272,7 @@ if (!window.ice.icepush) {
 
             post: function(uri, parameters, responseCallback) {
                 postAsynchronously(apiChannel, uri, function(query) {
+                    addNameValue(query, BrowserIDName, getValue(browserID));
                     parameters(curry(addNameValue, query));
                 }, FormPost, $witch(function(condition) {
                     condition(OK, function(response) {
@@ -296,7 +305,6 @@ if (!window.ice.icepush) {
         };
 
         function Bridge() {
-            var browserID;
             var windowID = namespace.windowID;
             var logger = childLogger(namespace.logger, windowID);
             var sequenceNo = 0;
@@ -402,8 +410,8 @@ if (!window.ice.icepush) {
                     //send current sequence number
                     setHeader(request, 'ice.push.sequence', sequenceNo);
                 }
-                if( browserID ){
-                    setHeader(request, 'ice.push.browser', browserID);
+                if (browserID) {
+                    setHeader(request, 'ice.push.browser', getValue(browserID));
                 }
                 if (heartbeatTimestamp) {
                     setHeader(request, 'ice.push.heartbeatTimestamp', heartbeatTimestamp);

@@ -32,12 +32,14 @@
         <loadfile property="command.js" srcFile="${src.dir}/command.js"/>
         <loadfile property="connection.async.js" srcFile="${src.dir}/connection.async.js"/>
         <loadfile property="inter.window.notification.js" srcFile="${src.dir}/inter.window.notification.js"/>
+        <loadfile property="slot.js" srcFile="${src.dir}/slot.js"/>
         <loadfile property="pushid.expiry.js" srcFile="${src.dir}/pushid.expiry.js"/>
         <copy file="${src.dir}/application.js" tofile="${tmp}" overwrite="yes">
             <filterset begintoken="//include " endtoken=".js">
                 <filter token="command" value="${command.js}"/>
                 <filter token="connection.async" value="${connection.async.js}"/>
                 <filter token="inter.window.notification" value="${inter.window.notification.js}"/>
+                <filter token="slot" value="${slot.js}"/>
                 <filter token="pushid.expiry" value="${pushid.expiry.js}"/>
             </filterset>
         </copy>

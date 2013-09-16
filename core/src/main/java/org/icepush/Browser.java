@@ -81,7 +81,7 @@ implements Serializable {
     public static String getBrowserID(final HttpServletRequest request) {
         String _browserID = getBrowserIDFromHeader(request);
         if (_browserID == null) {
-            _browserID = getBrowserIDFromCookie(request);
+            _browserID = getBrowserIDFromParameters(request);
         }
         return _browserID;
     }
@@ -238,16 +238,8 @@ implements Serializable {
         this.status = status;
     }
 
-    private static String getBrowserIDFromCookie(final HttpServletRequest request) {
-        Cookie[] _cookies = request.getCookies();
-        if (_cookies != null) {
-            for (final Cookie _cookie : _cookies) {
-                if (_cookie.getName().equals(BROWSER_ID_NAME)) {
-                    return _cookie.getValue();
-                }
-            }
-        }
-        return null;
+    private static String getBrowserIDFromParameters(final HttpServletRequest request) {
+        return request.getParameter(BROWSER_ID_NAME);
     }
 
     private static String getBrowserIDFromHeader(final HttpServletRequest request) {

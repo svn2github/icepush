@@ -17,18 +17,8 @@ public class CheckBrowserIDServlet implements PseudoServlet {
     }
 
     public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        boolean isCookieSet = false;
-        Cookie[] cookies = request.getCookies();
-        if (null != cookies)  {
-            for (int i = 0; i < cookies.length; i++) {
-                Cookie cookie = cookies[i];
-                if (BrowserIDCookieName.equals(cookie.getName())) {
-                    isCookieSet = true;
-                    break;
-                }
-            }
-        }
-        if (isCookieSet) {
+        String browserIDParameter = request.getParameter(BrowserIDCookieName);
+        if (browserIDParameter != null && !"".equals(browserIDParameter)) {
             servlet.service(request, response);
         } else {
             response.setContentType("text/xml");

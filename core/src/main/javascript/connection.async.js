@@ -103,7 +103,7 @@ var AsyncConnection;
 
         function askForConfiguration(query) {
             //request configuration once, but only after ice.push.browser cookie is set
-            if (existsCookie(BrowserIDCookieName)) {
+            if (not(getValue(browserID))) {
                 addNameValue(query, 'ice.sendConfiguration', '');
                 askForConfiguration = noop;
             }
@@ -123,6 +123,7 @@ var AsyncConnection;
                     debug(logger, 'connect...');
                     var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
                     listener = postAsynchronously(channel, uri, function(q) {
+                        addNameValue(q, BrowserIDName, getValue(browserID));
                         each(lastSentPushIds, curry(addNameValue, q, 'ice.pushid'));
                         askForConfiguration(q);
                     }, function(request) {
