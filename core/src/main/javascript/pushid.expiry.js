@@ -18,7 +18,7 @@ var testLiveliness = operator();
 var PushIDLiveliness;
 (function () {
     if (window.localStorage) {
-        PushIDLiveliness = function PushIDLiveliness(pushIdentifiers) {
+        PushIDLiveliness = function LocalStoragePushIDLiveliness(pushIdentifiers) {
             var notificationResponsivness = {};
 
             var testChannel = "ice.push.liveliness";
@@ -70,11 +70,13 @@ var PushIDLiveliness;
         }
     } else {
         //no-op implementation
-        PushIDLiveliness = object(function (method) {
-            method(testLiveliness, function (self, ids) {
-                return {};
+        PushIDLiveliness = function NoOpPushIDLiveliness() {
+            return object(function (method) {
+                method(testLiveliness, function (self, ids) {
+                    return {};
+                });
             });
-        });
+        }
     }
 })();
 
