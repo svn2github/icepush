@@ -30,6 +30,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -64,6 +65,12 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     protected final ConcurrentMap<String, PushID> pushIDMap = new ConcurrentHashMap<String, PushID>();
     protected final ConcurrentMap<String, Group> groupMap = new ConcurrentHashMap<String, Group>();
     private final ConcurrentMap<String, NotifyBackURI> parkedPushIDs = new ConcurrentHashMap<String, NotifyBackURI>();
+    /*
+        There is no ConcurrentSet or ConcurrentHashSet.  As of JDK 1.6 there is a static method in the Collections class
+        <E> Set<E> newSetFromMap(Map<e, Boolean> map) that can be used to create a Set backed by a ConcurrentMap.  But
+        ICEpush needs to be JDK 1.5 compatible.  Therefor, a ReentrantLock is used for this Set.
+     */
+    private final ReentrantLock pendingNotificationSetLock = new ReentrantLock();
     private final Set<NotificationEntry> pendingNotificationSet = new HashSet<NotificationEntry>();
     private final NotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
     private final Timer timer = new Timer("Notification queue consumer.", true);
@@ -147,11 +154,16 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     public void clearPendingNotifications(final Set<String> pushIDSet) {
-        Iterator<NotificationEntry> pendingNotificationIterator = pendingNotificationSet.iterator();
-        while (pendingNotificationIterator.hasNext()) {
-            if (pushIDSet.contains(pendingNotificationIterator.next().getPushID())) {
-                pendingNotificationIterator.remove();
+        pendingNotificationSetLock.lock();
+        try {
+            Iterator<NotificationEntry> pendingNotificationIterator = pendingNotificationSet.iterator();
+            while (pendingNotificationIterator.hasNext()) {
+                if (pushIDSet.contains(pendingNotificationIterator.next().getPushID())) {
+                    pendingNotificationIterator.remove();
+                }
             }
+        } finally {
+            pendingNotificationSetLock.unlock();
         }
     }
 
@@ -172,7 +184,12 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     public Set<NotificationEntry> getPendingNotificationSet() {
-        return new HashSet<NotificationEntry>(pendingNotificationSet);
+        pendingNotificationSetLock.lock();
+        try {
+            return new HashSet<NotificationEntry>(pendingNotificationSet);
+        } finally {
+            pendingNotificationSetLock.unlock();
+        }
     }
 
     public void push(final String groupName) {
@@ -373,7 +390,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
         public Notification(final String groupName, final PushConfiguration config) {
             this.groupName = groupName;
-            Set pushIDSet = (Set)config.getAttributes().get("pushIDSet");
+            Set<String> pushIDSet = (Set<String>)config.getAttributes().get("pushIDSet");
             if (pushIDSet != null) {
                 this.exemptPushIDSet.addAll(pushIDSet);
             }
@@ -392,7 +409,12 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                     for (final String pushID : pushIDSet) {
                         notificationSet.add(new NotificationEntry(pushID, groupName));
                     }
-                    pendingNotificationSet.addAll(notificationSet);
+                    pendingNotificationSetLock.lock();
+                    try {
+                        pendingNotificationSet.addAll(notificationSet);
+                    } finally {
+                        pendingNotificationSetLock.unlock();
+                    }
                     startConfirmationTimeout(notificationSet);
                     outboundNotifier.broadcast(notificationSet);
                     pushed(groupName);
