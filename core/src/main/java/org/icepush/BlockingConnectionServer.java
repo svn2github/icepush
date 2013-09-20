@@ -63,7 +63,8 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private final BlockingQueue<Request> pendingRequest = new LinkedBlockingQueue<Request>(1);
     private final Slot heartbeatInterval;
     // This is either a LocalPushGroupManager or a DynamicPushGroupManager
-    private final PushGroupManager pushGroupManager;
+    private final PushGroupManager pushGroupManager =
+        (PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
     private final long minCloudPushInterval;
     private Browser browser;
     private long responseTimeoutTime;
@@ -79,22 +80,21 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private long backOffDelay = 0;
 
     public BlockingConnectionServer(
-        final String browserID, final PushGroupManager pushGroupManager, final Timer monitoringScheduler, final Slot heartbeat,
+        final String browserID, final Timer monitoringScheduler, final Slot heartbeat,
         final boolean terminateBlockingConnectionOnShutdown, final Configuration configuration) {
-        this.pushGroupManager = pushGroupManager;
 
-        this.browser = newBrowser(browserID);
+        this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", 10 * 1000);
+        this.browser = newBrowser(browserID, getMinCloudPushInterval());
         this.pushGroupManager.addBlockingConnectionServer(browser.getID(), this);
         this.monitoringScheduler = monitoringScheduler;
         this.heartbeatInterval = heartbeat;
         this.defaultConnectionRecreationTimeout = configuration.getAttributeAsLong("connectionRecreationTimeout", 5000);
-        this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", 10 * 1000);
         //add monitor
         this.monitoringScheduler.scheduleAtFixedRate(this, 0, 1000);
         this.pushGroupManager.addNotificationReceiver(this);
 
         //define blocking server
-        activeServer = new RunningServer(pushGroupManager, terminateBlockingConnectionOnShutdown);
+        activeServer = new RunningServer(terminateBlockingConnectionOnShutdown);
     }
 
     public synchronized void backOff(final long delay) {
@@ -140,8 +140,8 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         return pushGroupManager;
     }
 
-    protected Browser newBrowser(final String browserID) {
-        return new Browser(browserID, getMinCloudPushInterval(), getPushGroupManager());
+    protected Browser newBrowser(final String browserID, final long minCloudPushInterval) {
+        return new Browser(browserID, minCloudPushInterval);
     }
 
     private boolean sendNotifications(final Set<NotificationEntry> notificationSet) {
@@ -327,11 +327,9 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     }
 
     private class RunningServer implements Server {
-        private final PushGroupManager pushGroupManager;
         private final boolean terminateBlockingConnectionOnShutdown;
 
-        public RunningServer(PushGroupManager pushGroupManager, boolean terminateBlockingConnectionOnShutdown) {
-            this.pushGroupManager = pushGroupManager;
+        public RunningServer(final boolean terminateBlockingConnectionOnShutdown) {
             this.terminateBlockingConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
         }
 

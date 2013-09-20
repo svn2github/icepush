@@ -25,9 +25,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public class PushContext {
-    private static final Logger log = Logger.getLogger(PushContext.class.getName());
-    //assign noop manager to avoid NPEs before the real manager is assign during startup
-    private PushGroupManager pushGroupManager = NoopPushGroupManager.Instance;
+    private static final Logger LOGGER = Logger.getLogger(PushContext.class.getName());
 
     private int subCounter = 0;
 
@@ -50,7 +48,8 @@ public class PushContext {
      *                 The delay in milliseconds the browser needs to back off.
      */
     public void backOff(final String browserID, final long delay) {
-        pushGroupManager.backOff(browserID, delay);
+        ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+            backOff(browserID, delay);
     }
 
     /**
@@ -83,8 +82,8 @@ public class PushContext {
         }
 
         String id = browserID + ":" + generateSubID();
-        if (log.isLoggable(Level.FINEST)) {
-            log.finest("Created new pushId '" + id + "'.");
+        if (LOGGER.isLoggable(Level.FINEST)) {
+            LOGGER.finest("Created new pushId '" + id + "'.");
         }
         return id;
     }
@@ -99,7 +98,8 @@ public class PushContext {
      * @see        #push(String, PushConfiguration)
      */
     public void push(final String groupName) {
-        pushGroupManager.push(groupName);
+        ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+            push(groupName);
     }
 
     /**
@@ -114,7 +114,8 @@ public class PushContext {
      * @see        #push(String)
      */
     public void push(final String groupName, PushConfiguration config) {
-        pushGroupManager.push(groupName, config);
+        ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+            push(groupName, config);
     }
 
     /**
@@ -128,7 +129,8 @@ public class PushContext {
      *                 The Push ID that needs to be added.
      */
     public void addGroupMember(final String groupName, final String pushId) {
-        pushGroupManager.addMember(groupName, pushId);
+        ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+            addMember(groupName, pushId);
     }
 
     /**
@@ -142,21 +144,8 @@ public class PushContext {
      *                 The Push ID that needs to be removed.
      */
     public void removeGroupMember(final String groupName, final String pushId) {
-        pushGroupManager.removeMember(groupName, pushId);
-    }
-
-    /**
-     * <p>
-     *     Sets the push group manager.
-     * </p>
-     * <p>
-     *     <b>Note: This method is not intended for application use!</b>
-     * </p>
-     *
-     * @param      pushGroupManager
-     */
-    public void setPushGroupManager(final PushGroupManager pushGroupManager) {
-        this.pushGroupManager = pushGroupManager;
+        ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+            removeMember(groupName, pushId);
     }
 
     /**

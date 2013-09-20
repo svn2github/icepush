@@ -16,7 +16,7 @@ public class PushInternalContext {
     private final ConcurrentMap<String, Object> attributeMap = new ConcurrentHashMap<String, Object>();
 
     private PushInternalContext() {
-        // Do nothing.
+        setAttribute(PushGroupManager.class.getName(), NoopPushGroupManager.Instance);
     }
 
     public Object getAttribute(final String name) {

@@ -32,7 +32,18 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.icepush.*;
+import org.icepush.Browser;
+import org.icepush.CheckBrowserIDServlet;
+import org.icepush.CodeServer;
+import org.icepush.Configuration;
+import org.icepush.NotificationProvider;
+import org.icepush.OutOfBandNotifier;
+import org.icepush.ProductInfo;
+import org.icepush.PushContext;
+import org.icepush.PushGroupManager;
+import org.icepush.PushGroupManagerFactory;
+import org.icepush.PushInternalContext;
+import org.icepush.PushNotification;
 import org.icepush.http.standard.CacheControlledServer;
 import org.icepush.http.standard.CompressingServer;
 import org.icepush.util.ExtensionRegistry;
@@ -40,7 +51,6 @@ import org.icepush.util.ExtensionRegistry;
 public class MainServlet implements PseudoServlet {
     private static final Logger log = Logger.getLogger(MainServlet.class.getName());
     static HashSet<TraceListener> traceListeners = new HashSet();
-    protected PushGroupManager pushGroupManager;
     protected PathDispatcher dispatcher;
     protected Timer monitoringScheduler;
     protected PushContext pushContext;
@@ -94,19 +104,20 @@ public class MainServlet implements PseudoServlet {
         monitoringScheduler = new Timer("Monitoring scheduler", true);
         configuration = new ServletContextConfiguration("org.icepush", context);
         pushContext = PushContext.getInstance(context);
-        pushGroupManager = PushGroupManagerFactory.newPushGroupManager(context, executor, configuration);
-        pushContext.setPushGroupManager(pushGroupManager);
+        PushInternalContext.getInstance().
+            setAttribute(
+                PushGroupManager.class.getName(),
+                PushGroupManagerFactory.newPushGroupManager(context, executor, configuration));
         dispatcher = new PathDispatcher();
-        new DefaultOutOfBandNotifier(servletContext);
-
+        createOutOfBandNotifier(servletContext);
         addDispatches();
     }
 
     protected void addDispatches() {
         dispatchOn(".*code\\.min\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
-                new CodeServer(new String[] {"ice.core/bridge-support.js", "ice.push/icepush.js"}))), configuration));
+            new CodeServer(new String[] {"ice.core/bridge-support.js", "ice.push/icepush.js"}))), configuration));
         dispatchOn(".*code\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
-                new CodeServer(new String[] {"ice.core/bridge-support.uncompressed.js", "ice.push/icepush.uncompressed.js"}))), configuration));
+            new CodeServer(new String[] {"ice.core/bridge-support.uncompressed.js", "ice.push/icepush.uncompressed.js"}))), configuration));
         dispatchOn(".*", new CheckBrowserIDServlet(new ConfigurationServlet(pushContext, context, configuration, new BrowserDispatcher(configuration) {
             protected PseudoServlet newServer(String browserID) {
                 return createBrowserBoundServlet(browserID);
@@ -115,7 +126,7 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected PseudoServlet createBrowserBoundServlet(String browserID) {
-        return new BrowserBoundServlet(browserID, pushContext, context, pushGroupManager, monitoringScheduler, configuration, terminateConnectionOnShutdown);
+        return new BrowserBoundServlet(browserID, pushContext, context, monitoringScheduler, configuration, terminateConnectionOnShutdown);
     }
 
     protected void createOutOfBandNotifier(final ServletContext servletContext) {
@@ -124,10 +135,6 @@ public class MainServlet implements PseudoServlet {
 
     public void dispatchOn(String pattern, PseudoServlet servlet) {
         dispatcher.dispatchOn(pattern, servlet);
-    }
-
-    public PushGroupManager getPushGroupManager() {
-        return pushGroupManager;
     }
 
     public void service(HttpServletRequest request,
@@ -160,7 +167,7 @@ public class MainServlet implements PseudoServlet {
 
     public void shutdown() {
         dispatcher.shutdown();
-        pushGroupManager.shutdown();
+        ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).shutdown();
         monitoringScheduler.cancel();
         ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")).cancel();
         PushInternalContext.getInstance().removeAttribute(Timer.class.getName() + "$confirmation");

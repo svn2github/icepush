@@ -43,20 +43,18 @@ public class BrowserBoundServlet extends PathDispatcher {
     protected String browserID;
     protected PushContext pushContext;
     protected ServletContext servletContext;
-    protected PushGroupManager pushGroupManager;
     protected Timer monitoringScheduler;
     protected Configuration configuration;
     protected boolean terminateBlockingConnectionOnShutdown;
 
     public BrowserBoundServlet(
         final String browserID, final PushContext pushContext, final ServletContext servletContext,
-        final PushGroupManager pushGroupManager, final Timer monitoringScheduler, final Configuration configuration,
+        final Timer monitoringScheduler, final Configuration configuration,
         boolean terminateBlockingConnectionOnShutdown) {
 
         this.browserID = browserID;
         this.pushContext = pushContext;
         this.servletContext = servletContext;
-        this.pushGroupManager = pushGroupManager;
         this.monitoringScheduler = monitoringScheduler;
         this.configuration = configuration;
         this.terminateBlockingConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
@@ -76,7 +74,7 @@ public class BrowserBoundServlet extends PathDispatcher {
         return
             new PushStormDetectionServer(
                 new SequenceTaggingServer(sequenceNo,
-                    new BlockingConnectionServer(browserID, pushGroupManager, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration)), configuration);
+                    new BlockingConnectionServer(browserID, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration)), configuration);
     }
 
     private class CreatePushID extends AbstractPseudoServlet {

@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 
 public class Browser
@@ -25,11 +24,14 @@ implements Serializable {
 
     private final String id;
 
-    private transient final long minCloudPushInterval;
-    private transient final PushGroupManager pushGroupManager;
+    private final transient PushGroupManager pushGroupManager =
+        (PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
 
-    private NotifyBackURI notifyBackURI;
     private Set<String> pushIDSet = Collections.emptySet();
+
+    private transient final long minCloudPushInterval;
+    private NotifyBackURI notifyBackURI;
+
     private Status status = newStatus();
 
     // This counter is only used by LOGGER
@@ -39,20 +41,15 @@ implements Serializable {
     private transient PushConfiguration pushConfiguration;
 
     public Browser(final Browser browser) {
-        this(browser, browser.pushGroupManager);
-    }
-
-    public Browser(final Browser browser, final PushGroupManager pushGroupManager) {
-        this(browser.getID(), browser.getMinCloudPushInterval(), pushGroupManager);
+        this(browser.getID(), browser.getMinCloudPushInterval());
         setNotifyBackURI(browser.getNotifyBackURI(), false);
         setPushIDSet(browser.getPushIDSet());
         status = new Status(browser.getStatus());
     }
 
-    public Browser(final String id, final long minCloudPushInterval, final PushGroupManager pushGroupManager) {
+    public Browser(final String id, final long minCloudPushInterval) {
         this.id = id;
         this.minCloudPushInterval = minCloudPushInterval;
-        this.pushGroupManager = pushGroupManager;
     }
 
     public boolean cancelConfirmationTimeout() {
@@ -81,7 +78,7 @@ implements Serializable {
     public static String getBrowserID(final HttpServletRequest request) {
         String _browserID = getBrowserIDFromHeader(request);
         if (_browserID == null) {
-            _browserID = getBrowserIDFromParameters(request);
+            _browserID = getBrowserIDFromParameter(request);
         }
         return _browserID;
     }
@@ -222,12 +219,8 @@ implements Serializable {
         return minCloudPushInterval;
     }
 
-    protected PushGroupManager getPushGroupManager() {
-        return pushGroupManager;
-    }
-
     protected ConfirmationTimeout newConfirmationTimeout(final String groupName, final long timeout) {
-        return new ConfirmationTimeout(this, groupName, timeout, getMinCloudPushInterval(), getPushGroupManager());
+        return new ConfirmationTimeout(this, groupName, timeout, getMinCloudPushInterval());
     }
 
     protected Status newStatus() {
@@ -238,12 +231,12 @@ implements Serializable {
         this.status = status;
     }
 
-    private static String getBrowserIDFromParameters(final HttpServletRequest request) {
-        return request.getParameter(BROWSER_ID_NAME);
-    }
-
     private static String getBrowserIDFromHeader(final HttpServletRequest request) {
         return request.getHeader(BROWSER_ID_NAME);
+    }
+
+    private static String getBrowserIDFromParameter(final HttpServletRequest request) {
+        return request.getParameter(BROWSER_ID_NAME);
     }
 
     public static class Status
@@ -321,21 +314,21 @@ implements Serializable {
     extends TimerTask {
         private static final Logger LOGGER = Logger.getLogger(ConfirmationTimeout.class.getName());
 
+        protected final PushGroupManager pushGroupManager =
+            (PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
+
         protected final Browser browser;
         protected final String groupName;
         protected final long minCloudPushInterval;
-        protected final PushGroupManager pushGroupManager;
         protected final long timeout;
 
         protected ConfirmationTimeout(
-            final Browser browser, final String groupName, final long timeout, final long minCloudPushInterval,
-            final PushGroupManager pushGroupManager) {
+            final Browser browser, final String groupName, final long timeout, final long minCloudPushInterval) {
 
             this.browser = browser;
             this.groupName = groupName;
             this.timeout = timeout;
             this.minCloudPushInterval = minCloudPushInterval;
-            this.pushGroupManager = pushGroupManager;
         }
 
         @Override
@@ -357,12 +350,13 @@ implements Serializable {
                             LOGGER.log(Level.FINE, "Cloud Push dispatched for Browser '" + browser.getID() + "'.");
                         }
                         _notifyBackURI.touch();
-                        pushGroupManager.getOutOfBandNotifier().broadcast(
-                            (PushNotification)browser.getPushConfiguration(),
-                            new Browser[] {
-                                browser
-                            },
-                            groupName);
+                        pushGroupManager.getOutOfBandNotifier().
+                            broadcast(
+                                (PushNotification)browser.getPushConfiguration(),
+                                new Browser[] {
+                                    browser
+                                },
+                                groupName);
                     }
                 }
                 browser.cancelConfirmationTimeout();
