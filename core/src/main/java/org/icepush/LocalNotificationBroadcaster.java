@@ -16,7 +16,10 @@
  */
 package org.icepush;
 
+import java.util.ArrayList;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -25,21 +28,52 @@ public class LocalNotificationBroadcaster implements NotificationBroadcaster {
     private static final Logger LOGGER = Logger.getLogger(LocalNotificationBroadcaster.class.getName());
 
     private Set<Receiver> receivers = new CopyOnWriteArraySet<Receiver>();
+    private Timer timer = new Timer(true);
 
     public void addReceiver(final Receiver receiver) {
         receivers.add(receiver);
     }
 
-    public void broadcast(final Set<NotificationEntry> notificationSet) {
+    public void broadcast(final Set<NotificationEntry> notificationSet, long duration) {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(Level.FINE, "Local Notification Broadcaster broadcasting " + notificationSet);
         }
+
+        //collect interested receivers
+        ArrayList<Receiver> interestedReceivers = new ArrayList<Receiver>();
         for (final Receiver receiver : receivers) {
-            receiver.receive(notificationSet);
+            if (receiver.isInterested(notificationSet)) {
+                interestedReceivers.add(receiver);
+            }
+        }
+        //spread receiver notification
+        long spreadInterval = duration / interestedReceivers.size();
+        int index = 0;
+        for (final Receiver receiver : interestedReceivers) {
+            timer.schedule(new BroadcastTask(receiver, notificationSet), index * spreadInterval);
+            index++;
         }
     }
 
     public void deleteReceiver(final Receiver observer) {
         receivers.remove(observer);
+    }
+
+    public void shutdown() {
+        timer.cancel();
+    }
+
+    private static class BroadcastTask extends TimerTask {
+        private final Receiver receiver;
+        private final Set<NotificationEntry> notificationSet;
+
+        public BroadcastTask(Receiver receiver, Set<NotificationEntry> notificationSet) {
+            this.receiver = receiver;
+            this.notificationSet = notificationSet;
+        }
+
+        public void run() {
+            receiver.receive(notificationSet);
+        }
     }
 }

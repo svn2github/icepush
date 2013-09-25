@@ -16,16 +16,7 @@
  */
 package org.icepush;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -55,7 +46,12 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
             }
         }
     };
-    private static final Runnable NOOP = new Runnable() {
+    private static final Comparator<Notification> ScheduledAtComparator = new Comparator<Notification>() {
+        public int compare(Notification a, Notification b) {
+            return (int) (a.configuration.getScheduledAt() - b.configuration.getScheduledAt());
+        }
+    };
+    private final Notification NOOP = new Notification("---") {
         public void run() {
         }
     };
@@ -72,10 +68,10 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
      */
     private final ReentrantLock pendingNotificationSetLock = new ReentrantLock();
     private final Set<NotificationEntry> pendingNotificationSet = new HashSet<NotificationEntry>();
-    private final NotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
+    private final LocalNotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
     private final Timer timer = new Timer("Notification queue consumer.", true);
     private final TimerTask queueConsumer;
-    private final BlockingQueue<Runnable> queue;
+    private final BlockingQueue<Notification> queue;
     private final long groupTimeout;
     private final long cloudPushIDTimeout;
     private final long pushIDTimeout;
@@ -91,7 +87,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         this.pushIDTimeout = configuration.getAttributeAsLong("pushIdTimeout", 2 * 60 * 1000);
         this.cloudPushIDTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", 30 * 60 * 1000);
         int notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", 1000);
-        this.queue = new LinkedBlockingQueue<Runnable>(notificationQueueSize);
+        this.queue = new LinkedBlockingQueue<Notification>(notificationQueueSize);
         this.queueConsumer = new QueueConsumerTask();
         this.timer.schedule(queueConsumer, 0);
     }
@@ -269,6 +265,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     public void shutdown() {
+        outboundNotifier.shutdown();
         queueConsumer.cancel();
         timer.cancel();
     }
@@ -383,6 +380,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     private class Notification implements Runnable {
         protected final String groupName;
         protected final Set<String> exemptPushIDSet = new HashSet<String>();
+        protected PushConfiguration configuration;
 
         public Notification(String groupName) {
             this.groupName = groupName;
@@ -390,6 +388,7 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
 
         public Notification(final String groupName, final PushConfiguration config) {
             this.groupName = groupName;
+            this.configuration = config;
             Set<String> pushIDSet = (Set<String>)config.getAttributes().get("pushIDSet");
             if (pushIDSet != null) {
                 this.exemptPushIDSet.addAll(pushIDSet);
@@ -416,11 +415,18 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                         pendingNotificationSetLock.unlock();
                     }
                     startConfirmationTimeout(notificationSet);
-                    outboundNotifier.broadcast(notificationSet);
+                    outboundNotifier.broadcast(notificationSet, configuration.getDuration());
                     pushed(groupName);
                 }
             } finally {
                 scanForExpiry();
+            }
+        }
+
+        public void coalesceWith(Notification nextNotification) {
+            Group group = groupMap.get(groupName);
+            if (group != null) {
+                nextNotification.exemptPushIDSet.addAll(Arrays.asList(group.getPushIDs()));
             }
         }
     }
@@ -457,9 +463,40 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                 //take tasks from the queue and execute them serially
                 while (running) {
                     try {
-                        queue.take().run();
-                    } catch (InterruptedException e) {
-                        LOGGER.log(Level.FINE, "Notification queue draining interrupted.");
+                        long currentTime = System.currentTimeMillis();
+                        Notification notification = queue.take();
+                        //are there any other notifications in the queue?
+                        if (queue.size() > 0) {
+                            //put back notification, need to extract the next scheduled notification
+                            queue.offer(notification);
+                            //search what notification needs to be fired now
+                            TreeSet<Notification> notifications = new TreeSet(ScheduledAtComparator);
+                            notifications.addAll(queue);
+                            Notification scheduledNotification = notifications.pollFirst();
+                            if (scheduledNotification != null && scheduledNotification.configuration.getScheduledAt() > currentTime) {
+                                //ready to send
+                                notification = scheduledNotification;
+                                queue.remove(scheduledNotification);
+
+                                long duration = scheduledNotification.configuration.getDuration();
+                                long endOfScheduledNotification = currentTime + duration;
+
+                                for (Notification nextScheduledNotification: notifications) {
+                                    //skip first notification
+                                    if (nextScheduledNotification == scheduledNotification) continue;
+                                    //test if it overlaps
+                                    if (endOfScheduledNotification > nextScheduledNotification.configuration.getScheduledAt()) {
+                                        //coalesce current notification with next overlapping notification
+                                        scheduledNotification.coalesceWith(nextScheduledNotification);
+                                    } else {
+                                        //stop when notification windows (durations) do not overlap anymore
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        notification.run();
                     } catch (Throwable t)  {
                         LOGGER.log(Level.WARNING, "Notification queue encountered ", t);
                     }

@@ -24,9 +24,12 @@ public interface NotificationBroadcaster {
 
     void deleteReceiver(Receiver observer);
 
-    void broadcast(Set<NotificationEntry> notificationSet);
+    void broadcast(Set<NotificationEntry> notificationSet, long duration);
 
     public interface Receiver {
+
+        boolean isInterested(Set<NotificationEntry> notificationSet);
+
         void receive(Set<NotificationEntry> notificationSet);
     }
 }

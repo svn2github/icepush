@@ -320,6 +320,17 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         }
     }
 
+    public boolean isInterested(Set<NotificationEntry> notificationSet) {
+        Iterator<NotificationEntry> notificationEntryIterator = notificationSet.iterator();
+        while (notificationEntryIterator.hasNext()) {
+            if (browser.getPushIDSet().contains(notificationEntryIterator.next().getPushID())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public void receive(final Set<NotificationEntry> notificationSet) {
         Set<NotificationEntry> _copyOfNotificationSet = new HashSet<NotificationEntry>();
         _copyOfNotificationSet.addAll(notificationSet);

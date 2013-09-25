@@ -16,11 +16,14 @@
  */
 package org.icepush;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 public class PushConfiguration {
     private Map<String, Object> attributes = new HashMap();
+    private long scheduledAt = System.currentTimeMillis();
+    private long duration = 0;
 
     /**
      * <p>
@@ -57,4 +60,23 @@ public class PushConfiguration {
         return attributes;
     }
 
+    public PushConfiguration delayed(long delay, long duration) {
+        this.scheduledAt = System.currentTimeMillis() + delay;
+        this.duration = duration;
+        return this;
+    }
+
+    public PushConfiguration scheduled(Date time, long duration) {
+        this.scheduledAt = time.getTime();
+        this.duration = duration;
+        return this;
+    }
+
+    public long getScheduledAt() {
+        return scheduledAt;
+    }
+
+    public long getDuration() {
+        return duration;
+    }
 }
