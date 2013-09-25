@@ -472,8 +472,8 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                             //search what notification needs to be fired now
                             TreeSet<Notification> notifications = new TreeSet(ScheduledAtComparator);
                             notifications.addAll(queue);
-                            Notification scheduledNotification = notifications.pollFirst();
-                            if (scheduledNotification != null && scheduledNotification.configuration.getScheduledAt() > currentTime) {
+                            Notification scheduledNotification = notifications.first();
+                            if (scheduledNotification.configuration.getScheduledAt() > currentTime) {
                                 //ready to send
                                 notification = scheduledNotification;
                                 queue.remove(scheduledNotification);
