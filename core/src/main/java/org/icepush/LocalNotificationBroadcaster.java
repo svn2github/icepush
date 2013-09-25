@@ -47,11 +47,13 @@ public class LocalNotificationBroadcaster implements NotificationBroadcaster {
             }
         }
         //spread receiver notification
-        long spreadInterval = duration / interestedReceivers.size();
-        int index = 0;
-        for (final Receiver receiver : interestedReceivers) {
-            timer.schedule(new BroadcastTask(receiver, notificationSet), index * spreadInterval);
-            index++;
+        if (!interestedReceivers.isEmpty()) {
+            long spreadInterval = duration / interestedReceivers.size();
+            int index = 0;
+            for (final Receiver receiver : interestedReceivers) {
+                timer.schedule(new BroadcastTask(receiver, notificationSet), index * spreadInterval);
+                index++;
+            }
         }
     }
 

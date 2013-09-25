@@ -464,39 +464,37 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
                 while (running) {
                     try {
                         long currentTime = System.currentTimeMillis();
+                        //block until notifications are available
                         Notification notification = queue.take();
-                        //are there any other notifications in the queue?
-                        if (queue.size() > 0) {
-                            //put back notification, need to extract the next scheduled notification
-                            queue.offer(notification);
-                            //search what notification needs to be fired now
-                            TreeSet<Notification> notifications = new TreeSet(ScheduledAtComparator);
-                            notifications.addAll(queue);
-                            Notification scheduledNotification = notifications.first();
-                            if (scheduledNotification.configuration.getScheduledAt() > currentTime) {
-                                //ready to send
-                                notification = scheduledNotification;
-                                queue.remove(scheduledNotification);
+                        //put back notification, need to extract the next scheduled notification
+                        queue.offer(notification);
+                        //search what notification needs to be fired now
+                        TreeSet<Notification> notifications = new TreeSet(ScheduledAtComparator);
+                        notifications.addAll(queue);
+                        Notification scheduledNotification = notifications.first();
+                        long scheduledAt = scheduledNotification.configuration.getScheduledAt();
+                        if (scheduledAt < currentTime) {
+                            //ready to send
+                            queue.remove(scheduledNotification);
 
-                                long duration = scheduledNotification.configuration.getDuration();
-                                long endOfScheduledNotification = currentTime + duration;
+                            long duration = scheduledNotification.configuration.getDuration();
+                            long endOfScheduledNotification = scheduledAt + duration;
 
-                                for (Notification nextScheduledNotification: notifications) {
-                                    //skip first notification
-                                    if (nextScheduledNotification == scheduledNotification) continue;
-                                    //test if it overlaps
-                                    if (endOfScheduledNotification > nextScheduledNotification.configuration.getScheduledAt()) {
-                                        //coalesce current notification with next overlapping notification
-                                        scheduledNotification.coalesceWith(nextScheduledNotification);
-                                    } else {
-                                        //stop when notification windows (durations) do not overlap anymore
-                                        break;
-                                    }
+                            for (Notification nextScheduledNotification: notifications) {
+                                //skip first notification
+                                if (nextScheduledNotification == scheduledNotification) continue;
+                                //test if it overlaps
+                                if (endOfScheduledNotification > nextScheduledNotification.configuration.getScheduledAt()) {
+                                    //coalesce current notification with next overlapping notification
+                                    scheduledNotification.coalesceWith(nextScheduledNotification);
+                                } else {
+                                    //stop when notification windows (durations) do not overlap anymore
+                                    break;
                                 }
                             }
-                        }
 
-                        notification.run();
+                            scheduledNotification.run();
+                        }
                     } catch (Throwable t)  {
                         LOGGER.log(Level.WARNING, "Notification queue encountered ", t);
                     }
