@@ -220,15 +220,27 @@ if (!window.ice.icepush) {
                 return id;
             },
 
-            notify: function(group, options) {
+            notify: function(group, options, schedule) {
                 var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
                     addNameValue(q, BrowserIDName, getValue(browserID));
                     addNameValue(q, 'group', group);
-
-                    for (var name in options) {
-                        if (options.hasOwnProperty(name)) {
-                            addNameValue(q, 'option', name + '=' + options[name]);
+                    if (schedule) {
+                        var duration = schedule.duration ? schedule.duration : 0;
+                        if (schedule.delay) {
+                            addNameValue(q, 'delay', schedule.delay);
+                        } else if (schedule.at) {
+                            addNameValue(q, 'at', schedule.at);
+                        } else {
+                            addNameValue(q, 'delay', 0);
+                        }
+                        addNameValue(q, 'duration', duration);
+                    }
+                    if (options) {
+                        for (var name in options) {
+                            if (options.hasOwnProperty(name)) {
+                                addNameValue(q, 'option', name + '=' + options[name]);
+                            }
                         }
                     }
                 }, FormPost, $witch(function(condition) {

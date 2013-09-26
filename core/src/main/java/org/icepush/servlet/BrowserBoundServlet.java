@@ -16,6 +16,7 @@
  */
 package org.icepush.servlet;
 
+import java.util.Date;
 import java.util.Map;
 import java.util.Timer;
 import java.util.logging.Logger;
@@ -87,19 +88,43 @@ public class BrowserBoundServlet extends PathDispatcher {
     private class NotifyPushID extends AbstractPseudoServlet {
         public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
             String group = request.getParameter("group");
+            PushConfiguration configuration;
+
             String[] options = request.getParameterValues("option");
             if (options != null && options.length > 0) {
-                PushConfiguration configuration = new PushConfiguration();
+                configuration = new PushConfiguration();
                 Map<String,Object> attributes = configuration.getAttributes();
                 for (int i = 0; i < options.length; i++) {
                     String option = options[i];
                     String[] nameValue = NAME_VALUE.split(option);
                     attributes.put(nameValue[0], nameValue[1]);
                 }
-                pushContext.push(group, configuration);
             } else {
-                pushContext.push(group);
+                configuration = null;
             }
+            String delay = request.getParameter("delay");
+            if (delay != null) {
+                String duration = request.getParameter("duration");
+                if (configuration == null) {
+                    configuration = new PushConfiguration();
+                }
+                configuration.delayed(Long.parseLong(delay), Long.parseLong(duration));
+            }
+            String at = request.getParameter("at");
+            if (at != null) {
+                String duration = request.getParameter("duration");
+                if (configuration == null) {
+                    configuration = new PushConfiguration();
+                }
+                configuration.scheduled(new Date(Long.parseLong(at)), Long.parseLong(duration));
+            }
+
+            if (configuration == null) {
+                pushContext.push(group);
+            } else {
+                pushContext.push(group, configuration);
+            }
+
             response.setContentType("text/plain");
             response.setContentLength(0);
         }
