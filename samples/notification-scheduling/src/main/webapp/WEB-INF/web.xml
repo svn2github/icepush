@@ -38,17 +38,21 @@
         <servlet-name>notifier</servlet-name>
         <servlet-class>org.icepush.sample.basic.NotificationSpreading</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>windowOverlapping</servlet-name>
+        <servlet-class>org.icepush.sample.basic.NotificationWindowOverlapping</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>notifier</servlet-name>
-        <url-pattern>/test.html</url-pattern>
+        <url-pattern>/spreading.html</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
-        <servlet-name>notifier</servlet-name>
-        <url-pattern>/a/test.html</url-pattern>
+        <servlet-name>windowOverlapping</servlet-name>
+        <url-pattern>/overlapping.html</url-pattern>
     </servlet-mapping>
 
     <welcome-file-list>
-        <welcome-file>test.html</welcome-file>
+        <welcome-file>index.jsp</welcome-file>
     </welcome-file-list>
 </web-app>
 

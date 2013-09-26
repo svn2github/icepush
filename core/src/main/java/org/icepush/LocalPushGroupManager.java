@@ -378,12 +378,15 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
     }
 
     private class Notification implements Runnable {
+        private final PushConfiguration DEFAULT_CONFIGURATION = new PushConfiguration();
+
         protected final String groupName;
         protected final Set<String> exemptPushIDSet = new HashSet<String>();
         protected PushConfiguration configuration;
 
         public Notification(String groupName) {
             this.groupName = groupName;
+            this.configuration = DEFAULT_CONFIGURATION;
         }
 
         public Notification(final String groupName, final PushConfiguration config) {
