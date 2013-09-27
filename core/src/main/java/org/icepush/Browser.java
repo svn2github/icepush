@@ -126,7 +126,15 @@ implements Serializable {
     public void setPushIDSet(final Set<String> pushIDSet) {
         this.pushIDSet = pushIDSet;
         for (final String _pushIDString : this.pushIDSet) {
-            pushGroupManager.getPushID(_pushIDString).setBrowser(this);
+            PushID _pushID = pushGroupManager.getPushID(_pushIDString);
+            if (null != _pushID)  {
+                _pushID.setBrowser(this);
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(Level.FINE, "Valid PushID " + _pushIDString);
+                }
+            } else {
+                LOGGER.log(Level.FINE, "INVALID PushID " + _pushIDString);
+            }
         }
     }
 
