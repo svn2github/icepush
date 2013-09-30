@@ -360,7 +360,8 @@ implements Serializable {
                         _notifyBackURI.touch();
                         pushGroupManager.getOutOfBandNotifier().
                             broadcast(
-                                (PushNotification)browser.getPushConfiguration(),
+                                new PushNotification( browser
+                                    .getPushConfiguration().getAttributes() ),
                                 new Browser[] {
                                     browser
                                 },
