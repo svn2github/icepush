@@ -54,7 +54,7 @@ public class MainServlet implements PseudoServlet {
     protected PathDispatcher dispatcher;
     protected Timer monitoringScheduler;
     protected PushContext pushContext;
-    protected ServletContext context;
+    protected ServletContext servletContext;
     protected Configuration configuration;
     protected boolean terminateConnectionOnShutdown;
 
@@ -99,15 +99,15 @@ public class MainServlet implements PseudoServlet {
             setAttribute(Timer.class.getName() + "$expiry", new Timer("Expiry Timeout timer", true));
         PushInternalContext.getInstance().
             setAttribute(Timer.class.getName() + "$confirmation", new Timer("Confirmation Timeout timer", true));
-        context = servletContext;
+        this.servletContext = servletContext;
         terminateConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
         monitoringScheduler = new Timer("Monitoring scheduler", true);
-        configuration = new ServletContextConfiguration("org.icepush", context);
-        pushContext = PushContext.getInstance(context);
+        configuration = new ServletContextConfiguration("org.icepush", this.servletContext);
+        pushContext = PushContext.getInstance(this.servletContext);
         PushInternalContext.getInstance().
             setAttribute(
                 PushGroupManager.class.getName(),
-                PushGroupManagerFactory.newPushGroupManager(context, executor, configuration));
+                PushGroupManagerFactory.newPushGroupManager(this.servletContext, executor, configuration));
         dispatcher = new PathDispatcher();
         createOutOfBandNotifier(servletContext);
         addDispatches();
@@ -118,7 +118,7 @@ public class MainServlet implements PseudoServlet {
             new CodeServer(new String[] {"ice.core/bridge-support.js", "ice.push/icepush.js"}))), configuration));
         dispatchOn(".*code\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
             new CodeServer(new String[] {"ice.core/bridge-support.uncompressed.js", "ice.push/icepush.uncompressed.js"}))), configuration));
-        dispatchOn(".*", new CheckBrowserIDServlet(new ConfigurationServlet(pushContext, context, configuration, new BrowserDispatcher(configuration) {
+        dispatchOn(".*", new CheckBrowserIDServlet(new ConfigurationServlet(pushContext, servletContext, configuration, new BrowserDispatcher(configuration) {
             protected PseudoServlet newServer(String browserID) {
                 return createBrowserBoundServlet(browserID);
             }
@@ -126,7 +126,7 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected PseudoServlet createBrowserBoundServlet(String browserID) {
-        return new BrowserBoundServlet(browserID, pushContext, context, monitoringScheduler, configuration, terminateConnectionOnShutdown);
+        return new BrowserBoundServlet(browserID, pushContext, servletContext, monitoringScheduler, configuration, terminateConnectionOnShutdown);
     }
 
     protected void createOutOfBandNotifier(final ServletContext servletContext) {

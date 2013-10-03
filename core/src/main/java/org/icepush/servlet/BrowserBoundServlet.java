@@ -30,7 +30,6 @@ import org.icepush.BlockingConnectionServer;
 import org.icepush.Configuration;
 import org.icepush.PushConfiguration;
 import org.icepush.PushContext;
-import org.icepush.PushGroupManager;
 import org.icepush.PushStormDetectionServer;
 import org.icepush.SequenceTaggingServer;
 import org.icepush.http.Server;
@@ -61,10 +60,10 @@ public class BrowserBoundServlet extends PathDispatcher {
         this.terminateBlockingConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
 
         dispatchOn(".*listen\\.icepush", new EnvironmentAdaptingServlet(createBlockingConnectionServer(), configuration));
-        dispatchOn(".*create-push-id\\.icepush", new CreatePushID());
-        dispatchOn(".*notify\\.icepush", new NotifyPushID());
-        dispatchOn(".*add-group-member\\.icepush", new AddGroupMember());
-        dispatchOn(".*remove-group-member\\.icepush", new RemoveGroupMember());
+        dispatchOn(".*create-push-id\\.icepush", newCreatePushID());
+        dispatchOn(".*notify\\.icepush", newNotifyPushID());
+        dispatchOn(".*add-group-member\\.icepush", newAddGroupMember());
+        dispatchOn(".*remove-group-member\\.icepush", newRemoveGroupMember());
     }
 
     protected Server createBlockingConnectionServer() {
@@ -78,75 +77,111 @@ public class BrowserBoundServlet extends PathDispatcher {
                     new BlockingConnectionServer(browserID, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration)), configuration);
     }
 
-    private class CreatePushID extends AbstractPseudoServlet {
+    protected AddGroupMember newAddGroupMember() {
+        return new AddGroupMember();
+    }
+
+    protected CreatePushID newCreatePushID() {
+        return new CreatePushID();
+    }
+
+    protected NotifyPushID newNotifyPushID() {
+        return new NotifyPushID();
+    }
+
+    protected RemoveGroupMember newRemoveGroupMember() {
+        return new RemoveGroupMember();
+    }
+
+    protected class AddGroupMember extends AbstractPseudoServlet {
         public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
+            String groupName = request.getParameter("group");
+            String pushID = request.getParameter("id");
+            addGroupMember(groupName, pushID);
             response.setContentType("text/plain");
-            response.getOutputStream().print(pushContext.createPushId(request, response));
+            response.setContentLength(0);
+        }
+
+        protected void addGroupMember(final String groupName, final String pushID) {
+            pushContext.addGroupMember(groupName, pushID);
         }
     }
 
-    private class NotifyPushID extends AbstractPseudoServlet {
+    protected class CreatePushID extends AbstractPseudoServlet {
         public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
-            String group = request.getParameter("group");
-            PushConfiguration configuration;
+            response.setContentType("text/plain");
+            response.getOutputStream().print(createPushID(request, response));
+        }
+
+        protected String createPushID(final HttpServletRequest request, final HttpServletResponse response) {
+            return pushContext.createPushId(request, response);
+        }
+    }
+
+    protected class NotifyPushID extends AbstractPseudoServlet {
+        public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
+            String groupName = request.getParameter("group");
+            PushConfiguration pushConfiguration;
 
             String[] options = request.getParameterValues("option");
             if (options != null && options.length > 0) {
-                configuration = new PushConfiguration();
-                Map<String,Object> attributes = configuration.getAttributes();
+                pushConfiguration = new PushConfiguration();
+                Map<String,Object> attributes = pushConfiguration.getAttributes();
                 for (int i = 0; i < options.length; i++) {
                     String option = options[i];
                     String[] nameValue = NAME_VALUE.split(option);
                     attributes.put(nameValue[0], nameValue[1]);
                 }
             } else {
-                configuration = null;
+                pushConfiguration = null;
             }
             String delay = request.getParameter("delay");
             if (delay != null) {
                 String duration = request.getParameter("duration");
-                if (configuration == null) {
-                    configuration = new PushConfiguration();
+                if (pushConfiguration == null) {
+                    pushConfiguration = new PushConfiguration();
                 }
-                configuration.delayed(Long.parseLong(delay), Long.parseLong(duration));
+                pushConfiguration.delayed(Long.parseLong(delay), Long.parseLong(duration));
             }
             String at = request.getParameter("at");
             if (at != null) {
                 String duration = request.getParameter("duration");
-                if (configuration == null) {
-                    configuration = new PushConfiguration();
+                if (pushConfiguration == null) {
+                    pushConfiguration = new PushConfiguration();
                 }
-                configuration.scheduled(new Date(Long.parseLong(at)), Long.parseLong(duration));
+                pushConfiguration.scheduled(new Date(Long.parseLong(at)), Long.parseLong(duration));
             }
 
-            if (configuration == null) {
-                pushContext.push(group);
+            if (pushConfiguration == null) {
+                push(groupName);
             } else {
-                pushContext.push(group, configuration);
+                push(groupName, pushConfiguration);
             }
 
             response.setContentType("text/plain");
             response.setContentLength(0);
         }
-    }
 
-    private class AddGroupMember extends AbstractPseudoServlet {
-        public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
-            String group = request.getParameter("group");
-            String pushID = request.getParameter("id");
-            pushContext.addGroupMember(group, pushID);
-            response.setContentType("text/plain");
-            response.setContentLength(0);
+        protected void push(final String groupName) {
+            pushContext.push(groupName);
+        }
+
+        protected void push(final String groupName, final PushConfiguration pushConfiguration) {
+            pushContext.push(groupName, pushConfiguration);
         }
     }
 
-    private class RemoveGroupMember extends AbstractPseudoServlet {
+    protected class RemoveGroupMember extends AbstractPseudoServlet {
         public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
             String group = request.getParameter("group");
             String pushID = request.getParameter("id");
-            pushContext.removeGroupMember(group, pushID);
+            removeGroupMember(group, pushID);
             response.setContentType("text/plain");
             response.setContentLength(0);
+        }
+
+        protected void removeGroupMember(final String groupName, final String pushID) {
+            pushContext.removeGroupMember(groupName, pushID);
         }
     }
 }
