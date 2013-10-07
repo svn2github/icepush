@@ -37,6 +37,13 @@ if (!window.ice.icepush) {
         eval(ice.importFrom('ice.lib.http'));
         eval(ice.importFrom('ice.lib.configuration'));
 
+        //local storage doesn't work well in Firefox 3.6 and older
+        var ffMatch = navigator.userAgent.match(/Firefox\/(\w\.?\w)/);
+        var firefoxGreaterThan3point6 = ffMatch ? (Number(ffMatch[1]) > 3.6) : true;
+        function useLocalStorage() {
+            return window.localStorage && firefoxGreaterThan3point6;
+        }
+
         //include configuration.js
         //include command.js
         //include slot.js
@@ -387,12 +394,8 @@ if (!window.ice.icepush) {
                 }
             }
 
-            //local storage doesn't work well in Firefox 3.6 and older
-            var ffMatch = navigator.userAgent.match(/Firefox\/(\w\.?\w)/);
-            var firefoxGreaterThan3point6 = ffMatch ? (Number(ffMatch[1]) > 3.6) : true;
-
             //choose between localStorage or cookie based inter-window communication
-            var notificationBroadcaster = window.localStorage && firefoxGreaterThan3point6 ?
+            var notificationBroadcaster = useLocalStorage() ?
                 LocalStorageNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications) : CookieBasedNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications);
 
             //register command that handles the noop message

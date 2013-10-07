@@ -17,7 +17,7 @@
 var testLiveliness = operator();
 var PushIDLiveliness;
 (function () {
-    if (window.localStorage) {
+    if (useLocalStorage()) {
         PushIDLiveliness = function LocalStoragePushIDLiveliness(pushIdentifiers) {
             var notificationResponsivness = {};
 
