@@ -31,9 +31,9 @@
 		<include name="icepush.jar" />
 	</fileset>
 	
-	<tstamp>
-		<format property="build.time" pattern="yyyy-mm-dd hh:mm:ss aa" />
-	</tstamp>
+    <tstamp>
+        <format property="build.time" pattern="yyyy-MM-dd hh:mm:ss"/>
+    </tstamp>
 
 	<macrodef name="clean">
 		<element name="add.filesets" optional="true" />
