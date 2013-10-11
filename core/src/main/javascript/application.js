@@ -477,6 +477,10 @@ if (!window.ice.icepush) {
 
             //make some connection functionality public
             namespace.push.connection = {
+                startConnection: function() {
+                    startConnection(asyncConnection);
+                },
+
                 resumeConnection: function() {
                     sequenceNo++;
                     resumeConnection(asyncConnection);
