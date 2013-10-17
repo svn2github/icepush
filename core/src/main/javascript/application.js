@@ -227,26 +227,31 @@ if (!window.ice.icepush) {
                 return id;
             },
 
-            notify: function(group, options, schedule) {
+            notify: function(group, options) {
                 var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
                     addNameValue(q, BrowserIDName, getValue(browserID));
                     addNameValue(q, 'group', group);
-                    if (schedule) {
-                        var duration = schedule.duration ? schedule.duration : 0;
-                        if (schedule.delay) {
-                            addNameValue(q, 'delay', schedule.delay);
-                        } else if (schedule.at) {
-                            addNameValue(q, 'at', schedule.at);
-                        } else {
-                            addNameValue(q, 'delay', 0);
-                        }
-                        addNameValue(q, 'duration', duration);
-                    }
                     if (options) {
+                        //provide default values if missing
+                        if (!options.duration) {
+                            options.duration = 0;
+                        }
+                        if (!options.delay) {
+                            options.delay = 0;
+                        }
                         for (var name in options) {
                             if (options.hasOwnProperty(name)) {
-                                addNameValue(q, 'option', name + '=' + options[name]);
+                                var value = options[name];
+                                if (name == 'delay') {
+                                    addNameValue(q, 'delay', value);
+                                } else if (name == 'at') {
+                                    addNameValue(q, 'at', value);
+                                } else if (name == 'duration') {
+                                    addNameValue(q, 'duration', value);
+                                } else {
+                                    addNameValue(q, 'option', name + '=' + value);
+                                }
                             }
                         }
                     }
