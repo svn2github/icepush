@@ -24,16 +24,16 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.icepush.Configuration;
-import org.icepush.http.ResponseHandler;
-import org.icepush.http.Server;
+import org.icepush.http.PushResponseHandler;
+import org.icepush.http.PushServer;
 
 public class AsyncAdaptingServlet implements PseudoServlet {
     private final static Logger log = Logger.getLogger(AsyncAdaptingServlet.class.getName());
-    private Server server;
+    private PushServer pushServer;
     private Configuration configuration;
 
-    public AsyncAdaptingServlet(final Server server, final Configuration configuration) {
-        this.server = server;
+    public AsyncAdaptingServlet(final PushServer pushServer, final Configuration configuration) {
+        this.pushServer = pushServer;
         this.configuration = configuration;
         log.info("Using Servlet 3.0 AsyncContext");
     }
@@ -43,14 +43,15 @@ public class AsyncAdaptingServlet implements PseudoServlet {
             throw new EnvironmentAdaptingException();
         }
         AsyncRequestResponse requestResponse = new AsyncRequestResponse(request, response, configuration);
-        server.service(requestResponse);
+        pushServer.service(requestResponse);
     }
 
     public void shutdown() {
-        server.shutdown();
+        pushServer.shutdown();
     }
 
-    private class AsyncRequestResponse extends ServletRequestResponse {
+    private class AsyncRequestResponse
+    extends ServletPushRequestResponse {
         private AsyncContext asyncContext;
 
         public AsyncRequestResponse(final HttpServletRequest request, final HttpServletResponse response, final Configuration configuration) throws Exception {
@@ -62,7 +63,8 @@ public class AsyncAdaptingServlet implements PseudoServlet {
             asyncContext.setTimeout(heartbeatTimeout * 2);
         }
 
-        public void respondWith(final ResponseHandler handler) throws Exception {
+        public void respondWith(final PushResponseHandler handler)
+        throws Exception {
             try {
                 super.respondWith(handler);
             } finally {

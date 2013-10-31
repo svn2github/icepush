@@ -16,15 +16,14 @@
  */
 package org.icepush.http.standard;
 
-import org.icepush.http.Request;
-import org.icepush.http.Response;
-import org.icepush.http.ResponseHandler;
-import org.icepush.http.Server;
-
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 
+import org.icepush.http.Request;
+import org.icepush.http.Response;
+import org.icepush.http.ResponseHandler;
+import org.icepush.http.Server;
 
 public class CacheControlledServer implements Server {
     private static final Date ExpirationDate = new Date(System.currentTimeMillis() + 2629743830l);
@@ -64,9 +63,9 @@ public class CacheControlledServer implements Server {
         }
 
         public void respondWith(final ResponseHandler handler) throws Exception {
-            request.respondWith(new ResponseHandler() {
+            getRequest().respondWith(new ResponseHandler() {
                 public void respond(Response response) throws Exception {
-                    String eTag = Integer.toHexString(request.getURI().hashCode());
+                    String eTag = Integer.toHexString(getRequest().getURI().hashCode());
                     cache.add(eTag);
                     response.setHeader("ETag", eTag);
                     //tell to IE to cache these resources

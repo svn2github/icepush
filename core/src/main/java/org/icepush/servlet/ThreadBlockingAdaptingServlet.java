@@ -18,39 +18,40 @@ package org.icepush.servlet;
 
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.ServletRequest;
 
 import org.icepush.Configuration;
-import org.icepush.http.ResponseHandler;
-import org.icepush.http.Server;
+import org.icepush.http.PushResponseHandler;
+import org.icepush.http.PushServer;
 
 public class ThreadBlockingAdaptingServlet implements PseudoServlet {
     private static final Logger LOG = Logger.getLogger(ThreadBlockingAdaptingServlet.class.getName());
     private static final int TIMEOUT = 600; // seconds
 
-    private Server server;
+    private PushServer pushServer;
     private Configuration configuration;
 
-    public ThreadBlockingAdaptingServlet(final Server server, final Configuration configuration) {
-        this.server = server;
+    public ThreadBlockingAdaptingServlet(final PushServer pushServer, final Configuration configuration) {
+        this.pushServer = pushServer;
         this.configuration = configuration;
     }
 
     public void service(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
         ThreadBlockingRequestResponse requestResponse = new ThreadBlockingRequestResponse(request, response, configuration);
-        server.service(requestResponse);
+        pushServer.service(requestResponse);
         requestResponse.blockUntilRespond();
     }
 
     public void shutdown() {
-        server.shutdown();
+        pushServer.shutdown();
     }
 
-    private class ThreadBlockingRequestResponse extends ServletRequestResponse {
+    private class ThreadBlockingRequestResponse
+    extends ServletPushRequestResponse {
         private final Semaphore semaphore;
 
         public ThreadBlockingRequestResponse(final HttpServletRequest request, final HttpServletResponse response, final Configuration configuration) throws Exception {
@@ -60,7 +61,8 @@ public class ThreadBlockingAdaptingServlet implements PseudoServlet {
             semaphore.acquire();
         }
 
-        public void respondWith(final ResponseHandler handler) throws Exception {
+        public void respondWith(final PushResponseHandler handler)
+        throws Exception {
             try {
                 super.respondWith(handler);
             } finally {
@@ -75,15 +77,11 @@ public class ThreadBlockingAdaptingServlet implements PseudoServlet {
                 //Release the semaphore previously acquired.
                 semaphore.release();
             } else {
-                String remoteAddress = "unknown";
-                if( request instanceof ServletRequest ){
-                    remoteAddress = ((ServletRequest)request).getRemoteAddr();
-                }
                 LOG.warning("No response sent to " +
-                        "request '" + request.getRequestURI() + "' " +
+                        "request '" + getPushRequest().getURI() + "' " +
                         "with ICEfaces ID '" +
-                        request.getParameter("ice.session") + "' " +
-                        "from " + remoteAddress + " " +
+                        getPushRequest().getParameter("ice.session") + "' " +
+                        "from " + getPushRequest().getRemoteAddr() + " " +
                         "in " + TIMEOUT + " minutes.  " +
                         "Unblocking " +
                         "thread '" + Thread.currentThread().getName() + "'.");

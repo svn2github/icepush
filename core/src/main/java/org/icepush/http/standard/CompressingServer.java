@@ -16,15 +16,15 @@
  */
 package org.icepush.http.standard;
 
-import org.icepush.http.Request;
-import org.icepush.http.Response;
-import org.icepush.http.ResponseHandler;
-import org.icepush.http.Server;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.zip.GZIPOutputStream;
+
+import org.icepush.http.Request;
+import org.icepush.http.Response;
+import org.icepush.http.ResponseHandler;
+import org.icepush.http.Server;
 
 public class CompressingServer implements Server {
     private Server server;
@@ -52,7 +52,7 @@ public class CompressingServer implements Server {
         }
 
         public void respondWith(final ResponseHandler handler) throws Exception {
-            request.respondWith(new ResponseHandler() {
+            getRequest().respondWith(new ResponseHandler() {
                 public void respond(Response response) throws Exception {
                     CompressingResponse compressingResponse = new CompressingResponse(response);
                     handler.respond(compressingResponse);
@@ -71,7 +71,7 @@ public class CompressingServer implements Server {
         }
 
         public OutputStream writeBody() throws IOException {
-            return output = new GZIPOutputStream(response.writeBody());
+            return output = new GZIPOutputStream(getResponse().writeBody());
         }
 
         public void writeBodyFrom(InputStream in) throws IOException {

@@ -16,12 +16,13 @@
  */
 package org.icepush.http.standard;
 
-import org.icepush.http.Response;
-import org.icepush.http.ResponseHandler;
-
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
+
+import org.icepush.http.Response;
+import org.icepush.http.ResponseHandler;
 
 public abstract class FixedSizeContentHandler implements ResponseHandler {
     private String mimeType;
@@ -42,6 +43,8 @@ public abstract class FixedSizeContentHandler implements ResponseHandler {
         byte[] content = writer.getBuffer().toString().getBytes(characterSet);
         response.setHeader("Content-Type", mimeType + "; charset=" + characterSet);
         response.setHeader("Content-Length", content.length);
-        response.writeBody().write(content);
+        OutputStream out = response.writeBody();
+        out.write(content);
+        out.close();
     }
 }

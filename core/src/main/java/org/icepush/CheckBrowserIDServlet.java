@@ -1,15 +1,15 @@
 package org.icepush;
 
-import org.icepush.servlet.PseudoServlet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.logging.Logger;
+
+import org.icepush.servlet.PseudoServlet;
 
 public class CheckBrowserIDServlet implements PseudoServlet {
     private static final Logger log = Logger.getLogger(CheckBrowserIDServlet.class.getName());
-    private static final String BrowserIDCookieName = "ice.push.browser";
     private PseudoServlet servlet;
 
     public CheckBrowserIDServlet(PseudoServlet servlet) {
@@ -17,8 +17,8 @@ public class CheckBrowserIDServlet implements PseudoServlet {
     }
 
     public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        String browserIDParameter = request.getParameter(BrowserIDCookieName);
-        if (browserIDParameter != null && !"".equals(browserIDParameter)) {
+        String browserID = Browser.getBrowserID(request);
+        if (browserID != null && !"".equals(browserID)) {
             servlet.service(request, response);
         } else {
             response.setContentType("text/xml");

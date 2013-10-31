@@ -19,6 +19,7 @@ package org.icepush.servlet;
 import java.util.Date;
 import java.util.Map;
 import java.util.Timer;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -32,7 +33,7 @@ import org.icepush.PushConfiguration;
 import org.icepush.PushContext;
 import org.icepush.PushStormDetectionServer;
 import org.icepush.SequenceTaggingServer;
-import org.icepush.http.Server;
+import org.icepush.http.PushServer;
 import org.icepush.util.Slot;
 
 public class BrowserBoundServlet extends PathDispatcher {
@@ -66,7 +67,7 @@ public class BrowserBoundServlet extends PathDispatcher {
         dispatchOn(".*remove-group-member\\.icepush", newRemoveGroupMember());
     }
 
-    protected Server createBlockingConnectionServer() {
+    protected PushServer createBlockingConnectionServer() {
         Slot heartbeatInterval =
             new Slot(
                 configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServlet.DefaultHeartbeatTimeout));

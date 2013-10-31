@@ -20,18 +20,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -42,142 +33,61 @@ import org.icepush.http.Request;
 import org.icepush.http.Response;
 import org.icepush.http.ResponseHandler;
 
-public class ServletRequestResponse implements Request, Response {
-    private static Logger log = Logger.getLogger("org.icepushservlet");
-    private final static DateFormat DATE_FORMAT = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
-    private static Pattern HEADER_FIXER = null;
+public class ServletRequestResponse
+implements Request, Response {
+    private static Logger LOGGER = Logger.getLogger(ServletRequestResponse.class.getName());
 
-    private URI requestURI;
+    private Request request;
+    private Response response;
 
-    static {
-        DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
-        HEADER_FIXER = Pattern.compile("[\r\n]");
+    public ServletRequestResponse(
+        final HttpServletRequest request, final HttpServletResponse response, final Configuration configuration)
+    throws Exception {
+        this(new ServletRequest(request, configuration), new ServletResponse(response, configuration));
     }
 
-    protected HttpServletRequest request;
-    protected HttpServletResponse response;
-    protected boolean disableRemoteHostLookup;
-
-    public ServletRequestResponse(HttpServletRequest request, HttpServletResponse response, Configuration configuration) throws Exception {
+    public ServletRequestResponse(
+        final ServletRequest request, final ServletResponse response)
+    throws Exception {
         this.request = request;
         this.response = response;
-        this.disableRemoteHostLookup = configuration.getAttributeAsBoolean("disableRemoteHostLookup", false);
-
-        HttpServletRequest req = (HttpServletRequest) request;
-        String query = req.getQueryString();
-        URI uri = null;
-        while (null == uri) {
-            try {
-                uri = URI.create(req.getRequestURL().toString());
-            } catch (NullPointerException e) {
-                //TODO remove this catch block when GlassFish bug is addressed
-                if (log.isLoggable(Level.FINE)) {
-                    log.log(Level.FINE, "Null Protocol Scheme in request", e);
-                }
-                uri = URI.create("http://" + req.getServerName() + ":"
-                        + req.getServerPort() + req.getRequestURI());
-            }
-        }
-        requestURI = (query == null ? uri : URI.create(uri + "?" + query));
     }
 
-    public Cookie[] getCookies(){
+    public boolean containsParameter(final String name) {
+        return request.containsParameter(name);
+    }
+
+    public void detectEnvironment(final Environment environment)
+    throws Exception {
+        request.detectEnvironment(environment);
+    }
+
+    public Cookie[] getCookies() {
         return request.getCookies();
     }
 
-    public String getMethod() {
-        return request.getMethod();
-    }
-
-    public URI getURI() {
-        return requestURI;
-    }
-
-    public String[] getHeaderNames() {
-        List headerNames = new ArrayList();
-        Enumeration e = request.getHeaderNames();
-        while (e.hasMoreElements()) {
-            headerNames.add(e.nextElement());
-        }
-        return (String[]) headerNames.toArray(new String[headerNames.size()]);
-    }
-
-    public String getHeader(String name) {
+    public String getHeader(final String name) {
         return request.getHeader(name);
     }
 
-    public String[] getHeaderAsStrings(String name) {
-        Enumeration e = request.getHeaders(name);
-        ArrayList values = new ArrayList();
-        while (e.hasMoreElements()) values.add(e.nextElement());
-        return (String[]) values.toArray(new String[values.size()]);
+    public Date getHeaderAsDate(final String name) {
+        return request.getHeaderAsDate(name);
     }
 
-    public Date getHeaderAsDate(String name) {
-        try {
-            return DATE_FORMAT.parse(request.getHeader(name));
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
-        }
+    public int getHeaderAsInteger(final String name) {
+        return request.getHeaderAsInteger(name);
     }
 
-    public int getHeaderAsInteger(String name) {
-        return Integer.parseInt(request.getHeader(name));
+    public long getHeaderAsLong(final String name) {
+        return request.getHeaderAsLong(name);
     }
 
-    public long getHeaderAsLong(String name) {
-        return Long.parseLong(request.getHeader(name));
+    public String[] getHeaderAsStrings(final String name) {
+        return request.getHeaderAsStrings(name);
     }
 
-    public boolean containsParameter(String name) {
-        return request.getParameter(name) != null;
-    }
-
-    public String[] getParameterNames() {
-        Collection result = request.getParameterMap().keySet();
-        return (String[]) result.toArray(new String[result.size()]);
-    }
-
-    public String getParameter(String name) {
-        checkExistenceOf(name);
-        return (String) request.getParameter(name);
-    }
-
-    public String[] getParameterAsStrings(String name) {
-        checkExistenceOf(name);
-        return request.getParameterValues(name);
-    }
-
-    public int getParameterAsInteger(String name) {
-        return Integer.parseInt(getParameter(name));
-    }
-
-    public boolean getParameterAsBoolean(String name) {
-        return Boolean.valueOf(getParameter(name)).booleanValue();
-    }
-
-    public String getParameter(String name, String defaultValue) {
-        try {
-            return getParameter(name);
-        } catch (Exception e) {
-            return defaultValue;
-        }
-    }
-
-    public int getParameterAsInteger(String name, int defaultValue) {
-        try {
-            return getParameterAsInteger(name);
-        } catch (Exception e) {
-            return defaultValue;
-        }
-    }
-
-    public boolean getParameterAsBoolean(String name, boolean defaultValue) {
-        try {
-            return getParameterAsBoolean(name);
-        } catch (Exception e) {
-            return defaultValue;
-        }
+    public String[] getHeaderNames() {
+        return request.getHeaderNames();
     }
 
     public String getLocalAddr() {
@@ -188,137 +98,112 @@ public class ServletRequestResponse implements Request, Response {
         return request.getLocalName();
     }
 
+    public String getMethod() {
+        return request.getMethod();
+    }
+
+    public String getParameter(final String name) {
+        return request.getParameter(name);
+    }
+
+    public String getParameter(final String name, final String defaultValue) {
+        return request.getParameter(name, defaultValue);
+    }
+
+    public boolean getParameterAsBoolean(final String name) {
+        return request.getParameterAsBoolean(name);
+    }
+
+    public boolean getParameterAsBoolean(final String name, final boolean defaultValue) {
+        return request.getParameterAsBoolean(name, defaultValue);
+    }
+
+    public int getParameterAsInteger(final String name) {
+        return request.getParameterAsInteger(name);
+    }
+
+    public int getParameterAsInteger(final String name, final int defaultValue) {
+        return request.getParameterAsInteger(name, defaultValue);
+    }
+
+    public String[] getParameterAsStrings(final String name) {
+        return request.getParameterAsStrings(name);
+    }
+
+    public String[] getParameterNames() {
+        return request.getParameterNames();
+    }
+
     public String getRemoteAddr() {
         return request.getRemoteAddr();
     }
 
     public String getRemoteHost() {
-        if (!disableRemoteHostLookup) {
-            log.info("Remote Host: " + request.getRemoteHost());
-            return request.getRemoteHost();
-        } else {
-            log.info("Remote Host: " + request.getRemoteAddr());
-            return request.getRemoteAddr();
-        }
+        return request.getRemoteHost();
     }
 
     public String getServerName() {
         return request.getServerName();
     }
 
-    public InputStream readBody() throws IOException {
-        return request.getInputStream();
+    public URI getURI() {
+        return request.getURI();
     }
 
-    public void readBodyInto(OutputStream out) throws IOException {
-        copy(readBody(), out);
+    public InputStream readBody()
+    throws IOException {
+        return request.readBody();
     }
 
-    public void respondWith(ResponseHandler handler) throws Exception {
+    public void readBodyInto(final OutputStream out)
+    throws IOException {
+        request.readBodyInto(out);
+    }
+
+    public void respondWith(final ResponseHandler handler)
+    throws Exception {
         handler.respond(this);
     }
 
-    public void setStatus(int code) {
+    public void setHeader(final String name, final Date value) {
+        response.setHeader(name, value);
+    }
+
+    public void setHeader(final String name, final int value) {
+        response.setHeader(name, value);
+    }
+
+    public void setHeader(final String name, final long value) {
+        response.setHeader(name, value);
+    }
+
+    public void setHeader(final String name, final String value) {
+        response.setHeader(name, value);
+    }
+
+    public void setHeader(final String name, final String[] values) {
+        response.setHeader(name, values);
+    }
+
+    public void setStatus(final int code) {
         response.setStatus(code);
     }
 
-    public void setHeader(String name, String value) {
-        if (ignoreHeader(name, value)) return;
-        //CR and LF embedded in headers can corrupt the HTTP response
-        value = HEADER_FIXER.matcher(value).replaceAll("");
-        if ("Content-Type".equals(name)) {
-            response.setContentType(value);
-        } else if ("Content-Length".equals(name)) {
-            response.setContentLength(Integer.parseInt(value));
-        } else {
-            response.setHeader(name, value);
-        }
+    public OutputStream writeBody()
+    throws IOException {
+        return response.writeBody();
     }
 
-    public void setHeader(String name, String[] values) {
-        if (ignoreHeader(name, values)) return;
-        for (int i = 0; i < values.length; i++) {
-            String safeValue = HEADER_FIXER.matcher(values[i]).replaceAll("");
-            response.addHeader(name, safeValue);
-        }
+    public void writeBodyFrom(final InputStream in)
+    throws IOException {
+        response.writeBodyFrom(in);
     }
 
-    public void setHeader(String name, Date value) {
-        if (ignoreHeader(name, value)) return;
-        response.setDateHeader(name, value.getTime());
+    protected Request getRequest() {
+        return request;
     }
 
-    public void setHeader(String name, int value) {
-        response.setIntHeader(name, value);
-    }
-
-    public void setHeader(String name, long value) {
-        response.setHeader(name, String.valueOf(value));
-    }
-
-    public void addCookie(Cookie cookie) {
-        response.addCookie(cookie);
-    }
-
-    public OutputStream writeBody() throws IOException {
-        return response.getOutputStream();
-    }
-
-    public void writeBodyFrom(InputStream in) throws IOException {
-        try {
-            copy(in, writeBody());
-        } finally {
-            in.close();
-        }
-    }
-
-    public void detectEnvironment(Environment environment) throws Exception {
-    }
-
-    private static void copy(InputStream input, OutputStream output) throws IOException {
-        byte[] buf = new byte[4096];
-        int len = 0;
-        while ((len = input.read(buf)) > -1) output.write(buf, 0, len);
-    }
-
-    private void checkExistenceOf(String name) {
-        if (request.getParameter(name) == null) {
-
-            // This block is removable once we find out why sometimes the request
-            // object appears a little corrupted.
-
-            String host = getRemoteHost();
-            StringBuffer data = new StringBuffer("+ Request does not contain parameter '" + name + "' host: \n");
-            data.append("  Originator: ").append(host).append("\n");
-            data.append("  Path: ").append(requestURI.toString()).append("\n");
-
-            Enumeration e = request.getParameterNames();
-            String key;
-            int i = 0;
-
-            while (e.hasMoreElements()) {
-                key = (String) e.nextElement();
-                if (i == 0) {
-                    data.append("  Available request parameters are: \n");
-                }
-                data.append("  - parameter name: ").append(key).append(", value: ").append(request.getParameter(key)).append("\n");
-                i++;
-            }
-            if (i == 0) {
-                data.append("   Request map is empty!\n");
-            }
-
-            data.append("- SRR hashcode: ").append(this.hashCode()).append(" Servlet request hash: ").append(request.hashCode());
-            if (log.isLoggable(Level.FINE)) {
-                log.fine(data.toString());
-            }
-            // we can't just carry on. We seriously need those paramters ...
-            throw new RuntimeException("Query does not contain parameter named: " + name);
-
-        }
-    }
-
-    private static boolean ignoreHeader(String name, Object value) {
-        return name == null || value == null;
+    protected Response getResponse() {
+        return response;
     }
 }

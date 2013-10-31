@@ -16,69 +16,73 @@
 
 package org.icepush;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.icepush.http.Request;
-import org.icepush.http.Response;
-import org.icepush.http.ResponseHandler;
-import org.icepush.http.Server;
-import org.icepush.http.standard.RequestProxy;
+import org.icepush.http.PushRequest;
+import org.icepush.http.PushResponse;
+import org.icepush.http.PushResponseHandler;
+import org.icepush.http.PushServer;
+import org.icepush.http.standard.PushRequestProxy;
 import org.icepush.util.Slot;
 
-public class SequenceTaggingServer implements Server {
+public class SequenceTaggingServer
+implements PushServer {
     private static final Logger LOGGER = Logger.getLogger(SequenceTaggingServer.class.getName());
 
-    private Server server;
+    private final PushServer pushServer;
+
     private Slot sequenceNo;
-    private List<String> participatingPushIDList = new ArrayList<String>();
+    private Set<String> participatingPushIDList = new HashSet<String>();
     private boolean participatingPushIDsChanged;
     
-    public SequenceTaggingServer(Slot sequenceNo, Server server) {
+    public SequenceTaggingServer(final Slot sequenceNo, final PushServer pushServer) {
         this.sequenceNo = sequenceNo;
-        this.server = server;
+        this.pushServer = pushServer;
     }
 
-    public void service(Request request) throws Exception {
-        List<String> currentParticipatingPushIDList =
-            Arrays.asList(request.getParameterAsStrings("ice.pushid"));
+    public void service(final PushRequest pushRequest)
+    throws Exception {
+        Set<String> currentParticipatingPushIDList = new HashSet<String>(pushRequest.getPushIDSet());
         participatingPushIDsChanged =
             !participatingPushIDList.containsAll(currentParticipatingPushIDList) ||
             !currentParticipatingPushIDList.containsAll(participatingPushIDList);
         if (participatingPushIDsChanged) {
             participatingPushIDList = currentParticipatingPushIDList;
         }
-        server.service(new TaggingRequest(request));
+        pushServer.service(new TaggingRequest(pushRequest));
     }
 
     public void shutdown() {
-        server.shutdown();
+        pushServer.shutdown();
     }
 
-    public class TaggingRequest extends RequestProxy {
-        public TaggingRequest(Request request) {
-            super(request);
+    public class TaggingRequest
+    extends PushRequestProxy {
+        public TaggingRequest(final PushRequest pushRequest) {
+            super(pushRequest);
         }
 
-        public void respondWith(final ResponseHandler handler) throws Exception {
-            request.respondWith(new TaggingResponseHandler(handler));
+        public void respondWith(final PushResponseHandler handler) throws Exception {
+            getPushRequest().respondWith(new TaggingResponseHandler(handler));
         }
 
-        private class TaggingResponseHandler implements ResponseHandler {
-            private final ResponseHandler handler;
+        private class TaggingResponseHandler
+        implements PushResponseHandler {
+            private final PushResponseHandler handler;
 
-            public TaggingResponseHandler(ResponseHandler handler) {
+            public TaggingResponseHandler(PushResponseHandler handler) {
                 this.handler = handler;
             }
 
-            public void respond(Response response) throws Exception {
+            public void respond(PushResponse pushResponse)
+            throws Exception {
                 try {
                     long previousSequenceNo;
                     try {
-                        previousSequenceNo = request.getHeaderAsLong("ice.push.sequence");
+                        previousSequenceNo = getPushRequest().getSequenceNumber();
                         if (previousSequenceNo >= sequenceNo.getLongValue()) {
                             sequenceNo.setLongValue(previousSequenceNo + 1);
                         } else if (participatingPushIDsChanged) {
@@ -107,9 +111,9 @@ public class SequenceTaggingServer implements Server {
                             sequenceNo.setLongValue(sequenceNo.getLongValue() + 1);
                         }
                     }
-                    response.setHeader("ice.push.sequence", sequenceNo.getLongValue());
+                    pushResponse.setSequenceNumber(sequenceNo.getLongValue());
                 } finally {
-                    handler.respond(response);
+                    handler.respond(pushResponse);
                 }
             }
         }

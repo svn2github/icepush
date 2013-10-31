@@ -18,16 +18,15 @@ package org.icepush.servlet;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.icepush.Browser;
 import org.icepush.Configuration;
 import org.icepush.PushContext;
-import org.icepush.http.ResponseHandler;
 import org.icepush.http.standard.FixedXMLContentHandler;
 
 public class ConfigurationServlet implements PseudoServlet {
@@ -80,7 +79,6 @@ public class ConfigurationServlet implements PseudoServlet {
 
     public void service(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
         ServletRequestResponse requestResponse = new ServletRequestResponse(request, response, configuration);
-        String browserID = Browser.getBrowserID(request);
         if ((redirect || requestResponse.containsParameter("ice.sendConfiguration")) && nonDefaultConfiguration) {
             requestResponse.respondWith(configureBridge);
         } else {

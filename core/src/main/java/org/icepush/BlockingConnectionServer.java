@@ -21,7 +21,6 @@ import static org.icepush.NotificationEvent.TargetType;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -34,33 +33,34 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.icepush.http.Request;
-import org.icepush.http.Response;
-import org.icepush.http.ResponseHandler;
-import org.icepush.http.Server;
-import org.icepush.http.standard.FixedXMLContentHandler;
-import org.icepush.http.standard.ResponseHandlerServer;
+import org.icepush.http.PushRequest;
+import org.icepush.http.PushResponse;
+import org.icepush.http.PushResponseHandler;
+import org.icepush.http.PushServer;
+import org.icepush.http.standard.PushResponseHandlerServer;
 import org.icepush.util.Slot;
 
-public class BlockingConnectionServer extends TimerTask implements Server, NotificationBroadcaster.Receiver {
+public class BlockingConnectionServer
+extends TimerTask
+implements NotificationBroadcaster.Receiver, PushServer {
     private static final Logger LOGGER = Logger.getLogger(BlockingConnectionServer.class.getName());
     private static final String[] STRINGS = new String[0];
     //Define here to avoid classloading problems after application exit
-    private static final ResponseHandler ShutdownNoopResponse = new NoopResponseHandler("shutdown");
-    private static final ResponseHandler TimeoutNoopResponse = new NoopResponseHandler("response timeout");
-    private final ResponseHandler CloseResponseDup = new CloseConnectionResponseHandler("duplicate") {
-        public void respond(Response response) throws Exception {
-            super.respond(response);
-            //revert timeout to previous value, duplicate requests can extend excessively the calculated delay
-            //the duplicate requests occur during page reload or navigating away from the page and then returning back
-            //before the server decides to sever the connection
-            browser.getStatus().revertConnectionRecreationTimeout();
-        }
-    };
-    private final ResponseHandler CloseResponseDown = new CloseConnectionResponseHandler("shutdown");
-    private final Server AfterShutdown = new ResponseHandlerServer(CloseResponseDown);
+    private static final PushResponseHandler NOOP_SHUTDOWN = new Noop("shutdown");
+    private static final PushResponseHandler NOOP_TIMEOUT = new Noop("response timeout");
+    private final PushResponseHandler closeConnectionDuplicate =
+        new ConnectionClose("duplicate") {
+            @Override
+            public void respond(final PushResponse pushResponse)
+            throws Exception {
+                super.respond(pushResponse);
+                browser.getStatus().revertConnectionRecreationTimeout();
+            }
+        };
+    private final PushResponseHandler closeConnectionShutdown = new ConnectionClose("shutdown");
+    private final PushServer AfterShutdown = new PushResponseHandlerServer(closeConnectionShutdown);
 
-    private final BlockingQueue<Request> pendingRequest = new LinkedBlockingQueue<Request>(1);
+    private final BlockingQueue<PushRequest> pendingRequest = new LinkedBlockingQueue<PushRequest>(1);
     private final Slot heartbeatInterval;
     // This is either a LocalPushGroupManager or a DynamicPushGroupManager
     private final PushGroupManager pushGroupManager =
@@ -68,7 +68,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     private final long minCloudPushInterval;
     private Browser browser;
     private long responseTimeoutTime;
-    private Server activeServer;
+    private PushServer activeServer;
     private ConcurrentLinkedQueue<NotificationEntry> notifiedPushIDs = new ConcurrentLinkedQueue<NotificationEntry>();
     private Timer monitoringScheduler;
 
@@ -108,8 +108,19 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         return browser;
     }
 
-    public void service(final Request request) throws Exception {
-        activeServer.service(request);
+    public boolean isInterested(Set<NotificationEntry> notificationSet) {
+        Iterator<NotificationEntry> notificationEntryIterator = notificationSet.iterator();
+        while (notificationEntryIterator.hasNext()) {
+            if (browser.getPushIDSet().contains(notificationEntryIterator.next().getPushID())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void service(final PushRequest pushRequest)
+    throws Exception {
+        activeServer.service(pushRequest);
     }
 
     public void shutdown() {
@@ -122,7 +133,7 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     public void run() {
         try {
             if ((System.currentTimeMillis() > responseTimeoutTime) && (!pendingRequest.isEmpty())) {
-                respondIfPendingRequest(TimeoutNoopResponse);
+                respondIfPendingRequest(NOOP_TIMEOUT);
             }
         } catch (Exception exception) {
             if (LOGGER.isLoggable(Level.WARNING)) {
@@ -144,17 +155,20 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         return new Browser(browserID, minCloudPushInterval);
     }
 
-    private boolean sendNotifications(final Set<NotificationEntry> notificationSet) {
+    private synchronized boolean sendNotifications(final Set<NotificationEntry> notificationSet) {
         //stop sending notifications if pushID are not used anymore by the browser
+        Set<NotificationEntry> matchingSet = new HashSet<NotificationEntry>();
         Iterator<NotificationEntry> notificationEntryIterator = notificationSet.iterator();
         while (notificationEntryIterator.hasNext()) {
-            if (!browser.getPushIDSet().contains(notificationEntryIterator.next().getPushID())) {
-                notificationEntryIterator.remove();
+            NotificationEntry notificationEntry = notificationEntryIterator.next();
+            if (browser.getPushIDSet().contains(notificationEntry.getPushID())) {
+                matchingSet.add(notificationEntry);
             }
         }
-        boolean anyNotifications = !notificationSet.isEmpty();
+        boolean anyNotifications = !matchingSet.isEmpty();
         if (anyNotifications) {
-            notifiedPushIDs.addAll(notificationSet);
+            notifiedPushIDs.addAll(matchingSet);
+            notifiedPushIDs.retainAll(pushGroupManager.getPendingNotificationSet());
             resetTimeout();
             respondIfNotificationsAvailable();
         }
@@ -166,13 +180,14 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
     }
 
     private synchronized boolean respondIfBackOffRequested() {
-        boolean result = false;
+        boolean _result = false;
         if (backOffDelay > 0) {
-            if (result = respondIfPendingRequest(new BackOffResponseHandler(backOffDelay))) {
+            _result = respondIfPendingRequest(new BackOff(backOffDelay));
+            if (_result) {
                 backOffDelay = 0;
             }
         }
-        return result;
+        return _result;
     }
 
     private synchronized void respondIfNotificationsAvailable() {
@@ -180,14 +195,15 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
             //save notifications, maybe they will need to be resent when blocking connection switches to another window
             lastNotifications = new HashSet<NotificationEntry>(notifiedPushIDs);
             respondIfPendingRequest(
-                new NotificationHandler(lastNotifications) {
-                    public void writeTo(Writer writer) throws IOException {
+                new NotifiedPushIDs(lastNotifications) {
+                    @Override
+                    public void writeTo(final Writer writer)
+                    throws IOException {
                         super.writeTo(writer);
-
                         if (LOGGER.isLoggable(Level.FINE)) {
                             LOGGER.log(
                                 Level.FINE,
-                                "Push Notifications available for PushIDs '" + pushIDSet + "', trying to respond.");
+                                "Push Notifications available for PushIDs '" + getPushIDSet() + "', trying to respond.");
                         }
                         pushGroupManager.clearPendingNotifications(browser.getPushIDSet());
                         notifiedPushIDs.removeAll(lastNotifications);
@@ -214,8 +230,8 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         responseTimeoutTime = System.currentTimeMillis() + heartbeatInterval.getLongValue();
     }
 
-    private boolean respondIfPendingRequest(ResponseHandler handler) {
-        Request previousRequest = pendingRequest.poll();
+    private boolean respondIfPendingRequest(final PushResponseHandler handler) {
+        PushRequest previousRequest = pendingRequest.poll();
         if (previousRequest != null) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
@@ -232,140 +248,40 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         return false;
     }
 
-    private static class ServerErrorResponseHandler extends FixedXMLContentHandler {
-        private String message;
-
-        private ServerErrorResponseHandler(Throwable exception) {
-            this.message = exception.getMessage();
-        }
-
-        public void respond(Response response) throws Exception {
-            response.setStatus(503);
-            super.respond(response);
-        }
-
-        public void writeTo(Writer writer) throws IOException {
-            writer.write("<server-error message=\"");
-            writer.write(message);
-            writer.write("\"/>");
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "Sending server-error - " + message);
-            }
-        }
-    }
-
-    private static class NoopResponseHandler extends FixedXMLContentHandler {
-        private final String reason;
-
-        private NoopResponseHandler(final String reason) {
-            this.reason = reason;
-        }
-
-        @Override
-        public void respond(final Response response)
-        throws Exception {
-            response.setHeader("X-Connection-reason", reason);
-            super.respond(response);
-        }
-
-        public void writeTo(Writer writer) throws IOException {
-            writer.write("<noop/>");
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "Sending NoOp.");
-            }
-        }
-    }
-
-    private class CloseConnectionResponseHandler implements ResponseHandler {
-        private String reason = "undefined";
-
-        public CloseConnectionResponseHandler(String reason) {
-            this.reason = reason;
-        }
-
-        public void respond(Response response) throws Exception {
-            //let the bridge know that this blocking connection should not be re-initialized
-            response.setHeader("X-Connection", "close");
-            response.setHeader("X-Connection-reason", reason);
-            response.setHeader("Content-Length", 0);
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "Close current blocking connection.");
-            }
-        }
-    }
-
-    private class NotificationHandler extends FixedXMLContentHandler {
-        protected Set<String> pushIDSet = new HashSet<String>();
-
-        private NotificationHandler(final Set<NotificationEntry> notificationSet) {
-            for (final NotificationEntry notificationEntry : notificationSet) {
-                pushIDSet.add(notificationEntry.getPushID());
-            }
-        }
-
-        public void writeTo(Writer writer) throws IOException {
-            writer.write("<notified-pushids>");
-            boolean first = true;
-            for (final String pushID : pushIDSet) {
-                if (!first) {
-                    writer.write(' ');
-                }
-                writer.write(pushID);
-                first = false;
-            }
-            writer.write("</notified-pushids>");
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "Sending Notified PushIDs '" + pushIDSet + "'.");
-            }
-        }
-    }
-
-    public boolean isInterested(Set<NotificationEntry> notificationSet) {
-        Iterator<NotificationEntry> notificationEntryIterator = notificationSet.iterator();
-        while (notificationEntryIterator.hasNext()) {
-            if (browser.getPushIDSet().contains(notificationEntryIterator.next().getPushID())) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     public void receive(final Set<NotificationEntry> notificationSet) {
-        Set<NotificationEntry> _copyOfNotificationSet = new HashSet<NotificationEntry>();
-        _copyOfNotificationSet.addAll(notificationSet);
-        sendNotifications((_copyOfNotificationSet));
+        sendNotifications(notificationSet);
     }
 
-    private class RunningServer implements Server {
+    private class RunningServer
+    implements PushServer {
         private final boolean terminateBlockingConnectionOnShutdown;
 
         public RunningServer(final boolean terminateBlockingConnectionOnShutdown) {
             this.terminateBlockingConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
         }
 
-        public void service(final Request request) throws Exception {
+        public void service(final PushRequest pushRequest) throws Exception {
             resetTimeout();
             try {
-                browser.setPushIDSet(new HashSet<String>(Arrays.asList(request.getParameterAsStrings("ice.pushid"))));
-                adjustConnectionRecreationTimeout(request);
+                browser.setPushIDSet(pushRequest.getPushIDSet());
+                adjustConnectionRecreationTimeout(pushRequest);
 
-                respondIfPendingRequest(CloseResponseDup);
+                respondIfPendingRequest(closeConnectionDuplicate);
                 long sequenceNumber;
                 try {
-                    sequenceNumber = request.getHeaderAsLong("ice.push.sequence");
+                    sequenceNumber = pushRequest.getSequenceNumber();
                 } catch (final RuntimeException exception) {
                     sequenceNumber = 0;
                 }
                 browser.setSequenceNumber(sequenceNumber);
                 //resend notifications if the window owning the blocking connection has changed
-                String currentWindow = request.getHeader("ice.push.window");
+                String currentWindow = pushRequest.getWindowID();
                 currentWindow = currentWindow == null ? "" : currentWindow;
                 boolean resend = !lastWindow.equals(currentWindow);
                 lastWindow = currentWindow;
 
-                pendingRequest.put(request);
-                setNotifyBackURI(request);
+                pendingRequest.put(pushRequest);
+                setNotifyBackURI(pushRequest);
                 pushGroupManager.scan(browser.getPushIDSet().toArray(STRINGS));
                 browser.cancelConfirmationTimeout();
                 pushGroupManager.cancelExpiryTimeout(browser);
@@ -382,20 +298,21 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
                         }
                     }
                 }
-            } catch (Throwable t) {
-                LOGGER.log(Level.WARNING, "Failed to respond to request", t);
-                respondIfPendingRequest(new ServerErrorResponseHandler(t));
+            } catch (final Throwable throwable) {
+                LOGGER.log(Level.WARNING, "Failed to respond to request", throwable);
+                respondIfPendingRequest(new ServerError(throwable));
             }
         }
 
         public void shutdown() {
             //avoid creating new blocking connections after shutdown
             activeServer = AfterShutdown;
-            respondIfPendingRequest(terminateBlockingConnectionOnShutdown ? CloseResponseDown : ShutdownNoopResponse);
+            respondIfPendingRequest(
+                terminateBlockingConnectionOnShutdown ? closeConnectionShutdown : NOOP_SHUTDOWN);
         }
     }
 
-    private void adjustConnectionRecreationTimeout(Request request) {
+    private void adjustConnectionRecreationTimeout(final PushRequest pushRequest) {
         for (final String pushIDString : browser.getPushIDSet()) {
             PushID pushID = pushGroupManager.getPushID(pushIDString);
             if (pushID != null) {
@@ -423,11 +340,11 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         }
 
         if (LOGGER.isLoggable(Level.FINE)) {
-            setNotifyBackURI(request);
+            setNotifyBackURI(pushRequest);
             LOGGER.log(
                 Level.FINE,
                 "ICEpush metric:" +
-                    " IP: " + request.getRemoteAddr() +
+                    " IP: " + pushRequest.getRemoteAddr() +
                     " pushIds: " + browser.getPushIDSet() +
                     " Cloud Push ID: " + browser.getNotifyBackURI() +
                     " Browser: " + browser.getID() +
@@ -440,8 +357,8 @@ public class BlockingConnectionServer extends TimerTask implements Server, Notif
         responseTimestamp = System.currentTimeMillis();
     }
 
-    private void setNotifyBackURI(final Request request) {
-        String notifyBack = request.getHeader("ice.notifyBack");
+    private void setNotifyBackURI(final PushRequest pushRequest) {
+        String notifyBack = pushRequest.getNotifyBackURI();
         if (notifyBack != null && notifyBack.trim().length() != 0) {
             browser.setNotifyBackURI(new NotifyBackURI(notifyBack), true);
         }

@@ -2,6 +2,7 @@ package org.icepush;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -124,16 +125,16 @@ implements Serializable {
     }
 
     public void setPushIDSet(final Set<String> pushIDSet) {
-        this.pushIDSet = pushIDSet;
+        this.pushIDSet = new HashSet<String>(pushIDSet);
         for (final String _pushIDString : this.pushIDSet) {
             PushID _pushID = pushGroupManager.getPushID(_pushIDString);
-            if (null != _pushID)  {
+            if (_pushID != null)  {
                 _pushID.setBrowser(this);
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(Level.FINE, "Valid PushID " + _pushIDString);
+                if (LOGGER.isLoggable(Level.INFO)) {
+                    LOGGER.log(Level.INFO, "Valid Push-ID " + _pushIDString);
                 }
             } else {
-                LOGGER.log(Level.FINE, "INVALID PushID " + _pushIDString);
+                LOGGER.log(Level.INFO, "INVALID Push-ID " + _pushIDString);
             }
         }
     }
@@ -360,8 +361,7 @@ implements Serializable {
                         _notifyBackURI.touch();
                         pushGroupManager.getOutOfBandNotifier().
                             broadcast(
-                                new PushNotification( browser
-                                    .getPushConfiguration().getAttributes() ),
+                                new PushNotification(browser.getPushConfiguration().getAttributes()),
                                 new Browser[] {
                                     browser
                                 },
