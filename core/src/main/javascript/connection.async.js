@@ -124,6 +124,7 @@ var AsyncConnection;
                     var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
                     listener = postAsynchronously(channel, uri, function(q) {
                         addNameValue(q, BrowserIDName, getValue(browserID));
+                        addNameValue(q, APIKey, ice.push.configuration.apikey);
                         each(lastSentPushIds, curry(addNameValue, q, 'ice.pushid'));
                         askForConfiguration(q);
                     }, function(request) {

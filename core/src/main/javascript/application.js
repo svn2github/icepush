@@ -74,6 +74,7 @@ if (!window.ice.icepush) {
         //constants
         var PushIDs = 'ice.pushids';
         var BrowserIDName = 'ice.push.browser';
+        var APIKey = "ice.push.apikey";
         var NotifiedPushIDs = 'ice.notified.pushids';
 
         var handler = window.console ? ConsoleLogHandler(debug) : WindowLogHandler(debug, window.location.href);
@@ -203,6 +204,7 @@ if (!window.ice.icepush) {
                 var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
                 postSynchronously(apiChannel, uri, function (query) {
                     addNameValue(query, BrowserIDName, getValue(browserID));
+                    addNameValue(query, APIKey, ice.push.configuration.apikey);
                 }, FormPost, $witch(function (condition) {
                     condition(OK, function(response) {
                         if (isXMLResponse(response)) {
@@ -226,6 +228,7 @@ if (!window.ice.icepush) {
                 var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
                     addNameValue(q, BrowserIDName, getValue(browserID));
+                    addNameValue(q, APIKey, ice.push.configuration.apikey);
                     addNameValue(q, 'group', group);
                     if (options) {
                         //provide default values if missing
@@ -259,6 +262,7 @@ if (!window.ice.icepush) {
                 var uri = resolveURI(namespace.push.configuration.addGroupMemberURI || 'add-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
                     addNameValue(q, BrowserIDName, getValue(browserID));
+                    addNameValue(q, APIKey, ice.push.configuration.apikey);
                     addNameValue(q, 'group', group);
                     addNameValue(q, 'id', id);
                 }, FormPost, $witch(function(condition) {
@@ -280,6 +284,7 @@ if (!window.ice.icepush) {
             get: function(uri, parameters, responseCallback) {
                 getAsynchronously(apiChannel, uri, function(query) {
                     addNameValue(query, BrowserIDName, getValue(browserID));
+                    addNameValue(query, APIKey, ice.push.configuration.apikey);
                     parameters(curry(addNameValue, query));
                 }, noop, $witch(function(condition) {
                     condition(OK, function(response) {
@@ -292,6 +297,7 @@ if (!window.ice.icepush) {
             post: function(uri, parameters, responseCallback) {
                 postAsynchronously(apiChannel, uri, function(query) {
                     addNameValue(query, BrowserIDName, getValue(browserID));
+                    addNameValue(query, APIKey, ice.push.configuration.apikey);
                     parameters(curry(addNameValue, query));
                 }, FormPost, $witch(function(condition) {
                     condition(OK, function(response) {
@@ -319,7 +325,8 @@ if (!window.ice.icepush) {
 
             configuration: {
                 contextPath: '.',
-                blockingConnectionURI: 'listen.icepush'
+                blockingConnectionURI: 'listen.icepush',
+                apikey: ''
             }
         };
 
