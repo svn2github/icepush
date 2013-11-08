@@ -28,10 +28,16 @@ function LocalStorageNotificationBroadcaster(name, callback) {
         callback(split(newValue, ' '));
     };
 
+    function eventFilter(e) {
+        if (e.key == name) {
+            storageListener(e);
+        }
+    }
+
     if (window.addEventListener) {
-        window.addEventListener('storage', storageListener, false);
+        window.addEventListener('storage', eventFilter, false);
     } else {
-        document.attachEvent('onstorage', storageListener);//IE8
+        document.attachEvent('onstorage', eventFilter);//IE8
     }
 
     return object(function(method) {
