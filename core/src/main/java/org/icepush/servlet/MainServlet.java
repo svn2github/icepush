@@ -95,6 +95,8 @@ public class MainServlet implements PseudoServlet {
         if(printProductInfo){
             log.info(new ProductInfo().toString());
         }
+        servletContext.setAttribute(org.icepush.servlet.MainServlet.class.getName(), this);
+
         PushInternalContext.getInstance().
             setAttribute(Timer.class.getName() + "$expiry", new Timer("Expiry Timeout timer", true));
         PushInternalContext.getInstance().
@@ -118,6 +120,10 @@ public class MainServlet implements PseudoServlet {
             new CodeServer(new String[] {"ice.core/bridge-support.js", "ice.push/icepush.js"}))), configuration));
         dispatchOn(".*code\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
             new CodeServer(new String[] {"ice.core/bridge-support.uncompressed.js", "ice.push/icepush.uncompressed.js"}))), configuration));
+        addBrowserBoundDispatch();
+    }
+
+    protected void addBrowserBoundDispatch() {
         dispatchOn(".*", new CheckBrowserIDServlet(new ConfigurationServlet(pushContext, servletContext, configuration, new BrowserDispatcher(configuration) {
             protected PseudoServlet newServer(String browserID) {
                 return createBrowserBoundServlet(browserID);

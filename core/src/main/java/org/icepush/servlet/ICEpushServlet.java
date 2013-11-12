@@ -25,6 +25,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -38,10 +39,9 @@ public class ICEpushServlet extends HttpServlet {
         ServletContext servletContext = servletConfig.getServletContext();
         Class mainServletClass = (Class) ExtensionRegistry.getBestExtension(servletContext, "org.icepush.MainServlet");
         try {
-            Method mainServletGet = mainServletClass.getMethod("getInstance",
-                new Class[]{ServletContext.class});
+            Constructor mainServletGet = mainServletClass.getDeclaredConstructor(new Class[]{ServletContext.class});
             mainServlet = (PseudoServlet) mainServletGet
-                .invoke(null, servletContext);
+                    .newInstance(new Object[] {servletContext});
         } catch (Exception e) {
             Log.log(Level.SEVERE, "Cannot instantiate extension org.icepush.MainServlet.", e);
             throw new ServletException(e);
