@@ -130,11 +130,13 @@ implements Serializable {
             PushID _pushID = pushGroupManager.getPushID(_pushIDString);
             if (_pushID != null)  {
                 _pushID.setBrowser(this);
-                if (LOGGER.isLoggable(Level.INFO)) {
-                    LOGGER.log(Level.INFO, "Valid Push-ID " + _pushIDString);
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(Level.FINE, "Valid Push-ID " + _pushIDString);
                 }
             } else {
-                LOGGER.log(Level.INFO, "INVALID Push-ID " + _pushIDString);
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(Level.FINE, "INVALID Push-ID " + _pushIDString);
+                }
             }
         }
     }
