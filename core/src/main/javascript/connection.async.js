@@ -211,6 +211,46 @@ var AsyncConnection;
                 connect();
             },
             function() {
+                warn(logger, 'failed to connect, 3 retry...');
+                broadcast(connectionTroubleListeners);
+                connect();
+            },
+            function() {
+                warn(logger, 'failed to connect, 4 retry...');
+                broadcast(connectionTroubleListeners);
+                connect();
+            },
+            function() {
+                warn(logger, 'failed to connect, 5 retry...');
+                broadcast(connectionTroubleListeners);
+                connect();
+            },
+            function() {
+                warn(logger, 'failed to connect, 6 retry...');
+                broadcast(connectionTroubleListeners);
+                connect();
+            },
+            function() {
+                warn(logger, 'failed to connect, 7 retry...');
+                broadcast(connectionTroubleListeners);
+                connect();
+            },
+            function() {
+                warn(logger, 'failed to connect, 8 retry...');
+                broadcast(connectionTroubleListeners);
+                connect();
+            },
+            function() {
+                warn(logger, 'failed to connect, 9 retry...');
+                broadcast(connectionTroubleListeners);
+                connect();
+            },
+            function() {
+                warn(logger, 'failed to connect, 10 retry...');
+                broadcast(connectionTroubleListeners);
+                connect();
+            },
+            function() {
                 broadcast(connectionDownListeners);
             }
         ];
