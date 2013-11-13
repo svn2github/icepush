@@ -96,7 +96,6 @@ public class MainServlet implements PseudoServlet {
             log.info(new ProductInfo().toString());
         }
         servletContext.setAttribute(org.icepush.servlet.MainServlet.class.getName(), this);
-
         PushInternalContext.getInstance().
             setAttribute(Timer.class.getName() + "$expiry", new Timer("Expiry Timeout timer", true));
         PushInternalContext.getInstance().
@@ -124,15 +123,25 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected void addBrowserBoundDispatch() {
-        dispatchOn(".*", new CheckBrowserIDServlet(new ConfigurationServlet(pushContext, servletContext, configuration, new BrowserDispatcher(configuration) {
-            protected PseudoServlet newServer(String browserID) {
-                return createBrowserBoundServlet(browserID);
-            }
-        })));
+        dispatchOn(".*", createBrowserDispatcher());
     }
 
-    protected PseudoServlet createBrowserBoundServlet(String browserID) {
+    protected PseudoServlet createBrowserBoundServlet(final String browserID) {
         return new BrowserBoundServlet(browserID, pushContext, servletContext, monitoringScheduler, configuration, terminateConnectionOnShutdown);
+    }
+
+    protected PseudoServlet createBrowserDispatcher() {
+        return
+            new CheckBrowserIDServlet(
+                new ConfigurationServlet(
+                    pushContext,
+                    servletContext,
+                    configuration,
+                    new BrowserDispatcher(configuration) {
+                        protected PseudoServlet newServer(final String browserID) {
+                            return createBrowserBoundServlet(browserID);
+                        }
+                    }));
     }
 
     protected void createOutOfBandNotifier(final ServletContext servletContext) {
