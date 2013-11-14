@@ -31,6 +31,7 @@ var AsyncConnection;
 
 (function() {
     var PushIDs = 'ice.pushids';
+    var HeartbeatInterval = 'ice.push.heartbeat';
     var ConnectionRunning = 'ice.connection.running';
     var ConnectionLease = 'ice.connection.lease';
     var ConnectionContextPath = 'ice.connection.contextpath';
@@ -125,6 +126,7 @@ var AsyncConnection;
                     listener = postAsynchronously(channel, uri, function(q) {
                         addNameValue(q, BrowserIDName, getValue(browserID));
                         addNameValue(q, APIKey, ice.push.configuration.apikey);
+                        addNameValue(q, HeartbeatInterval, heartbeatTimeout - NetworkDelay);
                         each(lastSentPushIds, curry(addNameValue, q, 'ice.pushid'));
                         askForConfiguration(q);
                     }, function(request) {
