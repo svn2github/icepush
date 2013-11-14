@@ -70,6 +70,10 @@ implements Request {
     throws Exception {
     }
 
+    public Object getAttribute(final String name) {
+        return request.getAttribute(name);
+    }
+
     public Cookie[] getCookies(){
         return request.getCookies();
     }
@@ -86,11 +90,13 @@ implements Request {
         }
     }
 
-    public int getHeaderAsInteger(final String name) {
+    public int getHeaderAsInteger(final String name)
+    throws NumberFormatException {
         return Integer.parseInt(request.getHeader(name));
     }
 
-    public long getHeaderAsLong(final String name) {
+    public long getHeaderAsLong(final String name)
+    throws NumberFormatException {
         return Long.parseLong(request.getHeader(name));
     }
 
@@ -149,7 +155,8 @@ implements Request {
         }
     }
 
-    public int getParameterAsInteger(final String name) {
+    public int getParameterAsInteger(final String name)
+    throws NumberFormatException {
         return Integer.parseInt(getParameter(name));
     }
 
@@ -206,6 +213,10 @@ implements Request {
     public void respondWith(final ResponseHandler handler)
     throws Exception {
         throw new UnsupportedOperationException();
+    }
+
+    public void setAttribute(final String name, final Object value) {
+        request.setAttribute(name, value);
     }
 
     protected Configuration getConfiguration() {

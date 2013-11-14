@@ -24,6 +24,7 @@ import java.net.URI;
 import java.util.Date;
 
 public interface Request {
+    Object getAttribute(String name);
 
     Cookie[] getCookies();
 
@@ -39,9 +40,11 @@ public interface Request {
 
     Date getHeaderAsDate(String name);
 
-    int getHeaderAsInteger(String name);
+    int getHeaderAsInteger(String name)
+    throws NumberFormatException;
 
-    long getHeaderAsLong(String name);
+    long getHeaderAsLong(String name)
+    throws NumberFormatException;
 
     boolean containsParameter(String name);
 
@@ -51,7 +54,8 @@ public interface Request {
 
     String[] getParameterAsStrings(String name);
 
-    int getParameterAsInteger(String name);
+    int getParameterAsInteger(String name)
+    throws NumberFormatException;
 
     boolean getParameterAsBoolean(String name);
 
@@ -78,6 +82,8 @@ public interface Request {
     void respondWith(ResponseHandler handler) throws Exception;
 
     void detectEnvironment(Environment environment) throws Exception;
+
+    void setAttribute(String name, Object value);
 
     //avoid runtime dependency on Portlet interfaces,
     //and for the symmetry's sake, same for the Servlet interfaces

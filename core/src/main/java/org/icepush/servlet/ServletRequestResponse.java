@@ -62,6 +62,10 @@ implements Request, Response {
         request.detectEnvironment(environment);
     }
 
+    public Object getAttribute(final String name) {
+        return request.getAttribute(name);
+    }
+
     public Cookie[] getCookies() {
         return request.getCookies();
     }
@@ -163,6 +167,10 @@ implements Request, Response {
     public void respondWith(final ResponseHandler handler)
     throws Exception {
         handler.respond(this);
+    }
+
+    public void setAttribute(final String name, final Object value) {
+        request.setAttribute(name, value);
     }
 
     public void setHeader(final String name, final Date value) {

@@ -37,6 +37,10 @@ implements Request {
         this.request = request;
     }
 
+    public Object getAttribute(final String name) {
+        return request.getAttribute(name);
+    }
+
     public javax.servlet.http.Cookie[] getCookies() {
         return request.getCookies();
     }
@@ -141,6 +145,10 @@ implements Request {
     public void respondWith(final ResponseHandler handler)
     throws Exception {
         request.respondWith(handler);
+    }
+
+    public void setAttribute(final String name, final Object value) {
+        request.setAttribute(name, value);
     }
 
     public void detectEnvironment(final Environment environment)
