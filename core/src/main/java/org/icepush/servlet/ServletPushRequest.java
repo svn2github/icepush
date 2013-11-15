@@ -32,7 +32,13 @@ implements PushRequest, Request {
         return _browserID;
     }
 
-    public long getHeartbeatTimestamp() {
+    public long getHeartbeatInterval()
+    throws NumberFormatException {
+        return getParameterAsLong("ice.push.heartbeat");
+    }
+
+    public long getHeartbeatTimestamp()
+    throws NumberFormatException {
         return getHeaderAsLong("ice.push.heartbeatTimestamp");
     }
 
@@ -44,7 +50,8 @@ implements PushRequest, Request {
         return new HashSet<String>(Arrays.asList(getParameterAsStrings("ice.pushid")));
     }
 
-    public long getSequenceNumber() {
+    public long getSequenceNumber()
+    throws NumberFormatException {
         return getHeaderAsLong("ice.push.sequence");
     }
 

@@ -6,13 +6,18 @@ public interface PushRequest
 extends Request {
     String getBrowserID();
 
-    long getHeartbeatTimestamp();
+    long getHeartbeatInterval()
+    throws NumberFormatException;
+
+    long getHeartbeatTimestamp()
+    throws NumberFormatException;
 
     String getNotifyBackURI();
 
     Set<String> getPushIDSet();
 
-    long getSequenceNumber();
+    long getSequenceNumber()
+    throws NumberFormatException;
 
     String getWindowID();
 

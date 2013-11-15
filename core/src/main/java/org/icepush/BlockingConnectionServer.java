@@ -66,6 +66,8 @@ implements NotificationBroadcaster.Receiver, PushServer {
     private final PushGroupManager pushGroupManager =
         (PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
     private final long minCloudPushInterval;
+    private final long maxHeartbeatInterval;
+    private final long minHeartbeatInterval;
     private Browser browser;
     private long responseTimeoutTime;
     private PushServer activeServer;
@@ -92,6 +94,10 @@ implements NotificationBroadcaster.Receiver, PushServer {
         //add monitor
         this.monitoringScheduler.scheduleAtFixedRate(this, 0, 1000);
         this.pushGroupManager.addNotificationReceiver(this);
+        this.maxHeartbeatInterval =
+            configuration.getAttributeAsLong("maxHeartbeatInterval", Math.round(3 * heartbeat.getLongValue()));
+        this.minHeartbeatInterval =
+            configuration.getAttributeAsLong("minHeartbeatInterval", heartbeat.getLongValue() / 3);
 
         //define blocking server
         activeServer = new RunningServer(terminateBlockingConnectionOnShutdown);
@@ -132,7 +138,7 @@ implements NotificationBroadcaster.Receiver, PushServer {
 
     public void run() {
         try {
-            if ((System.currentTimeMillis() > responseTimeoutTime) && (!pendingRequest.isEmpty())) {
+            if (System.currentTimeMillis() > responseTimeoutTime) {
                 respondIfPendingRequest(NOOP_TIMEOUT);
             }
         } catch (Exception exception) {
@@ -169,7 +175,7 @@ implements NotificationBroadcaster.Receiver, PushServer {
         if (anyNotifications) {
             notifiedPushIDs.addAll(matchingSet);
             notifiedPushIDs.retainAll(pushGroupManager.getPendingNotificationSet());
-            resetTimeout();
+            resetTimeout(pendingRequest.peek());
             respondIfNotificationsAvailable();
         }
         return anyNotifications;
@@ -226,8 +232,32 @@ implements NotificationBroadcaster.Receiver, PushServer {
         }
     }
 
-    private void resetTimeout() {
-        responseTimeoutTime = System.currentTimeMillis() + heartbeatInterval.getLongValue();
+    private void resetTimeout(final PushRequest pushRequest) {
+        long clientSideHeartbeatInterval;
+        if (pushRequest != null) {
+            try {
+                clientSideHeartbeatInterval = pushRequest.getHeartbeatInterval();
+            } catch (final NumberFormatException exception) {
+                clientSideHeartbeatInterval = Long.MAX_VALUE;
+            }
+        } else {
+            clientSideHeartbeatInterval = Long.MAX_VALUE;
+        }
+        long serverSideHeartbeatInterval = heartbeatInterval.getLongValue();
+        long heartbeatInterval =
+            Math.min(
+                Math.max(
+                    Math.min(clientSideHeartbeatInterval, serverSideHeartbeatInterval),
+                    minHeartbeatInterval),
+                maxHeartbeatInterval);
+        responseTimeoutTime = System.currentTimeMillis() +heartbeatInterval;
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(Level.FINE,
+                "Heartbeat Interval: " +
+                    "client-side '" + clientSideHeartbeatInterval + "', " +
+                    "server-side '" + serverSideHeartbeatInterval + "', " +
+                    "used '" + heartbeatInterval + "'.");
+        }
     }
 
     private boolean respondIfPendingRequest(final PushResponseHandler handler) {
@@ -261,7 +291,7 @@ implements NotificationBroadcaster.Receiver, PushServer {
         }
 
         public void service(final PushRequest pushRequest) throws Exception {
-            resetTimeout();
+            resetTimeout(pushRequest);
             try {
                 browser.setPushIDSet(pushRequest.getPushIDSet());
                 adjustConnectionRecreationTimeout(pushRequest);

@@ -24,7 +24,13 @@ implements PushRequest, Request {
         return pushRequest.getBrowserID();
     }
 
-    public long getHeartbeatTimestamp() {
+    public long getHeartbeatInterval()
+    throws NumberFormatException {
+        return pushRequest.getHeartbeatInterval();
+    }
+
+    public long getHeartbeatTimestamp()
+    throws NumberFormatException {
         return pushRequest.getHeartbeatTimestamp();
     }
 
@@ -36,7 +42,8 @@ implements PushRequest, Request {
         return pushRequest.getPushIDSet();
     }
 
-    public long getSequenceNumber() {
+    public long getSequenceNumber()
+    throws NumberFormatException {
         return pushRequest.getSequenceNumber();
     }
 
