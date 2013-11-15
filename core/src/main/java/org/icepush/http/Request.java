@@ -57,6 +57,11 @@ public interface Request {
     int getParameterAsInteger(String name)
     throws NumberFormatException;
 
+    long getParameterAsLong(String name)
+    throws NumberFormatException;
+
+    long getParameterAsLong(String name, long defaultValue);
+
     boolean getParameterAsBoolean(String name);
 
     String getParameter(String name, String defaultValue);

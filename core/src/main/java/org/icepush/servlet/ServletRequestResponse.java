@@ -130,6 +130,15 @@ implements Request, Response {
         return request.getParameterAsInteger(name, defaultValue);
     }
 
+    public long getParameterAsLong(final String name)
+    throws NumberFormatException {
+        return request.getParameterAsLong(name);
+    }
+
+    public long getParameterAsLong(final String name, final long defaultValue) {
+        return request.getParameterAsLong(name, defaultValue);
+    }
+
     public String[] getParameterAsStrings(final String name) {
         return request.getParameterAsStrings(name);
     }

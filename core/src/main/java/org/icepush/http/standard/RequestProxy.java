@@ -69,11 +69,13 @@ implements Request {
         return request.getHeaderAsDate(name);
     }
 
-    public int getHeaderAsInteger(final String name) {
+    public int getHeaderAsInteger(final String name)
+    throws NumberFormatException {
         return request.getHeaderAsInteger(name);
     }
 
-    public long getHeaderAsLong(final String name) {
+    public long getHeaderAsLong(final String name)
+    throws NumberFormatException {
         return request.getHeaderAsLong(name);
     }
 
@@ -81,36 +83,46 @@ implements Request {
         return request.containsParameter(name);
     }
 
-    public String[] getParameterNames() {
-        return request.getParameterNames();
-    }
-
     public String getParameter(final String name) {
         return request.getParameter(name);
-    }
-
-    public String[] getParameterAsStrings(final String name) {
-        return request.getParameterAsStrings(name);
-    }
-
-    public int getParameterAsInteger(final String name) {
-        return request.getParameterAsInteger(name);
-    }
-
-    public boolean getParameterAsBoolean(final String name) {
-        return request.getParameterAsBoolean(name);
     }
 
     public String getParameter(final String name, final String defaultValue) {
         return request.getParameter(name, defaultValue);
     }
 
-    public int getParameterAsInteger(final String name, final int defaultValue) {
-        return request.getParameterAsInteger(name, defaultValue);
+    public boolean getParameterAsBoolean(final String name) {
+        return request.getParameterAsBoolean(name);
     }
 
     public boolean getParameterAsBoolean(final String name, final boolean defaultValue) {
         return request.getParameterAsBoolean(name, defaultValue);
+    }
+
+    public int getParameterAsInteger(final String name)
+    throws NumberFormatException {
+        return request.getParameterAsInteger(name);
+    }
+
+    public int getParameterAsInteger(final String name, final int defaultValue) {
+        return request.getParameterAsInteger(name, defaultValue);
+    }
+
+    public long getParameterAsLong(final String name)
+    throws NumberFormatException {
+        return request.getParameterAsLong(name);
+    }
+
+    public long getParameterAsLong(final String name, long defaultValue) {
+        return request.getParameterAsLong(name, defaultValue);
+    }
+
+    public String[] getParameterAsStrings(final String name) {
+        return request.getParameterAsStrings(name);
+    }
+
+    public String[] getParameterNames() {
+        return request.getParameterNames();
     }
 
     public String getLocalAddr() {

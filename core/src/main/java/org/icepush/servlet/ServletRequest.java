@@ -168,6 +168,19 @@ implements Request {
         }
     }
 
+    public long getParameterAsLong(final String name)
+    throws NumberFormatException {
+        return Long.parseLong(getParameter(name));
+    }
+
+    public long getParameterAsLong(final String name, final long defaultValue) {
+        try {
+            return getParameterAsLong(name);
+        } catch (final Exception exception) {
+            return defaultValue;
+        }
+    }
+
     public String[] getParameterAsStrings(final String name) {
         checkExistenceOf(name);
         return request.getParameterValues(name);
