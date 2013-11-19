@@ -97,11 +97,13 @@ public class LocalPushGroupManager extends AbstractPushGroupManager implements P
         long now = System.currentTimeMillis();
         //accumulate pushIDs
         pushIDs.addAll(Arrays.asList(confirmedPushIDs));
+        for (final Group group : groupMap.values()) {
+            group.touchIfMatching(pushIDs);
+        }
         //avoid to scan/touch the groups on each notification
         if (lastTouchScan + GROUP_SCANNING_TIME_RESOLUTION < now) {
             try {
-                for (Group group : groupMap.values()) {
-                    group.touchIfMatching(pushIDs);
+                for (final Group group : groupMap.values()) {
                     group.discardIfExpired();
                 }
             } finally {

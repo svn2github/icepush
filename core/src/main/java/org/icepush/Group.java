@@ -1,8 +1,6 @@
 package org.icepush;
 
-import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -78,11 +76,9 @@ public class Group {
         lastAccess = timestamp;
     }
 
-    void touchIfMatching(final Collection pushIds) {
-        Iterator i = pushIds.iterator();
-        while (i.hasNext()) {
-            String pushId = (String) i.next();
-            if (pushIdList.contains(pushId)) {
+    void touchIfMatching(final Set<String> pushIDSet) {
+        for (final String _pushID : pushIDSet) {
+            if (pushIdList.contains(_pushID)) {
                 touch();
                 localPushGroupManager.groupTouched(name, lastAccess);
                 //no need to touchIfMatching again
