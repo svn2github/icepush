@@ -21,6 +21,7 @@ var onReceive = operator();
 var onServerError = operator();
 var whenDown = operator();
 var whenTrouble = operator();
+var whenReEstablished = operator();
 var startConnection = operator();
 var resumeConnection = operator();
 var pauseConnection = operator();
@@ -60,6 +61,7 @@ var AsyncConnection;
         var onServerErrorListeners = [];
         var connectionDownListeners = [];
         var connectionTroubleListeners = [];
+        var connectionReEstablished = [];
 
         var listener = object(function(method) {
             method(close, noop);
@@ -331,6 +333,12 @@ var AsyncConnection;
             return endsWith(value(connectionCookie), AcquiredMarker);
         }
 
+        function owner() {
+            var owner = value(connectionCookie);
+            var i = indexOf(owner, AcquiredMarker);
+            return i > -1 ? substring(owner, 0, i) : owner;
+        }
+
         function nonMatchingContextPath() {
             return value(contextPathCookie) != contextPath();
         }
@@ -341,9 +349,9 @@ var AsyncConnection;
             info(logger, 'Blocking connection cannot be shared among multiple web-contexts.\nInitiating blocking connection for "' + contextPath() + '"  web-context...');
         }
 
+        var lastOwningWindow = '';
         var paused = false;
         var blockingConnectionMonitor;
-
         function createBlockingConnectionMonitor() {
             blockingConnectionMonitor = run(Delay(function() {
                 if (shouldEstablishBlockingConnection()) {
@@ -382,6 +390,17 @@ var AsyncConnection;
                     stop(timeoutBomb);
                     abort(listener);
                 }
+
+                //detect when connection is owned by a different window
+                var currentlyOwningWindow = value(connectionCookie);
+                if (hasOwner()) {
+                    if (lastOwningWindow != currentlyOwningWindow) {
+                        lastOwningWindow = currentlyOwningWindow;
+                        broadcast(connectionReEstablished, [ owner() ]);
+                    }
+                } else {
+                    lastOwningWindow = '';
+                }
             }, pollingPeriod));
         }
 
@@ -406,6 +425,10 @@ var AsyncConnection;
 
             method(whenTrouble, function(self, callback) {
                 append(connectionTroubleListeners, callback);
+            });
+
+            method(whenReEstablished, function(self, callback) {
+                append(connectionReEstablished, callback);
             });
 
             method(startConnection, function(self) {

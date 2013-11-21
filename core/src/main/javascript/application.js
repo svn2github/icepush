@@ -71,6 +71,11 @@ if (!window.ice.icepush) {
             append(blockingConnectionLostListeners, callback);
         };
 
+        var blockingConnectionReEstablishedListeners = [];
+        namespace.onBlockingConnectionReEstablished = function(callback) {
+            append(blockingConnectionReEstablishedListeners, callback);
+        };
+
         //constants
         var PushIDs = 'ice.pushids';
         var BrowserIDName = 'ice.push.browser';
@@ -466,6 +471,11 @@ if (!window.ice.icepush) {
                 } finally {
                     dispose();
                 }
+            });
+
+            whenReEstablished(asyncConnection, function(windowID) {
+                warn(logger, 'connection was re-established in window [' + windowID + ']');
+                broadcast(blockingConnectionReEstablishedListeners);
             });
 
             whenDown(asyncConnection, function(reconnectAttempts) {
