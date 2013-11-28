@@ -351,7 +351,9 @@ var AsyncConnection;
 
         var lastOwningWindow = '';
         var paused = false;
-        var blockingConnectionMonitor;
+        var blockingConnectionMonitor = object(function(method) {
+            method(stop, noop);
+        });
         function createBlockingConnectionMonitor() {
             blockingConnectionMonitor = run(Delay(function() {
                 if (shouldEstablishBlockingConnection()) {
@@ -404,8 +406,6 @@ var AsyncConnection;
             }, pollingPeriod));
         }
 
-        info(logger, 'connection monitoring started within window ' + namespace.windowID);
-
         return object(function(method) {
             method(onSend, function(self, callback) {
                 append(onSendListeners, callback);
@@ -433,6 +433,7 @@ var AsyncConnection;
 
             method(startConnection, function(self) {
                 createBlockingConnectionMonitor();
+                info(logger, 'connection monitoring started within window ' + namespace.windowID);
                 paused = false;
             });
 

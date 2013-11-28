@@ -552,7 +552,7 @@ if (!window.ice.icepush) {
             info(logger, 'bridge loaded!');
 
             //start blocking connection only on document load
-            onLoad(window, curry(startConnection, asyncConnection));
+            onLoad(window, namespace.push.connection.startConnection);
         }
 
         Bridge();
