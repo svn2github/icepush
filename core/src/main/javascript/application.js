@@ -279,6 +279,7 @@ if (!window.ice.icepush) {
                 var uri = resolveURI(namespace.push.configuration.removeGroupMemberURI || 'remove-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
                     addNameValue(q, BrowserIDName, getValue(browserID));
+                    addNameValue(q, APIKey, ice.push.configuration.apikey);
                     addNameValue(q, 'group', group);
                     addNameValue(q, 'id', id);
                 }, FormPost, $witch(function(condition) {
