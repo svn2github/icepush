@@ -19,7 +19,6 @@ package org.icepush.servlet;
 import java.util.Date;
 import java.util.Map;
 import java.util.Timer;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -27,12 +26,7 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.icepush.BlockingConnectionServer;
-import org.icepush.Configuration;
-import org.icepush.PushConfiguration;
-import org.icepush.PushContext;
-import org.icepush.PushStormDetectionServer;
-import org.icepush.SequenceTaggingServer;
+import org.icepush.*;
 import org.icepush.http.PushServer;
 import org.icepush.util.Slot;
 
@@ -68,14 +62,12 @@ public class BrowserBoundServlet extends PathDispatcher {
     }
 
     protected PushServer createBlockingConnectionServer() {
-        Slot heartbeatInterval =
-            new Slot(
-                configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServlet.DefaultHeartbeatTimeout));
+        Slot heartbeatInterval = new Slot(configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout));
         Slot sequenceNo = new Slot(0L);
-        return
-            new PushStormDetectionServer(
-                new SequenceTaggingServer(sequenceNo,
-                    new BlockingConnectionServer(browserID, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration)), configuration);
+        return new ConfigurationServer(heartbeatInterval, servletContext, configuration,
+                    new PushStormDetectionServer(
+                        new SequenceTaggingServer(sequenceNo,
+                            new BlockingConnectionServer(browserID, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration)), configuration));
     }
 
     protected AddGroupMember newAddGroupMember() {

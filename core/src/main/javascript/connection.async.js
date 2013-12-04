@@ -106,7 +106,7 @@ var AsyncConnection;
 
         function askForConfiguration(query) {
             //request configuration once, but only after ice.push.browser cookie is set
-            if (not(getValue(browserID))) {
+            if (getValue(browserID)) {
                 addNameValue(query, 'ice.sendConfiguration', '');
                 askForConfiguration = noop;
             }

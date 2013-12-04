@@ -133,15 +133,11 @@ public class MainServlet implements PseudoServlet {
     protected PseudoServlet createBrowserDispatcher() {
         return
             new CheckBrowserIDServlet(
-                new ConfigurationServlet(
-                    pushContext,
-                    servletContext,
-                    configuration,
                     new BrowserDispatcher(configuration) {
                         protected PseudoServlet newServer(final String browserID) {
                             return createBrowserBoundServlet(browserID);
                         }
-                    }));
+                    });
     }
 
     protected void createOutOfBandNotifier(final ServletContext servletContext) {
