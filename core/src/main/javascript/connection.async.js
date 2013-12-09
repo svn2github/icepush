@@ -76,12 +76,12 @@ var AsyncConnection;
             connectionDownListeners = [];
         });
 
-        var sendXWindowCookie = noop;
-        var receiveXWindowCookie = function (response) {
-            var xWindowCookie = getHeader(response, "X-Set-Window-Cookie");
-            if (xWindowCookie) {
-                sendXWindowCookie = function(request) {
-                    setHeader(request, "X-Window-Cookie", xWindowCookie);
+        var sendXWindowHeader = noop;
+        var receiveXWindowHeader = function (response) {
+            var xWindow = getHeader(response, "X-Set-Window-Cookie");
+            if (xWindow) {
+                sendXWindowHeader = function(request) {
+                    setHeader(request, "X-Window-Cookie", xWindow);
                 };
             }
         };
@@ -92,11 +92,11 @@ var AsyncConnection;
         //this strategy is mainly employed to fix the window.onunload issue
         //in Opera -- see http://jira.icefaces.org/browse/ICE-1872
         try {
-            listening = lookupCookie(ConnectionRunning);
-            remove(listening);
+            removeSlot(ConnectionRunning);
         } catch (e) {
             //do nothing
         }
+        var browserID = Slot(BrowserIDName);
 
         var lastSentPushIds = registeredPushIds();
 
@@ -116,7 +116,7 @@ var AsyncConnection;
             try {
                 debug(logger, "closing previous connection...");
                 close(listener);
-                update(contextPathCookie, contextPath());
+                setValue(contextPathSlot, contextPath());
 
                 lastSentPushIds = registeredPushIds();
                 if (isEmpty(lastSentPushIds)) {
@@ -133,7 +133,7 @@ var AsyncConnection;
                         askForConfiguration(q);
                     }, function(request) {
                         FormPost(request);
-                        sendXWindowCookie(request);
+                        sendXWindowHeader(request);
                         setHeader(request, 'ice.push.window', namespace.windowID);
                         broadcast(onSendListeners, [request]);
                     }, $witch(function (condition) {
@@ -165,7 +165,7 @@ var AsyncConnection;
                                 //avoid to reconnect
                                 stop(timeoutBomb);
                             }
-                            receiveXWindowCookie(response);
+                            receiveXWindowHeader(response);
                         });
                         condition(ServerInternalError, retryOnServerError);
                     }));
@@ -291,56 +291,50 @@ var AsyncConnection;
         //monitor if the blocking connection needs to be started
         var pollingPeriod = 1000;
 
-        var leaseCookie = lookupCookie(ConnectionLease, function() {
-            return Cookie(ConnectionLease, asString((new Date).getTime()));
-        });
-        var connectionCookie = listening = lookupCookie(ConnectionRunning, function() {
-            return Cookie(ConnectionRunning, '');
-        });
-        var contextPathCookie = lookupCookie(ConnectionContextPath, function() {
-            return Cookie(ConnectionContextPath, contextPath());
-        });
+        var leaseSlot = Slot(ConnectionLease, asString((new Date).getTime()));
+        var connectionSlot = listening = Slot(ConnectionRunning, '');
+        var contextPathSlot = Slot(ConnectionContextPath, contextPath());
 
         function updateLease() {
-            update(leaseCookie, (new Date).getTime() + pollingPeriod * 2);
+            setValue(leaseSlot, (new Date).getTime() + pollingPeriod * 2);
         }
 
         function isLeaseExpired() {
-            return asNumber(value(leaseCookie)) < (new Date).getTime();
+            return asNumber(getValue(leaseSlot)) < (new Date).getTime();
         }
 
         function shouldEstablishBlockingConnection() {
-            return !existsCookie(ConnectionRunning) || isEmpty(lookupCookieValue(ConnectionRunning));
+            return !existsSlot(ConnectionRunning) || isEmpty(getValue(connectionSlot));
         }
 
         function offerCandidature() {
-            update(connectionCookie, windowID);
+            setValue(connectionSlot, windowID);
         }
 
         function isWinningCandidate() {
-            return startsWith(value(connectionCookie), windowID);
+            return startsWith(getValue(connectionSlot), windowID);
         }
 
         function markAsOwned() {
-            update(connectionCookie, windowID + AcquiredMarker);
+            setValue(connectionSlot, windowID + AcquiredMarker);
         }
 
         function isOwner() {
-            return value(connectionCookie) == (windowID + AcquiredMarker);
+            return getValue(connectionSlot) == (windowID + AcquiredMarker);
         }
 
         function hasOwner() {
-            return endsWith(value(connectionCookie), AcquiredMarker);
+            return endsWith(getValue(connectionSlot), AcquiredMarker);
         }
 
         function owner() {
-            var owner = value(connectionCookie);
+            var owner = getValue(connectionSlot);
             var i = indexOf(owner, AcquiredMarker);
             return i > -1 ? substring(owner, 0, i) : owner;
         }
 
         function nonMatchingContextPath() {
-            return value(contextPathCookie) != contextPath();
+            return getValue(contextPathSlot) != contextPath();
         }
 
         //force candidancy so that last opened window belonging to a different servlet context will own the blocking connection
@@ -394,7 +388,7 @@ var AsyncConnection;
                 }
 
                 //detect when connection is owned by a different window
-                var currentlyOwningWindow = value(connectionCookie);
+                var currentlyOwningWindow = getValue(connectionSlot);
                 if (hasOwner()) {
                     if (lastOwningWindow != currentlyOwningWindow) {
                         lastOwningWindow = currentlyOwningWindow;
@@ -498,7 +492,7 @@ var AsyncConnection;
                     abort(listener);
                     stop(timeoutBomb);
                     stop(blockingConnectionMonitor);
-                    remove(listening);
+                    removeSlot(listening);
                 }
             });
         });

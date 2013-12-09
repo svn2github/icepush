@@ -92,29 +92,24 @@ if (!window.ice.icepush) {
             return pushIdentifiers;
         }
 
+        var pushIDsSlot = Slot(PushIDs);
         function registeredPushIds() {
             try {
-                return split(lookupCookieValue(PushIDs), ' ');
+                return split(getValue(pushIDsSlot), ' ');
             } catch (e) {
                 return [];
             }
         }
 
         function enlistPushIDsWithBrowser(ids) {
-            try {
-                var idsCookie = lookupCookie(PushIDs);
-                var registeredIDs = split(value(idsCookie), ' ');
-                update(idsCookie, join(asSet(concatenate(registeredIDs, ids)), ' '));
-            } catch (e) {
-                Cookie(PushIDs, join(ids, ' '));
-            }
+            var registeredIDs = split(getValue(pushIDsSlot), ' ');
+            setValue(pushIDsSlot, join(asSet(concatenate(registeredIDs, ids)), ' '));
         }
 
         function delistPushIDsWithBrowser(ids) {
-            if (existsCookie(PushIDs)) {
-                var idsCookie = lookupCookie(PushIDs);
-                var registeredIDs = split(value(idsCookie), ' ');
-                update(idsCookie, join(complement(registeredIDs, ids), ' '));
+            if (existsSlot(PushIDs)) {
+                var registeredIDs = split(getValue(pushIDsSlot), ' ');
+                setValue(pushIDsSlot, join(complement(registeredIDs, ids), ' '));
             }
         }
 
@@ -372,8 +367,7 @@ if (!window.ice.icepush) {
 
             //purge discarded pushIDs from the notification list
             function purgeNonRegisteredPushIDs(ids) {
-                var registeredIDsCookie = lookupCookie(PushIDs);
-                var registeredIDs = split(value(registeredIDsCookie), ' ');
+                var registeredIDs = split(getValue(pushIDsSlot), ' ');
                 return intersect(ids, registeredIDs);
             }
 
@@ -384,6 +378,8 @@ if (!window.ice.icepush) {
                         broadcast(notificationListeners, [ windowPushIDs ]);
                         debug(logger, 'picked up notifications for this window: ' + windowPushIDs);
                         return windowPushIDs;
+                    } else {
+                        return [];
                     }
                 } catch (e) {
                     warn(logger, 'failed to listen for updates', e);
@@ -475,7 +471,7 @@ if (!window.ice.icepush) {
             });
 
             whenReEstablished(asyncConnection, function(windowID) {
-                warn(logger, 'connection was re-established in window [' + windowID + ']');
+                info(logger, 'connection will be established in window [' + windowID + ']');
                 broadcast(blockingConnectionReEstablishedListeners);
             });
 
