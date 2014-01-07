@@ -29,8 +29,12 @@ function LocalStorageNotificationBroadcaster(name, callback) {
     };
 
     function eventFilter(e) {
-        if (e.key == name) {
-            storageListener(e);
+        try {
+            if (e.key == name) {
+                storageListener(e);
+            }
+        } catch (ex) {
+            //ignore "Permission Denied" exceptions thrown in IE
         }
     }
 
