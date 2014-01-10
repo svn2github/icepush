@@ -23,25 +23,23 @@ function LocalStorageNotificationBroadcaster(name, callback) {
         window.localStorage.setItem(name, '');
     }
 
-    var storageListener = function(e) {
-        var newValue = e.newValue || window.localStorage.getItem(name);
-        callback(split(newValue, ' '));
-    };
+    var oldValue = window.localStorage.getItem(name);
 
-    function eventFilter(e) {
+    function storageListener() {
+        var newValue = window.localStorage.getItem(name);
         try {
-            if (e.key == name) {
-                storageListener(e);
+            if (oldValue != newValue) {
+                callback(split(newValue, ' '));
             }
-        } catch (ex) {
-            //ignore "Permission Denied" exceptions thrown in IE
+        } finally {
+            oldValue = newValue;
         }
     }
 
     if (window.addEventListener) {
-        window.addEventListener('storage', eventFilter, false);
+        window.addEventListener('storage', storageListener, false);
     } else {
-        document.attachEvent('onstorage', eventFilter);//IE8
+        document.attachEvent('onstorage', storageListener);//IE8
     }
 
     return object(function(method) {
