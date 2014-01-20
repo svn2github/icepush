@@ -53,27 +53,27 @@
     <target name="build.bridge.compressed" depends="prepare, file-checks, use-first-location, use-second-location" />
 
     <target name="file-checks">
-        <available file="../lib/shrinksafe.jar" property="first-location" />
-        <available file="../../lib/shrinksafe.jar" property="second-location" />
+        <available file="../lib/js-compiler.jar" property="first-location" />
+        <available file="../../lib/js-compiler.jar" property="second-location" />
     </target>
 
     <target name="use-first-location" if="first-location">
         <echo message="Compressing Javascript code..."/>
-        <java jar="../lib/shrinksafe.jar" fork="true" output="${build.res.dir}/icepush.js">
+        <java jar="../lib/js-compiler.jar" fork="true">
+            <arg value="--js"/>
             <arg value="${tmp}"/>
-            <classpath>
-                <pathelement location="../lib/js.jar"/>
-            </classpath>
+            <arg value="--js_output_file"/>
+            <arg value="${build.res.dir}/icepush.js"/>
         </java>
     </target>
 
-    <target name="use-second-location" if="second-location">
+    <target name="use-second-location" if="second-location" unless="first-location">
         <echo message="Compressing Javascript code..."/>
-        <java jar="../../lib/shrinksafe.jar" fork="true" output="${build.res.dir}/icepush.js">
+        <java jar="../../lib/js-compiler.jar" fork="true">
+            <arg value="--js"/>
             <arg value="${tmp}"/>
-            <classpath>
-                <pathelement location="../../lib/js.jar"/>
-            </classpath>
+            <arg value="--js_output_file"/>
+            <arg value="${build.res.dir}/icepush.js"/>
         </java>
     </target>
 
