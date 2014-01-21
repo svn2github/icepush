@@ -74,6 +74,13 @@
             <arg value="${tmp}"/>
             <arg value="--js_output_file"/>
             <arg value="${build.res.dir}/icepush.js"/>
+            <redirector >
+                <outputfilterchain>
+                    <filterreader classname="org.apache.tools.ant.filters.LineContains">
+                        <param type="contains" value="ERROR"/>
+                    </filterreader>
+                </outputfilterchain>
+            </redirector>
         </java>
     </target>
 
