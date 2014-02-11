@@ -166,6 +166,12 @@ if (!window.ice.icepush) {
         register(commandDispatcher, 'macro', Macro(commandDispatcher));
 
         var browserID = Slot(BrowserIDName);
+        try {
+            setValue(browserID, lookupCookieValue(BrowserIDName));
+        } catch (ex) {
+            //no problem, browser ID will be set by a configuration message
+        }
+
         register(commandDispatcher, 'browser', function(message) {
             setValue(browserID, message.getAttribute('id'));
         });
