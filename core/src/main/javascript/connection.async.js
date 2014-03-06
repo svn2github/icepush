@@ -128,6 +128,8 @@ var AsyncConnection;
                     listener = postAsynchronously(channel, uri, function(q) {
                         addNameValue(q, BrowserIDName, getValue(browserID));
                         addNameValue(q, APIKey, ice.push.configuration.apikey);
+                        addNameValue(q, AccessToken, ice.push.configuration.access_token);
+                        addNameValue(q, Realm, ice.push.configuration.realm);
                         addNameValue(q, HeartbeatInterval, heartbeatTimeout - NetworkDelay);
                         each(lastSentPushIds, curry(addNameValue, q, 'ice.pushid'));
                         askForConfiguration(q);
