@@ -117,28 +117,16 @@ public class PushGroupManagerFactory {
         } else {
             LOGGER.log(Level.FINE, "PushGroupManager: " + _pushGroupManagerClassName);
             try {
-                if (executor == null) {
-                    return
-                        (PushGroupManager)
-                            // throws ClassNotFoundException, ExceptionInInitializerError
-                            Class.forName(_pushGroupManagerClassName).
-                                // throws NoSuchMethodException, SecurityException
-                                getConstructor(ServletContext.class).
-                                // throws
-                                //     IllegalAccessException, IllegalArgumentException, InstantiationException,
-                                //     InvocationTargetException, ExceptionInInitializerError
-                                newInstance(servletContext);
-                } else {
-                    return
-                        (PushGroupManager)
-                            Class.forName(_pushGroupManagerClassName).
-                                // throws NoSuchMethodException, SecurityException
-                                getConstructor(ServletContext.class, ScheduledThreadPoolExecutor.class).
-                                // throws
-                                //     IllegalAccessException, IllegalArgumentException, InstantiationException,
-                                //     InvocationTargetException, ExceptionInInitializerError
-                                newInstance(servletContext, executor);
-                }
+                return
+                    (PushGroupManager)
+                        // throws ClassNotFoundException, ExceptionInInitializerError
+                        Class.forName(_pushGroupManagerClassName).
+                            // throws NoSuchMethodException, SecurityException
+                            getConstructor(ServletContext.class).
+                            // throws
+                            //     IllegalAccessException, IllegalArgumentException, InstantiationException,
+                            //     InvocationTargetException, ExceptionInInitializerError
+                            newInstance(servletContext);
             } catch (ClassNotFoundException exception) {
                 LOGGER.log(Level.FINE, "Can't find class!", exception);
                 // Do nothing.

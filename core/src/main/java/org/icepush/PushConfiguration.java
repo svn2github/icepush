@@ -16,12 +16,20 @@
  */
 package org.icepush;
 
+import java.io.Serializable;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-public class PushConfiguration {
-    private Map<String, Object> attributes = new HashMap();
+public class PushConfiguration
+implements Serializable {
+    private static final long serialVersionUID = -5770414701296818792L;
+
+    private static final Logger LOGGER = Logger.getLogger(PushConfiguration.class.getName());
+
+    private Map<String, Object> attributes = new HashMap<String, Object>();
     private long scheduledAt = System.currentTimeMillis();
     private long duration = 0;
 
@@ -66,6 +74,15 @@ public class PushConfiguration {
         return this;
     }
 
+    @Override
+    public boolean equals(final Object object) {
+        return
+            object instanceof PushConfiguration &&
+            ((PushConfiguration)object).attributes.equals(attributes) &&
+            ((PushConfiguration)object).duration == duration &&
+            ((PushConfiguration)object).scheduledAt == scheduledAt;
+    }
+
     public PushConfiguration scheduled(Date time, long duration) {
         this.scheduledAt = time.getTime();
         this.duration = duration;
@@ -78,5 +95,17 @@ public class PushConfiguration {
 
     public long getDuration() {
         return duration;
+    }
+
+    @Override
+    public String toString() {
+        return
+            new StringBuilder().
+                append("PushConfiguration[").
+                    append("attributes: '").append(getAttributes()).append("', ").
+                    append("duration: '").append(getDuration()).append("', ").
+                    append("scheduledAt: '").append(getScheduledAt()).append("'").
+                append("]").
+                    toString();
     }
 }

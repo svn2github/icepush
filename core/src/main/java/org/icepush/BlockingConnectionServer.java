@@ -54,7 +54,7 @@ implements NotificationBroadcaster.Receiver, PushServer {
             public void respond(final PushResponse pushResponse)
             throws Exception {
                 super.respond(pushResponse);
-                browser.getStatus().revertConnectionRecreationTimeout();
+                pushGroupManager.getBrowser(getBrowserID()).getStatus().revertConnectionRecreationTimeout();
             }
         };
     private final PushResponseHandler closeConnectionShutdown = new ConnectionClose("shutdown");
@@ -68,14 +68,12 @@ implements NotificationBroadcaster.Receiver, PushServer {
     private final long minCloudPushInterval;
     private final long maxHeartbeatInterval;
     private final long minHeartbeatInterval;
-    private Browser browser;
+    private String browserID;
     private long responseTimeoutTime;
     private PushServer activeServer;
-    private ConcurrentLinkedQueue<NotificationEntry> notifiedPushIDs = new ConcurrentLinkedQueue<NotificationEntry>();
     private Timer monitoringScheduler;
 
     private String lastWindow = "";
-    private Set<NotificationEntry> lastNotifications = new HashSet<NotificationEntry>();
     private long defaultConnectionRecreationTimeout;
     private long responseTimestamp = System.currentTimeMillis();
     private long requestTimestamp = System.currentTimeMillis();
@@ -86,8 +84,9 @@ implements NotificationBroadcaster.Receiver, PushServer {
         final boolean terminateBlockingConnectionOnShutdown, final Configuration configuration) {
 
         this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", 10 * 1000);
-        this.browser = newBrowser(browserID, getMinCloudPushInterval());
-        this.pushGroupManager.addBlockingConnectionServer(browser.getID(), this);
+        this.browserID = browserID;
+        this.pushGroupManager.addBrowser(newBrowser(getBrowserID(), getMinCloudPushInterval()));
+        this.pushGroupManager.addBlockingConnectionServer(getBrowserID(), this);
         this.monitoringScheduler = monitoringScheduler;
         this.heartbeatInterval = heartbeat;
         this.defaultConnectionRecreationTimeout = configuration.getAttributeAsLong("connectionRecreationTimeout", 5000);
@@ -110,14 +109,14 @@ implements NotificationBroadcaster.Receiver, PushServer {
         }
     }
 
-    public Browser getBrowser() {
-        return browser;
+    public String getBrowserID() {
+        return browserID;
     }
 
     public boolean isInterested(Set<NotificationEntry> notificationSet) {
         Iterator<NotificationEntry> notificationEntryIterator = notificationSet.iterator();
         while (notificationEntryIterator.hasNext()) {
-            if (browser.getPushIDSet().contains(notificationEntryIterator.next().getPushID())) {
+            if (pushGroupManager.getBrowser(getBrowserID()).getPushIDSet().contains(notificationEntryIterator.next().getPushID())) {
                 return true;
             }
         }
@@ -132,7 +131,8 @@ implements NotificationBroadcaster.Receiver, PushServer {
     public void shutdown() {
         cancel();
         pushGroupManager.deleteNotificationReceiver(this);
-        pushGroupManager.removeBlockingConnectionServer(browser.getID());
+        pushGroupManager.removeBlockingConnectionServer(getBrowserID());
+        pushGroupManager.removeBrowser(pushGroupManager.getBrowser(getBrowserID()));
         activeServer.shutdown();
     }
 
@@ -167,14 +167,16 @@ implements NotificationBroadcaster.Receiver, PushServer {
         Iterator<NotificationEntry> notificationEntryIterator = notificationSet.iterator();
         while (notificationEntryIterator.hasNext()) {
             NotificationEntry notificationEntry = notificationEntryIterator.next();
-            if (browser.getPushIDSet().contains(notificationEntry.getPushID())) {
+            if (pushGroupManager.getBrowser(getBrowserID()).getPushIDSet().contains(notificationEntry.getPushID())) {
                 matchingSet.add(notificationEntry);
             }
         }
         boolean anyNotifications = !matchingSet.isEmpty();
         if (anyNotifications) {
-            notifiedPushIDs.addAll(matchingSet);
-            notifiedPushIDs.retainAll(pushGroupManager.getPendingNotificationSet());
+            pushGroupManager.getBrowser(getBrowserID()).
+                addNotifiedPushIDs(matchingSet);
+            pushGroupManager.getBrowser(getBrowserID()).
+                retainNotifiedPushIDs(pushGroupManager.getPendingNotificationSet());
             resetTimeout(pendingRequest.peek());
             respondIfNotificationsAvailable();
         }
@@ -182,7 +184,7 @@ implements NotificationBroadcaster.Receiver, PushServer {
     }
 
     private void resendLastNotifications() {
-        sendNotifications(lastNotifications);
+        sendNotifications(pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet());
     }
 
     private synchronized boolean respondIfBackOffRequested() {
@@ -197,11 +199,12 @@ implements NotificationBroadcaster.Receiver, PushServer {
     }
 
     private synchronized void respondIfNotificationsAvailable() {
-        if (!notifiedPushIDs.isEmpty()) {
+        if (pushGroupManager.getBrowser(getBrowserID()).hasNotifiedPushIDs()) {
             //save notifications, maybe they will need to be resent when blocking connection switches to another window
-            lastNotifications = new HashSet<NotificationEntry>(notifiedPushIDs);
+            pushGroupManager.getBrowser(getBrowserID()).
+                setLastNotifiedPushIDSet(pushGroupManager.getBrowser(getBrowserID()).getNotifiedPushIDSet());
             respondIfPendingRequest(
-                new NotifiedPushIDs(lastNotifications) {
+                new NotifiedPushIDs(pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet()) {
                     @Override
                     public void writeTo(final Writer writer)
                     throws IOException {
@@ -211,15 +214,21 @@ implements NotificationBroadcaster.Receiver, PushServer {
                                 Level.FINE,
                                 "Push Notifications available for PushIDs '" + getPushIDSet() + "', trying to respond.");
                         }
-                        pushGroupManager.clearPendingNotifications(browser.getPushIDSet());
-                        notifiedPushIDs.removeAll(lastNotifications);
+                        pushGroupManager.
+                            clearPendingNotifications(
+                                pushGroupManager.getBrowser(getBrowserID()).getPushIDSet());
+                        pushGroupManager.getBrowser(getBrowserID()).
+                            removeNotifiedPushIDs(
+                                pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet());
                         Set<String> groupNameSet = new HashSet<String>();
-                        for (final NotificationEntry notificationEntry : lastNotifications) {
+                        for (final NotificationEntry notificationEntry :
+                                pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet()) {
+
                             String groupName = notificationEntry.getGroupName();
                             if (groupNameSet.add(groupName)) {
                                 notificationSent(
                                     new NotificationEvent(
-                                        TargetType.BROWSER_ID, browser.getID(), groupName,
+                                        TargetType.BROWSER_ID, getBrowserID(), groupName,
                                         NotificationEvent.NotificationType.PUSH, this));
                             }
                             notificationSent(
@@ -265,7 +274,9 @@ implements NotificationBroadcaster.Receiver, PushServer {
         if (previousRequest != null) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
-                    Level.FINE, "Pending request for PushIDs '" + browser.getPushIDSet() + "', trying to respond.");
+                    Level.FINE,
+                    "Pending request for PushIDs '" + pushGroupManager.getBrowser(getBrowserID()).getPushIDSet() + "', " +
+                        "trying to respond.");
             }
             try {
                 recordResponseTime();
@@ -293,7 +304,7 @@ implements NotificationBroadcaster.Receiver, PushServer {
         public void service(final PushRequest pushRequest) throws Exception {
             resetTimeout(pushRequest);
             try {
-                browser.setPushIDSet(pushRequest.getPushIDSet());
+                pushGroupManager.getBrowser(getBrowserID()).setPushIDSet(pushRequest.getPushIDSet());
                 adjustConnectionRecreationTimeout(pushRequest);
 
                 respondIfPendingRequest(closeConnectionDuplicate);
@@ -303,7 +314,7 @@ implements NotificationBroadcaster.Receiver, PushServer {
                 } catch (final RuntimeException exception) {
                     sequenceNumber = 0;
                 }
-                browser.setSequenceNumber(sequenceNumber);
+                pushGroupManager.getBrowser(getBrowserID()).setSequenceNumber(sequenceNumber);
                 //resend notifications if the window owning the blocking connection has changed
                 String currentWindow = pushRequest.getWindowID();
                 currentWindow = currentWindow == null ? "" : currentWindow;
@@ -312,12 +323,15 @@ implements NotificationBroadcaster.Receiver, PushServer {
 
                 pendingRequest.put(pushRequest);
                 setNotifyBackURI(pushRequest);
-                pushGroupManager.scan(browser.getPushIDSet().toArray(STRINGS));
-                browser.cancelConfirmationTimeout();
-                pushGroupManager.cancelExpiryTimeout(browser);
-                pushGroupManager.startExpiryTimeout(browser);
-                if (null != browser.getNotifyBackURI())  {
-                    pushGroupManager.pruneParkedIDs(browser.getNotifyBackURI(), browser.getPushIDSet());
+                pushGroupManager.scan(pushGroupManager.getBrowser(getBrowserID()).getPushIDSet().toArray(STRINGS));
+                pushGroupManager.getBrowser(getBrowserID()).cancelConfirmationTimeout();
+                pushGroupManager.cancelExpiryTimeouts(pushGroupManager.getBrowser(getBrowserID()).getID());
+                pushGroupManager.startExpiryTimeouts(pushGroupManager.getBrowser(getBrowserID()).getID());
+                if (null != pushGroupManager.getBrowser(getBrowserID()).getNotifyBackURI())  {
+                    pushGroupManager.
+                        pruneParkedIDs(
+                            pushGroupManager.getBrowser(getBrowserID()).getNotifyBackURI(),
+                            pushGroupManager.getBrowser(getBrowserID()).getPushIDSet());
                 }
                 if (!respondIfBackOffRequested()) {
                     if (!sendNotifications(pushGroupManager.getPendingNotificationSet())) {
@@ -343,6 +357,7 @@ implements NotificationBroadcaster.Receiver, PushServer {
     }
 
     private void adjustConnectionRecreationTimeout(final PushRequest pushRequest) {
+        Browser browser = pushGroupManager.getBrowser(getBrowserID());
         for (final String pushIDString : browser.getPushIDSet()) {
             PushID pushID = pushGroupManager.getPushID(pushIDString);
             if (pushID != null) {
@@ -390,7 +405,8 @@ implements NotificationBroadcaster.Receiver, PushServer {
     private void setNotifyBackURI(final PushRequest pushRequest) {
         String notifyBack = pushRequest.getNotifyBackURI();
         if (notifyBack != null && notifyBack.trim().length() != 0) {
-            browser.setNotifyBackURI(new NotifyBackURI(notifyBack), true);
+            pushGroupManager.getBrowser(getBrowserID()).
+                setNotifyBackURI(pushGroupManager.newNotifyBackURI(notifyBack), true);
         }
     }
 

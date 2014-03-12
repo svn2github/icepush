@@ -17,14 +17,19 @@
 package org.icepush;
 
 import java.io.Serializable;
+import java.util.logging.Logger;
 
 public class NotifyBackURI
 implements Serializable {
+    private static final long serialVersionUID = 6137651045332272628L;
+
+    private static final Logger LOGGER = Logger.getLogger(NotifyBackURI.class.getName());
+
     private final String uri;
 
-    private transient long timestamp = -1L;
+    private long timestamp = -1L;
 
-    public NotifyBackURI(final String uri)
+    protected NotifyBackURI(final String uri)
     throws IllegalArgumentException {
         if (uri == null || uri.trim().length() == 0) {
             throw new IllegalArgumentException("The specified uri is null or empty.");
@@ -44,13 +49,20 @@ implements Serializable {
         return
             new StringBuilder().
                 append("NotifyBackURI[").
-                    append("uri: '").append(uri.toString()).append("', ").
-                    append("timestamp: '").append(timestamp).append("'").
+                    append(membersAsString()).
                 append("]").
                     toString();
     }
 
     public void touch() {
         timestamp = System.currentTimeMillis();
+    }
+
+    protected String membersAsString() {
+        return
+            new StringBuilder().
+                append("uri: '").append(uri).append("', ").
+                append("timestamp: '").append(timestamp).append("'").
+                    toString();
     }
 }

@@ -22,7 +22,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public abstract class AbstractPushGroupManager
-implements PushGroupManager {
+implements InternalPushGroupManager, PushGroupManager {
     private static final Logger LOGGER = Logger.getLogger(AbstractPushGroupManager.class.getName());
 
     private final Set<PushGroupListener> pushGroupListenerSet = new HashSet<PushGroupListener>();
@@ -33,16 +33,16 @@ implements PushGroupManager {
         }
     }
 
-    public void removePushGroupListener(final PushGroupListener listener) {
-        if (pushGroupListenerSet.contains(listener)) {
-            pushGroupListenerSet.remove(listener);
-        }
-    }
-
-    protected void groupTouched(final String groupName, final Long timestamp) {
+    public void groupTouched(final String groupName, final long timestamp) {
         PushGroupEvent _event = new PushGroupEvent(this, groupName, null, timestamp);
         for (final PushGroupListener listener : pushGroupListenerSet) {
             listener.groupTouched(_event);
+        }
+    }
+
+    public void removePushGroupListener(final PushGroupListener listener) {
+        if (pushGroupListenerSet.contains(listener)) {
+            pushGroupListenerSet.remove(listener);
         }
     }
 

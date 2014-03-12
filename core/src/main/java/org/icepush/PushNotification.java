@@ -16,9 +16,18 @@
  */
 package org.icepush;
 
+import java.io.Serializable;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-public class PushNotification extends PushConfiguration {
+public class PushNotification
+extends PushConfiguration
+implements Serializable {
+    private static final long serialVersionUID = -3493918269014212172L;
+
+    private static final Logger LOGGER = Logger.getLogger(PushNotification.class.getName());
+
     /** The PushNotification attribute name for subject. */
     public static String SUBJECT = "subject";
 

@@ -20,7 +20,7 @@ public interface NotificationProvider {
 
     void addNotificationProviderListener(NotificationListener listener);
 
-    void send(Browser browser, String groupName, PushNotification notification);
+    void send(String browserID, String groupName, PushNotification notification);
 
     void registerWith(OutOfBandNotifier outOfBandNotifier);
 

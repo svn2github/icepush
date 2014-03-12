@@ -19,8 +19,13 @@ package org.icepush;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-public class NoopPushGroupManager implements PushGroupManager {
+public class NoopPushGroupManager
+implements PushGroupManager {
+    private static final Logger LOGGER = Logger.getLogger(NoopPushGroupManager.class.getName());
+
     public final static PushGroupManager Instance = new NoopPushGroupManager();
 
     private NoopPushGroupManager() {
@@ -29,10 +34,12 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void addBlockingConnectionServer(final String browserID, final BlockingConnectionServer server) {
     }
 
-    public void addBrowser(final Browser browser) {
+    public boolean addBrowser(final Browser browser) {
+        return false;
     }
 
-    public void addMember(final String groupName, final String pushId) {
+    public boolean addMember(final String groupName, final String pushId) {
+        return false;
     }
 
     public void addNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
@@ -44,7 +51,7 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void backOff(final String browserID, final long delay) {
     }
 
-    public void cancelExpiryTimeout(final Browser browser) {
+    public void cancelExpiryTimeouts(final String browserID) {
     }
 
     public void clearPendingNotifications(final Set<String> pushIDSet) {
@@ -57,7 +64,7 @@ public class NoopPushGroupManager implements PushGroupManager {
         return null;
     }
 
-    public Map<String, String[]> getGroupMap() {
+    public Map<String, String[]> getGroupPushIDsMap() {
         return Collections.EMPTY_MAP;
     }
 
@@ -70,6 +77,10 @@ public class NoopPushGroupManager implements PushGroupManager {
     }
 
     public PushID getPushID(final String pushIDString) {
+        return null;
+    }
+
+    public NotifyBackURI newNotifyBackURI(final String uri) {
         return null;
     }
 
@@ -88,10 +99,12 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void removeBlockingConnectionServer(final String browserID) {
     }
 
-    public void removeBrowser(final Browser browser) {
+    public boolean removeBrowser(final Browser browser) {
+        return false;
     }
 
-    public void removeMember(final String groupName, final String pushId) {
+    public boolean removeMember(final String groupName, final String pushId) {
+        return false;
     }
 
     public void removePushGroupListener(final PushGroupListener listener) {
@@ -103,6 +116,6 @@ public class NoopPushGroupManager implements PushGroupManager {
     public void shutdown() {
     }
 
-    public void startExpiryTimeout(final Browser browser) {
+    public void startExpiryTimeouts(final String browserID) {
     }
 }

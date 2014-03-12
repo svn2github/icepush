@@ -3,9 +3,6 @@ package org.icepush;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -15,176 +12,135 @@ implements Serializable {
 
     private static final Logger LOGGER = Logger.getLogger(PushID.class.getName());
 
-    // This counter is only used by LOGGER
-    private static AtomicInteger globalExpiryTimeoutCounter = new AtomicInteger(0);
+    private final Set<String> groupSet = new HashSet<String>();
 
+    private final long cloudPushIDTimeout;
     private final String id;
+    private final long pushIDTimeout;
 
-    private transient final long cloudPushIDTimeout;
-    private transient final Set<String> groups = new HashSet<String>();
-    private transient final LocalPushGroupManager localPushGroupManager;
-    private transient final long pushIDTimeout;
+    private String browserID;
 
-    private Browser browser;
-
-    private transient TimerTask expiryTimeout;
-
-    // This counter is only used by LOGGER
-    private AtomicInteger expiryTimeoutCounter = new AtomicInteger(0);
-
-    protected PushID(
-        final String id, final String group, final long pushIDTimeout, final long cloudPushIDTimeout,
-        final LocalPushGroupManager localPushGroupManager) {
-
+    protected PushID(final String id, final long pushIDTimeout, final long cloudPushIDTimeout) {
         this.id = id;
         this.pushIDTimeout = pushIDTimeout;
         this.cloudPushIDTimeout = cloudPushIDTimeout;
-        this.localPushGroupManager = localPushGroupManager;
-        addToGroup(group);
     }
 
-    public void addToGroup(String group) {
-        groups.add(group);
+    public boolean addToGroup(final String groupName) {
+        return groupSet.add(groupName);
     }
 
     public boolean cancelExpiryTimeout() {
-        if (expiryTimeout != null) {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Cancel expiry timeout for PushID '" + id + "'.\r\n\r\n" +
-                        "Expiry Timeout Counter              : " +
-                            expiryTimeoutCounter.decrementAndGet() + "\r\n" +
-                        "Global Expiry Timeout Counter       : " +
-                            globalExpiryTimeoutCounter.decrementAndGet() + "\r\n");
-            }
-            expiryTimeout.cancel();
-            expiryTimeout = null;
-            return true;
-        }
-        return false;
+        return
+            ((InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
+            ).cancelExpiryTimeout(getID());
     }
 
     public void discard() {
-        if (!localPushGroupManager.isParked(id)) {
+        if (!
+            ((InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
+            ).isParked(getID())) {
+
             if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "PushID '" + id + "' discarded.");
+                LOGGER.log(Level.FINE, "PushID '" + getID() + "' discarded.");
             }
-            localPushGroupManager.removePushID(id);
-            localPushGroupManager.removePendingNotification(id);
-            for (String groupName : groups) {
-                Group group = localPushGroupManager.getGroup(groupName);
+            ((InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
+            ).removePushID(getID());
+            ((InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
+            ).removePendingNotification(getID());
+            for (String groupName : getGroupSet()) {
+                Group group =
+                    ((InternalPushGroupManager)
+                        PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
+                    ).getGroup(groupName);
                 if (group != null) {
-                    group.removePushID(id);
+                    group.removePushID(getID());
                 }
             }
         }
     }
 
-    public Browser getBrowser() {
-        return browser;
+    public String getBrowserID() {
+        return browserID;
     }
 
     public String getID() {
         return id;
     }
 
-    public void removeFromGroup(String group) {
-        groups.remove(group);
-        if (groups.isEmpty()) {
+    public boolean removeFromGroup(String groupName) {
+        boolean _modified = groupSet.remove(groupName);
+        if (groupSet.isEmpty()) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE, "Disposed PushID '" + id + "' since it no longer belongs to any Push Group.");
             }
-            localPushGroupManager.removePushID(id);
+            ((InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
+            ).removePushID(id);
         }
+        return _modified;
     }
 
-    public void setBrowser(final Browser browser) {
-        if (this.browser == null) {
-            this.browser = browser;
+    public boolean setBrowserID(final String browserID) {
+        boolean _modified = false;
+        if ((this.browserID == null && browserID != null) ||
+            (this.browserID != null && !this.browserID.equals(browserID))) {
+
+            this.browserID = browserID;
+            _modified = true;
         }
+        return _modified;
     }
 
     public boolean startExpiryTimeout() {
-        return startExpiryTimeout(null, browser != null ? browser.getSequenceNumber() : -1);
+        return
+            ((InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
+            ).startExpiryTimeout(getID());
     }
 
-    public boolean startExpiryTimeout(final Browser browser, final long sequenceNumber) {
-        boolean _isCloudPushID = browser != null ? browser.getNotifyBackURI() != null : false;
-        if (expiryTimeout == null) {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Start expiry timeout for PushID '" + id + "' (" +
-                            "timeout: '" + (!_isCloudPushID ? pushIDTimeout : cloudPushIDTimeout) + "', " +
-                            "sequence number: '" + sequenceNumber + "'" +
-                    ").\r\n\r\n" +
-                        "Expiry Timeout Counter              : " +
-                            expiryTimeoutCounter.incrementAndGet() + "\r\n" +
-                        "Global Expiry Timeout Counter       : " +
-                            globalExpiryTimeoutCounter.incrementAndGet() + "\r\n");
-            }
-            try {
-                ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$expiry")).
-                    schedule(
-                        expiryTimeout = newExpiryTimeout(_isCloudPushID),
-                        !_isCloudPushID ? pushIDTimeout : cloudPushIDTimeout);
-                return true;
-            } catch (final IllegalStateException exception) {
-                // timeoutTimer was cancelled or its timer thread terminated.
-                return false;
-            }
-        }
-        if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(
-                Level.FINE,
-                "Expiry timeout already scheduled for PushID '" + id + "' (" +
-                    "timeout: '" + (!_isCloudPushID ? pushIDTimeout : cloudPushIDTimeout) + "'" +
-                ").");
-        }
-        return false;
+    public boolean startExpiryTimeout(final String browserID, final long sequenceNumber) {
+        return
+            ((InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
+            ).startExpiryTimeout(getID(), browserID, sequenceNumber);
     }
 
-    protected TimerTask getExpiryTimeout() {
-        return expiryTimeout;
+    @Override
+    public String toString() {
+        return
+            new StringBuilder().
+                append("PushID[").
+                    append(membersAsString()).
+                append("]").
+                    toString();
     }
 
-    protected ExpiryTimeout newExpiryTimeout(final boolean isCloudPushID) {
-        return new ExpiryTimeout(this, isCloudPushID);
+    protected long getCloudPushIDTimeout() {
+        return cloudPushIDTimeout;
     }
 
-    protected static class ExpiryTimeout
-    extends TimerTask {
-        private static final Logger LOGGER = Logger.getLogger(ExpiryTimeout.class.getName());
+    protected Set<String> getGroupSet() {
+        return groupSet;
+    }
 
-        protected final PushID pushID;
-        protected final boolean isCloudPushID;
+    protected long getPushIDTimeout() {
+        return pushIDTimeout;
+    }
 
-        protected ExpiryTimeout(final PushID pushID, final boolean isCloudPushID) {
-            this.pushID = pushID;
-            this.isCloudPushID = isCloudPushID;
-        }
-
-        @Override
-        public void run() {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Expiry timeout occurred for PushID '" + pushID.getID() + "' (" +
-                        "timeout: '" + (!isCloudPushID ? pushID.pushIDTimeout : pushID.cloudPushIDTimeout) + "').");
-            }
-            try {
-                pushID.discard();
-                pushID.cancelExpiryTimeout();
-            } catch (Exception exception) {
-                if (LOGGER.isLoggable(Level.WARNING)) {
-                    LOGGER.log(
-                        Level.WARNING,
-                        "Exception caught on expiryTimeout TimerTask.",
-                        exception);
-                }
-            }
-        }
+    protected String membersAsString() {
+        return
+            new StringBuilder().
+                append("browserID: '").append(getBrowserID()).append(", ").
+                append("cloudPushIDTimeout: '").append(getCloudPushIDTimeout()).append("', ").
+                append("groupSet: '").append(getGroupSet()).append("', ").
+                append("id: '").append(getID()).append("', ").
+                append("pushIDTimeout: '").append(getPushIDTimeout()).append("'").
+                    toString();
     }
 }

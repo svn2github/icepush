@@ -105,8 +105,8 @@ implements NotificationProvider {
         outOfBandNotifier.registerProvider("mail", this);
     }
 
-    public void send(final Browser browser, final String groupName, final PushNotification notification) {
-        (new SendMessage(browser, groupName, notification)).start();
+    public void send(final String browserID, final String groupName, final PushNotification notification) {
+        (new SendMessage(browserID, groupName, notification)).start();
     }
 
     public static class AutoRegister implements ServletContextListener {
@@ -131,18 +131,22 @@ implements NotificationProvider {
     }
 
     private class SendMessage extends Thread {
-        private final Browser browser;
+        private final String browserID;
         private final String groupName;
         private final PushNotification notification;
 
-        public SendMessage(final Browser browser, final String groupName, final PushNotification notification) {
-            this.browser = browser;
+        public SendMessage(final String browserID, final String groupName, final PushNotification notification) {
+            this.browserID = browserID;
             this.groupName = groupName;
             this.notification = notification;
         }
 
         public void run() {
-            URI destinationURI = URI.create(browser.getNotifyBackURI().getURI());
+            URI destinationURI =
+                URI.create(
+                    ((LocalPushGroupManager)
+                        PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
+                    ).getBrowser(browserID).getNotifyBackURI().getURI());
 
             MimeMessage mimeMessage = new MimeMessage(session);
             try {
@@ -155,7 +159,7 @@ implements NotificationProvider {
                 transport.sendMessage(mimeMessage, new InternetAddress[]{address});
                 notificationSent(
                     new NotificationEvent(
-                        TargetType.BROWSER_ID, browser.getID(), groupName, NotificationType.CLOUD_PUSH,
+                        TargetType.BROWSER_ID, browserID, groupName, NotificationType.CLOUD_PUSH,
                         EmailNotificationProvider.this));
             } catch (MessagingException ex) {
                 log.log(Level.WARNING, "Failed to send email message.", ex);

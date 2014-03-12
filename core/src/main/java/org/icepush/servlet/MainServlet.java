@@ -32,7 +32,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.icepush.Browser;
 import org.icepush.CheckBrowserIDServlet;
 import org.icepush.CodeServer;
 import org.icepush.Configuration;
@@ -213,14 +212,16 @@ public class MainServlet implements PseudoServlet {
     }
 
     private static class DefaultOutOfBandNotifier implements OutOfBandNotifier {
-        private final Logger log = Logger.getLogger(OutOfBandNotifier.class.getName());
-        private HashMap providers = new HashMap();
+        private static final Logger LOGGER = Logger.getLogger(OutOfBandNotifier.class.getName());
+        private final HashMap providers = new HashMap();
+        private final PushGroupManager pushGroupManager =
+            (PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
 
         private DefaultOutOfBandNotifier(ServletContext context) {
             context.setAttribute(OutOfBandNotifier.class.getName(), this);
             Object[] extensions = ExtensionRegistry.getExtensions(context, NotificationProvider.class.getName());
             if (extensions == null) {
-                MainServlet.log.fine("Could not find any out of band notification providers.");
+                LOGGER.fine("Could not find any out of band notification providers.");
             } else {
                 for (int i = 0; i < extensions.length; i++) {
                     NotificationProvider provider = (NotificationProvider) extensions[i];
@@ -229,19 +230,19 @@ public class MainServlet implements PseudoServlet {
             }
         }
 
-        public void broadcast(final PushNotification notification, final Browser[] browsers, final String groupName) {
-            for (final Browser browser : browsers) {
-                String notifyBackURI = browser.getNotifyBackURI().getURI();
+        public void broadcast(final PushNotification pushNotification, final String[] browserIDs, final String groupName) {
+            for (final String browserID : browserIDs) {
+                String notifyBackURI = pushGroupManager.getBrowser(browserID).getNotifyBackURI().getURI();
                 URI uri = URI.create(notifyBackURI);
                 String protocol = uri.getScheme();
                 NotificationProvider provider = (NotificationProvider)providers.get(protocol);
                 if (provider == null) {
-                    log.warning("No notification providers for '" + uri + "' URI registered");
+                    LOGGER.warning("No notification providers for '" + uri + "' URI registered");
                 } else {
                     try {
-                        provider.send(browser, groupName, notification);
+                        provider.send(browserID, groupName, pushNotification);
                     } catch (Throwable t) {
-                        log.log(Level.WARNING, "Exception sending message to " + browser + ", " + t);
+                        LOGGER.log(Level.WARNING, "Exception sending message to " + browserID + ", " + t);
                     }
                 }
             }

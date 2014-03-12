@@ -18,7 +18,7 @@ package org.icepush;
 
 public interface OutOfBandNotifier {
 
-    void broadcast(PushNotification notification, Browser[] browsers, String groupName);
+    void broadcast(PushNotification notification, String[] browserIDs, String groupName);
 
     void registerProvider(String protocol, NotificationProvider provider);
     

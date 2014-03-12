@@ -26,11 +26,17 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.icepush.*;
+import org.icepush.BlockingConnectionServer;
+import org.icepush.Configuration;
+import org.icepush.ConfigurationServer;
+import org.icepush.PushConfiguration;
+import org.icepush.PushContext;
+import org.icepush.PushStormDetectionServer;
+import org.icepush.SequenceTaggingServer;
 import org.icepush.http.PushServer;
 import org.icepush.util.Slot;
 
-public class BrowserBoundServlet extends PathDispatcher {
+public class BrowserBoundServlet extends PathDispatcher implements PseudoServlet {
     private final static Logger log = Logger.getLogger(BrowserBoundServlet.class.getName());
 
     private static final Pattern NAME_VALUE = Pattern.compile("\\=");
@@ -62,12 +68,29 @@ public class BrowserBoundServlet extends PathDispatcher {
     }
 
     protected PushServer createBlockingConnectionServer() {
-        Slot heartbeatInterval = new Slot(configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout));
-        Slot sequenceNo = new Slot(0L);
-        return new ConfigurationServer(heartbeatInterval, servletContext, configuration,
-                    new PushStormDetectionServer(
-                        new SequenceTaggingServer(sequenceNo,
-                            new BlockingConnectionServer(browserID, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration)), configuration));
+        Slot heartbeatInterval =
+            new Slot(configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout));
+        Slot sequenceNo =
+            new Slot(0L);
+        return
+            new ConfigurationServer(
+                heartbeatInterval,
+                servletContext,
+                configuration,
+                new PushStormDetectionServer(
+                    new SequenceTaggingServer(
+                        sequenceNo,
+                        new BlockingConnectionServer(
+                            browserID,
+                            monitoringScheduler,
+                            heartbeatInterval,
+                            terminateBlockingConnectionOnShutdown,
+                            configuration
+                        )
+                    ),
+                    configuration
+                )
+            );
     }
 
     protected AddGroupMember newAddGroupMember() {

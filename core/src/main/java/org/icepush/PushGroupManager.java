@@ -22,9 +22,9 @@ import java.util.Set;
 public interface PushGroupManager {
     void addBlockingConnectionServer(String browserID, BlockingConnectionServer server);
 
-    void addBrowser(Browser browser);
+    boolean addBrowser(Browser browser);
 
-    void addMember(String groupName, String pushId);
+    boolean addMember(String groupName, String pushId);
 
     void addNotificationReceiver(NotificationBroadcaster.Receiver receiver);
 
@@ -32,7 +32,7 @@ public interface PushGroupManager {
 
     void backOff(String browserID, long delay);
 
-    void cancelExpiryTimeout(Browser browser);
+    void cancelExpiryTimeouts(String browserID);
 
     void clearPendingNotifications(Set<String> pushIDSet);
 
@@ -40,7 +40,7 @@ public interface PushGroupManager {
 
     Browser getBrowser(String browserID);
 
-    Map<String, String[]> getGroupMap();
+    Map<String, String[]> getGroupPushIDsMap();
 
     OutOfBandNotifier getOutOfBandNotifier();
 
@@ -58,9 +58,9 @@ public interface PushGroupManager {
 
     void removeBlockingConnectionServer(String browserID);
 
-    void removeBrowser(Browser browser);
+    boolean removeBrowser(Browser browser);
 
-    void removeMember(String groupName, String pushId);
+    boolean removeMember(String groupName, String pushId);
 
     void removePushGroupListener(PushGroupListener listener);
 
@@ -68,5 +68,7 @@ public interface PushGroupManager {
 
     void shutdown();
 
-    void startExpiryTimeout(Browser browser);
+    void startExpiryTimeouts(String browserID);
+
+    NotifyBackURI newNotifyBackURI(String uri);
 }

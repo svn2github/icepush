@@ -1,11 +1,11 @@
 package org.icepush;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -20,26 +20,16 @@ implements Serializable {
 
     private static AtomicInteger browserCounter = new AtomicInteger(0);
 
-    // This counter is only used by LOGGER
-    private static AtomicInteger globalConfirmationTimeoutCounter = new AtomicInteger(0);
-
     private final String id;
+    private final long minCloudPushInterval;
+    private final ConcurrentLinkedQueue<NotificationEntry> notifiedPushIDQueue =
+        new ConcurrentLinkedQueue<NotificationEntry>();
 
-    private final transient PushGroupManager pushGroupManager =
-        (PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
-
-    private Set<String> pushIDSet = Collections.emptySet();
-
-    private transient final long minCloudPushInterval;
+    private Set<NotificationEntry> lastNotifiedPushIDSet = new HashSet<NotificationEntry>();
     private NotifyBackURI notifyBackURI;
-
-    private Status status = newStatus();
-
-    // This counter is only used by LOGGER
-    private transient AtomicInteger confirmationTimeoutCounter = new AtomicInteger(0);
-
-    private transient TimerTask confirmationTimeout;
-    private transient PushConfiguration pushConfiguration;
+    private PushConfiguration pushConfiguration;
+    private Set<String> pushIDSet = Collections.emptySet();
+    private Status status;
 
     public Browser(final Browser browser) {
         this(browser.getID(), browser.getMinCloudPushInterval());
@@ -51,25 +41,18 @@ implements Serializable {
     public Browser(final String id, final long minCloudPushInterval) {
         this.id = id;
         this.minCloudPushInterval = minCloudPushInterval;
+        this.status = newStatus();
+    }
+
+    public boolean addNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
+        return this.notifiedPushIDQueue.addAll(notifiedPushIDCollection);
     }
 
     public boolean cancelConfirmationTimeout() {
-        if (confirmationTimeout != null) {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Cancel confirmation timeout for Browser '" + id + "'.\r\n\r\n" +
-                        "Confirmation Timeout Counter        : " +
-                            confirmationTimeoutCounter.decrementAndGet() + "\r\n" +
-                        "Global Confirmation Timeout Counter : " +
-                            globalConfirmationTimeoutCounter.decrementAndGet() + "\r\n");
-            }
-            confirmationTimeout.cancel();
-            confirmationTimeout = null;
-            pushConfiguration = null;
-            return true;
-        }
-        return false;
+        return
+            ((InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+                    cancelConfirmationTimeout(getID());
     }
 
     public static String generateBrowserID() {
@@ -86,6 +69,18 @@ implements Serializable {
 
     public String getID() {
         return id;
+    }
+
+    public Set<NotificationEntry> getLastNotifiedPushIDSet() {
+        return Collections.unmodifiableSet(lastNotifiedPushIDSet);
+    }
+
+    public long getMinCloudPushInterval() {
+        return minCloudPushInterval;
+    }
+
+    public Set<NotificationEntry> getNotifiedPushIDSet() {
+        return Collections.unmodifiableSet(new HashSet<NotificationEntry>(notifiedPushIDQueue));
     }
 
     public NotifyBackURI getNotifyBackURI() {
@@ -108,106 +103,99 @@ implements Serializable {
         return status;
     }
 
+    public boolean hasNotifiedPushIDs() {
+        return !notifiedPushIDQueue.isEmpty();
+    }
+
+    public boolean removeNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
+        return this.notifiedPushIDQueue.removeAll(notifiedPushIDCollection);
+    }
+
+    public boolean retainNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
+        return this.notifiedPushIDQueue.retainAll(notifiedPushIDCollection);
+    }
+
+    public boolean setLastNotifiedPushIDSet(final Set<NotificationEntry> lastNotifiedPushIDSet) {
+        boolean _modified = false;
+        if (!this.lastNotifiedPushIDSet.equals(lastNotifiedPushIDSet)) {
+            this.lastNotifiedPushIDSet = new HashSet<NotificationEntry>(lastNotifiedPushIDSet);
+            _modified = true;
+        }
+        return _modified;
+    }
+
     public boolean setNotifyBackURI(final NotifyBackURI notifyBackURI, final boolean broadcastIfIsNew) {
-        boolean _isNew =
-            this.notifyBackURI == null ||
-            !this.notifyBackURI.getURI().equals(notifyBackURI.getURI());
-        if (_isNew) {
+        boolean _modified = false;
+        if (this.notifyBackURI == null || !this.notifyBackURI.getURI().equals(notifyBackURI.getURI())) {
             this.notifyBackURI = notifyBackURI;
+            _modified = true;
         } else {
             this.notifyBackURI.touch();
         }
-        return _isNew;
+        return _modified;
     }
 
-    public void setPushConfiguration(final PushConfiguration pushConfiguration) {
-        this.pushConfiguration = pushConfiguration;
+    public boolean setPushConfiguration(final PushConfiguration pushConfiguration) {
+        boolean _modified = false;
+        if ((this.pushConfiguration == null && pushConfiguration != null) ||
+            (this.pushConfiguration != null && !this.pushConfiguration.equals(pushConfiguration))) {
+
+            this.pushConfiguration = pushConfiguration;
+            _modified = true;
+        }
+        return _modified;
     }
 
-    public void setPushIDSet(final Set<String> pushIDSet) {
-        this.pushIDSet = new HashSet<String>(pushIDSet);
-        for (final String _pushIDString : this.pushIDSet) {
-            PushID _pushID = pushGroupManager.getPushID(_pushIDString);
-            if (_pushID != null)  {
-                _pushID.setBrowser(this);
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(Level.FINE, "Valid Push-ID " + _pushIDString);
-                }
-            } else {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(Level.FINE, "INVALID Push-ID " + _pushIDString);
+    public boolean setPushIDSet(final Set<String> pushIDSet) {
+        boolean _modified = false;
+        if ((this.pushIDSet == null && pushIDSet != null) ||
+            (this.pushIDSet != null && !this.pushIDSet.equals(pushIDSet))) {
+
+            this.pushIDSet = new HashSet<String>(pushIDSet);
+            for (final String _pushIDString : this.pushIDSet) {
+                PushID _pushID =
+                    ((InternalPushGroupManager)
+                        PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+                            getPushID(_pushIDString);
+                if (_pushID != null)  {
+                    _pushID.setBrowserID(getID());
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(Level.FINE, "Valid Push-ID " + _pushIDString);
+                    }
+                } else {
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(Level.FINE, "INVALID Push-ID " + _pushIDString);
+                    }
                 }
             }
+            _modified = true;
         }
+        return _modified;
     }
 
-    public void setSequenceNumber(final long sequenceNumber) {
-        status.setSequenceNumber(sequenceNumber);
+    public boolean setSequenceNumber(final long sequenceNumber) {
+        return status.setSequenceNumber(sequenceNumber);
     }
 
     public boolean startConfirmationTimeout(final String groupName) {
-        return startConfirmationTimeout(groupName, getSequenceNumber());
+        return
+            ((InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+                    startConfirmationTimeout(getID(), groupName);
     }
 
     public boolean startConfirmationTimeout(final String groupName, final long sequenceNumber) {
-        if (notifyBackURI != null) {
-            long now = System.currentTimeMillis();
-            long timeout = status.getConnectionRecreationTimeout() * 2;
-            LOGGER.log(Level.FINE, "Calculated confirmation timeout: '" + timeout + "'");
-            if (notifyBackURI.getTimestamp() + minCloudPushInterval <= now + timeout) {
-                return startConfirmationTimeout(groupName, sequenceNumber, timeout);
-            } else {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Timeout is within the minimum Cloud Push interval for URI '" + notifyBackURI + "'. (" +
-                            "timestamp: '" + notifyBackURI.getTimestamp() + "', " +
-                            "minCloudPushInterval: '" + minCloudPushInterval + "', " +
-                            "now: '" + now + "', " +
-                            "timeout: '" + timeout + "'" +
-                        ")");
-                }
-            }
-        }
-        return false;
+        return
+            ((InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+                    startConfirmationTimeout(getID(), groupName, sequenceNumber);
     }
 
     public boolean startConfirmationTimeout(final String groupName, final long sequenceNumber, final long timeout) {
-        if (notifyBackURI != null &&
-            notifyBackURI.getTimestamp() + minCloudPushInterval <= System.currentTimeMillis() + timeout &&
-            pushConfiguration != null) {
-
-            if (confirmationTimeout == null) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Start confirmation timeout for Browser '" + id + "' (" +
-                                "URI: '" + notifyBackURI + "', " +
-                                "timeout: '" + timeout + "', " +
-                                "sequence number: '" + sequenceNumber + "'" +
-                        ").\r\n\r\n" +
-                            "Confirmation Timeout Counter        : " +
-                                confirmationTimeoutCounter.incrementAndGet() + "\r\n" +
-                            "Global Confirmation Timeout Counter : " +
-                                globalConfirmationTimeoutCounter.incrementAndGet() + "\r\n");
-                }
-                try {
-                    ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")).
-                        schedule(confirmationTimeout = newConfirmationTimeout(groupName, timeout), timeout);
-                    return true;
-                } catch (final IllegalStateException exception) {
-                    // timeoutTimer was cancelled or its timer thread terminated.
-                    return false;
-                }
-            }
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Confirmation timeout already scheduled for PushID '" + id + "' " +
-                        "(URI: '" + notifyBackURI + "', timeout: '" + timeout + "').");
-            }
-        }
-        return false;
+        return
+            ((InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+                    startConfirmationTimeout(getID(), groupName, sequenceNumber, timeout);
     }
 
     @Override
@@ -215,23 +203,23 @@ implements Serializable {
         return
             new StringBuilder().
                 append("Browser[").
-                    append("id: '").append(id).append("', ").
-                    append("notifyBackURI: '").append(notifyBackURI).append("', ").
-                    append("pushIDSet: '").append(pushIDSet).append("'").
+                    append(membersAsString()).
                 append("]").
                     toString();
     }
 
-    protected TimerTask getConfirmationTimeout() {
-        return confirmationTimeout;
-    }
-
-    protected long getMinCloudPushInterval() {
-        return minCloudPushInterval;
-    }
-
-    protected ConfirmationTimeout newConfirmationTimeout(final String groupName, final long timeout) {
-        return new ConfirmationTimeout(this, groupName, timeout, getMinCloudPushInterval());
+    protected String membersAsString() {
+        return
+            new StringBuilder().
+                append("id: '").append(getID()).append("', ").
+                append("lastNotifiedPushIDSet: '").append(getLastNotifiedPushIDSet()).append("', ").
+                append("minCloudPushInterval: '").append(getMinCloudPushInterval()).append("', ").
+                append("notifiedPushIDSet: '").append(getNotifiedPushIDSet()).append("', ").
+                append("notifyBackURI: '").append(getNotifyBackURI()).append("', ").
+                append("pushConfiguration: '").append(getPushConfiguration()).append("', ").
+                append("pushIDSet: '").append(getPushIDSet()).append("', ").
+                append("status: '").append(getStatus()).append("'").
+                    toString();
     }
 
     protected Status newStatus() {
@@ -250,9 +238,9 @@ implements Serializable {
         return request.getParameter(BROWSER_ID_NAME);
     }
 
-    public static class Status
+    public class Status
     implements Serializable {
-        private static final Logger LOGGER = Logger.getLogger(Status.class.getName());
+        private static final long serialVersionUID = 2530024421926858382L;
 
         private long backupConnectionRecreationTimeout;
         private long connectionRecreationTimeout = -1;
@@ -284,27 +272,47 @@ implements Serializable {
             return sequenceNumber;
         }
 
-        public void revertConnectionRecreationTimeout() {
-            connectionRecreationTimeout = backupConnectionRecreationTimeout;
+        public boolean revertConnectionRecreationTimeout() {
+            return setConnectionRecreationTimeout(getBackupConnectionRecreationTimeout());
         }
 
-        public void setBackupConnectionRecreationTimeout(final long backupConnectionRecreationTimeout) {
-            this.backupConnectionRecreationTimeout = backupConnectionRecreationTimeout;
+        public boolean setBackupConnectionRecreationTimeout(final long backupConnectionRecreationTimeout) {
+            if (this.backupConnectionRecreationTimeout != backupConnectionRecreationTimeout) {
+                this.backupConnectionRecreationTimeout = backupConnectionRecreationTimeout;
+
+                return true;
+            } else {
+                return false;
+            }
         }
 
-        public void setConnectionRecreationTimeout(final long connectionRecreationTimeout) {
-            this.connectionRecreationTimeout = connectionRecreationTimeout;
+        public boolean setConnectionRecreationTimeout(final long connectionRecreationTimeout) {
+            if (this.connectionRecreationTimeout != connectionRecreationTimeout) {
+                this.connectionRecreationTimeout = connectionRecreationTimeout;
+
+                return true;
+            } else {
+                return false;
+            }
         }
 
-        public void setSequenceNumber(final long sequenceNumber) {
-            this.sequenceNumber = sequenceNumber;
+        public boolean setSequenceNumber(final long sequenceNumber) {
+            if (this.sequenceNumber != sequenceNumber) {
+                this.sequenceNumber = sequenceNumber;
+
+                return true;
+            } else {
+                return false;
+            }
         }
 
         @Override
         public String toString() {
             return
                 new StringBuilder().
-                    append("Browser.Status[").append(membersAsString()).append("]").
+                    append("Browser.Status[").
+                        append(membersAsString()).
+                    append("]").
                         toString();
         }
 
@@ -318,67 +326,6 @@ implements Serializable {
                     append("sequenceNumber: ").
                         append("'").append(getSequenceNumber()).append("'").
                             toString();
-        }
-    }
-
-    protected static class ConfirmationTimeout
-    extends TimerTask {
-        private static final Logger LOGGER = Logger.getLogger(ConfirmationTimeout.class.getName());
-
-        protected final PushGroupManager pushGroupManager =
-            (PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
-
-        protected final Browser browser;
-        protected final String groupName;
-        protected final long minCloudPushInterval;
-        protected final long timeout;
-
-        protected ConfirmationTimeout(
-            final Browser browser, final String groupName, final long timeout, final long minCloudPushInterval) {
-
-            this.browser = browser;
-            this.groupName = groupName;
-            this.timeout = timeout;
-            this.minCloudPushInterval = minCloudPushInterval;
-        }
-
-        @Override
-        public void run() {
-            NotifyBackURI _notifyBackURI = browser.getNotifyBackURI();
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Confirmation timeout occurred for Browser '" + browser.getID() + "' " +
-                        "(URI: '" + _notifyBackURI + "', timeout: '" + timeout + "').");
-            }
-            try {
-                if (_notifyBackURI != null) {
-                    for (final String _pushIDString : browser.getPushIDSet()) {
-                        pushGroupManager.park(_pushIDString, _notifyBackURI);
-                    }
-                    if (_notifyBackURI.getTimestamp() + minCloudPushInterval <= System.currentTimeMillis()) {
-                        if (LOGGER.isLoggable(Level.FINE)) {
-                            LOGGER.log(Level.FINE, "Cloud Push dispatched for Browser '" + browser.getID() + "'.");
-                        }
-                        _notifyBackURI.touch();
-                        pushGroupManager.getOutOfBandNotifier().
-                            broadcast(
-                                new PushNotification(browser.getPushConfiguration().getAttributes()),
-                                new Browser[] {
-                                    browser
-                                },
-                                groupName);
-                    }
-                }
-                browser.cancelConfirmationTimeout();
-            } catch (Exception exception) {
-                if (LOGGER.isLoggable(Level.WARNING)) {
-                    LOGGER.log(
-                        Level.WARNING,
-                        "Exception caught on confirmationTimeout TimerTask.",
-                        exception);
-                }
-            }
         }
     }
 }
