@@ -25,16 +25,22 @@ import org.icepush.Configuration;
 import org.icepush.ConfigurationServer;
 import org.icepush.http.PushResponseHandler;
 import org.icepush.http.PushServer;
+import org.icepush.util.Slot;
 
 public class AsyncAdaptingServlet implements PseudoServlet {
-    private final static Logger log = Logger.getLogger(AsyncAdaptingServlet.class.getName());
-    private PushServer pushServer;
-    private Configuration configuration;
+    private final static Logger LOGGER = Logger.getLogger(AsyncAdaptingServlet.class.getName());
 
-    public AsyncAdaptingServlet(final PushServer pushServer, final Configuration configuration) {
+    private final Configuration configuration;
+    private final Slot heartbeatInterval;
+    private final PushServer pushServer;
+
+    public AsyncAdaptingServlet(
+        final PushServer pushServer, final Slot heartbeatInterval, final Configuration configuration) {
+
         this.pushServer = pushServer;
+        this.heartbeatInterval = heartbeatInterval;
         this.configuration = configuration;
-        log.info("Using Servlet 3.0 AsyncContext");
+        LOGGER.info("Using Servlet 3.0 AsyncContext");
     }
 
     public void service(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
@@ -57,9 +63,8 @@ public class AsyncAdaptingServlet implements PseudoServlet {
             super(request, response, configuration);
             asyncContext = request.isAsyncStarted() ? request.getAsyncContext() : request.startAsync();
 
-            //PUSH-218: temporarily disabling modification of the context parameter
-            long heartbeatTimeout = configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout);
-            asyncContext.setTimeout(heartbeatTimeout * 2);
+            long _timeout = heartbeatInterval.getLongValue() * 3;
+            asyncContext.setTimeout(_timeout);
         }
 
         public void respondWith(final PushResponseHandler handler)

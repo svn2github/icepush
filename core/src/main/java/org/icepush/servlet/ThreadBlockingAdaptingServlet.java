@@ -26,16 +26,21 @@ import javax.servlet.http.HttpServletResponse;
 import org.icepush.Configuration;
 import org.icepush.http.PushResponseHandler;
 import org.icepush.http.PushServer;
+import org.icepush.util.Slot;
 
 public class ThreadBlockingAdaptingServlet implements PseudoServlet {
-    private static final Logger LOG = Logger.getLogger(ThreadBlockingAdaptingServlet.class.getName());
-    private static final int TIMEOUT = 600; // seconds
+    private static final Logger LOGGER = Logger.getLogger(ThreadBlockingAdaptingServlet.class.getName());
+//    private static final int TIMEOUT = 600; // seconds
 
-    private PushServer pushServer;
-    private Configuration configuration;
+    private final Configuration configuration;
+    private final Slot heartbeatInterval;
+    private final PushServer pushServer;
 
-    public ThreadBlockingAdaptingServlet(final PushServer pushServer, final Configuration configuration) {
+    public ThreadBlockingAdaptingServlet(
+        final PushServer pushServer, final Slot heartbeatInterval, final Configuration configuration) {
+
         this.pushServer = pushServer;
+        this.heartbeatInterval = heartbeatInterval;
         this.configuration = configuration;
     }
 
@@ -70,18 +75,19 @@ public class ThreadBlockingAdaptingServlet implements PseudoServlet {
         }
 
         public void blockUntilRespond() throws InterruptedException {
+            long timeout = heartbeatInterval.getLongValue() * 3;
             //Block thread by trying to acquire the semaphore a second time.
-            boolean acquired = semaphore.tryAcquire(TIMEOUT, TimeUnit.SECONDS);
+            boolean acquired = semaphore.tryAcquire(timeout, TimeUnit.MILLISECONDS);
             if (acquired) {
                 //Release the semaphore previously acquired.
                 semaphore.release();
             } else {
-                LOG.warning("No response sent to " +
+                LOGGER.warning("No response sent to " +
                         "request '" + getPushRequest().getURI() + "' " +
                         "with ICEfaces ID '" +
                         getPushRequest().getParameter("ice.session") + "' " +
                         "from " + getPushRequest().getRemoteAddr() + " " +
-                        "in " + TIMEOUT + " minutes.  " +
+                        "in " + timeout + " milliseconds.  " +
                         "Unblocking " +
                         "thread '" + Thread.currentThread().getName() + "'.");
                 //Release the semaphore; most probably respondWith() method was not invoked.

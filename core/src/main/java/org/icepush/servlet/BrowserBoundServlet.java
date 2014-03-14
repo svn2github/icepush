@@ -40,12 +40,13 @@ public class BrowserBoundServlet extends PathDispatcher implements PseudoServlet
 
     private static final Pattern NAME_VALUE = Pattern.compile("\\=");
 
-    protected String browserID;
-    protected PushContext pushContext;
-    protected ServletContext servletContext;
-    protected Timer monitoringScheduler;
-    protected Configuration configuration;
-    protected boolean terminateBlockingConnectionOnShutdown;
+    protected final String browserID;
+    protected final Configuration configuration;
+    protected final Slot heartbeatInterval;
+    protected final Timer monitoringScheduler;
+    protected final PushContext pushContext;
+    protected final ServletContext servletContext;
+    protected final boolean terminateBlockingConnectionOnShutdown;
 
     public BrowserBoundServlet(
         final String browserID, final PushContext pushContext, final ServletContext servletContext,
@@ -58,8 +59,13 @@ public class BrowserBoundServlet extends PathDispatcher implements PseudoServlet
         this.monitoringScheduler = monitoringScheduler;
         this.configuration = configuration;
         this.terminateBlockingConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
+        this.heartbeatInterval =
+            new Slot(
+                configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout));
 
-        dispatchOn(".*listen\\.icepush", new EnvironmentAdaptingServlet(createBlockingConnectionServer(), configuration));
+        dispatchOn(
+            ".*listen\\.icepush",
+            new EnvironmentAdaptingServlet(createBlockingConnectionServer(), heartbeatInterval, configuration));
         dispatchOn(".*create-push-id\\.icepush", newCreatePushID());
         dispatchOn(".*notify\\.icepush", newNotifyPushID());
         dispatchOn(".*add-group-member\\.icepush", newAddGroupMember());
@@ -67,8 +73,6 @@ public class BrowserBoundServlet extends PathDispatcher implements PseudoServlet
     }
 
     protected PushServer createBlockingConnectionServer() {
-        Slot heartbeatInterval =
-            new Slot(configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout));
         Slot sequenceNo =
             new Slot(0L);
         return

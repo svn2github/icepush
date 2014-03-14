@@ -23,31 +23,39 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.icepush.Configuration;
 import org.icepush.http.PushServer;
+import org.icepush.util.Slot;
 
 public class EnvironmentAdaptingServlet implements PseudoServlet {
-    private static Logger log = Logger.getLogger(EnvironmentAdaptingServlet.class.getName());
-    private PseudoServlet servlet;
-    private PushServer pushServer;
-    private Configuration configuration;
+    private final static Logger LOGGER = Logger.getLogger(EnvironmentAdaptingServlet.class.getName());
 
-    public EnvironmentAdaptingServlet(final PushServer pushServer, final Configuration configuration) {
+    private final Configuration configuration;
+    private final Slot heartbeatInterval;
+    private final PushServer pushServer;
+
+    private PseudoServlet servlet;
+
+    public EnvironmentAdaptingServlet(
+        final PushServer pushServer, final Slot heartbeatInterval, final Configuration configuration) {
+
         this.pushServer = pushServer;
+        this.heartbeatInterval = heartbeatInterval;
         this.configuration = configuration;
         if (configuration.getAttributeAsBoolean("useAsyncContext", isAsyncARPAvailable())) {
-            log.log(Level.INFO, "Adapting to Servlet 3.0 AsyncContext environment");
-            servlet = new AsyncAdaptingServlet(this.pushServer, this.configuration);
+            LOGGER.log(Level.INFO, "Adapting to Servlet 3.0 AsyncContext environment");
+            servlet = new AsyncAdaptingServlet(this.pushServer, this.heartbeatInterval, this.configuration);
         } else {
-            log.log(Level.INFO, "Adapting to Thread Blocking environment");
-            servlet = new ThreadBlockingAdaptingServlet(this.pushServer, this.configuration);
+            LOGGER.log(Level.INFO, "Adapting to Thread Blocking environment");
+            servlet = new ThreadBlockingAdaptingServlet(this.pushServer, this.heartbeatInterval, this.configuration);
         }
     }
 
-    public void service(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
+    public void service(final HttpServletRequest request, final HttpServletResponse response)
+    throws Exception {
         try {
             servlet.service(request, response);
         } catch (EnvironmentAdaptingException exception) {
-            log.log(Level.INFO, "Falling back to Thread Blocking environment");
-            servlet = new ThreadBlockingAdaptingServlet(pushServer, configuration);
+            LOGGER.log(Level.INFO, "Falling back to Thread Blocking environment");
+            servlet = new ThreadBlockingAdaptingServlet(pushServer, heartbeatInterval, configuration);
             servlet.service(request, response);
         }
     }
