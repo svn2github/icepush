@@ -487,19 +487,21 @@ implements InternalPushGroupManager, PushGroupManager {
         final String pushID) {
 
         boolean _modified = false;
-        PushID _pushID;
-        if (pushIDMap.containsKey(pushID)) {
-            _pushID = pushIDMap.get(pushID);
-        } else {
-            _pushID = newPushID(pushID);
-            pushIDMap.put(pushID, _pushID);
-            _modified = true;
-        }
-        _modified |= _pushID.addToGroup(groupName);
-        _modified |= addToGroup(groupMap, groupName, pushID);
-        memberAdded(groupName, pushID);
-        if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(Level.FINE, "Added PushID '" + pushID + "' to Push Group '" + groupName + "'.");
+        if (groupMap != null && pushIDMap != null && groupName != null && pushID != null) {
+            PushID _pushID;
+            if (pushIDMap.containsKey(pushID)) {
+                _pushID = pushIDMap.get(pushID);
+            } else {
+                _pushID = newPushID(pushID);
+                pushIDMap.put(pushID, _pushID);
+                _modified = true;
+            }
+            _modified |= _pushID.addToGroup(groupName);
+            _modified |= addToGroup(groupMap, groupName, pushID);
+            memberAdded(groupName, pushID);
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(Level.FINE, "Added PushID '" + pushID + "' to Push Group '" + groupName + "'.");
+            }
         }
         return _modified;
     }
@@ -621,7 +623,7 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected boolean removeMember(final Map<String, Group> groupMap, final String groupName, final String pushID) {
         boolean _modified = false;
-        if (groupName != null && pushID != null) {
+        if (groupMap != null && groupName != null && pushID != null) {
             Group group = groupMap.get(groupName);
             if (group != null) {
                 _modified = group.removePushID(pushID);
