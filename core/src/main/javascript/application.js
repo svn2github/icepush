@@ -274,6 +274,8 @@ if (!window.ice.icepush) {
                 postAsynchronously(apiChannel, uri, function(q) {
                     addNameValue(q, BrowserIDName, getValue(browserID));
                     addNameValue(q, APIKey, ice.push.configuration.apikey);
+                    addNameValue(q, AccessToken, ice.push.configuration.access_token);
+                    addNameValue(q, Realm, ice.push.configuration.realm);
                     addNameValue(q, 'group', group);
                     addNameValue(q, 'id', id);
                 }, FormPost, $witch(function(condition) {
