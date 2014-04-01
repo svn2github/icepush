@@ -74,7 +74,13 @@ public class LocalNotificationBroadcaster implements NotificationBroadcaster {
         }
 
         public void run() {
-            receiver.receive(notificationSet);
+            try {
+                receiver.receive(notificationSet);
+            } catch (Exception exception) {
+                if (LOGGER.isLoggable(Level.WARNING)) {
+                    LOGGER.log(Level.WARNING, "Exception caught on broadcast task.", exception);
+                }
+            }
         }
     }
 }

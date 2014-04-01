@@ -35,44 +35,72 @@ extends ServletRequest
 implements PushRequest, Request {
     private static final Logger LOGGER = Logger.getLogger(ServletPushRequest.class.getName());
 
+    private String cachedBrowserID;
+    private Long cachedHeartbeatInterval;
+    private Long cachedHeartbeatTimestamp;
+    private String cachedNotifyBackURI;
+    private Set<String> cachedPushIDSet;
+    private Long cachedSequenceNumber;
+    private String cachedWindowID;
+
     public ServletPushRequest(final HttpServletRequest request, final Configuration configuration)
     throws Exception {
         super(request, configuration);
     }
 
     public String getBrowserID() {
-        String _browserID = getHeader("ice.push.browser");
-        if (_browserID == null) {
-            _browserID = getParameter("ice.push.browser");
+        if (cachedBrowserID == null) {
+            cachedBrowserID = getHeader("ice.push.browser");
+            if (cachedBrowserID == null) {
+                cachedBrowserID = getParameter("ice.push.browser");
+            }
         }
-        return _browserID;
+        return cachedBrowserID;
     }
 
     public long getHeartbeatInterval()
     throws NumberFormatException {
-        return getParameterAsLong("ice.push.heartbeat");
+        if (cachedHeartbeatInterval == null) {
+            cachedHeartbeatInterval = getParameterAsLong("ice.push.heartbeat");
+        }
+        return cachedHeartbeatInterval;
     }
 
     public long getHeartbeatTimestamp()
     throws NumberFormatException {
-        return getHeaderAsLong("ice.push.heartbeatTimestamp");
+        if (cachedHeartbeatTimestamp == null) {
+            cachedHeartbeatTimestamp = getHeaderAsLong("ice.push.heartbeatTimestamp");
+        }
+        return cachedHeartbeatTimestamp;
     }
 
     public String getNotifyBackURI() {
-        return getHeader("ice.notifyBack");
+        if (cachedNotifyBackURI == null) {
+            cachedNotifyBackURI = getHeader("ice.notifyBack");
+        }
+        return cachedNotifyBackURI;
     }
 
     public Set<String> getPushIDSet() {
-        return new HashSet<String>(Arrays.asList(getParameterAsStrings("ice.pushid")));
+        if (cachedPushIDSet == null) {
+            cachedPushIDSet = new HashSet<String>(Arrays.asList(getParameterAsStrings("ice.pushid")));
+        }
+        return cachedPushIDSet;
     }
 
     public long getSequenceNumber()
     throws NumberFormatException {
-        return getHeaderAsLong("ice.push.sequence");
+        if (cachedSequenceNumber == null) {
+            cachedSequenceNumber = getHeaderAsLong("ice.push.sequence");
+        }
+        return cachedSequenceNumber;
     }
 
     public String getWindowID() {
-        return getHeader("ice.push.window");
+        if (cachedWindowID == null) {
+            cachedWindowID = getHeader("ice.push.window");
+        }
+        return cachedWindowID;
     }
 
     @Override
