@@ -17,7 +17,7 @@ package org.icepush.servlet;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,12 +28,14 @@ import javax.servlet.http.HttpServletResponse;
 import org.icepush.Browser;
 import org.icepush.Configuration;
 
-public abstract class BrowserDispatcher implements PseudoServlet {
+public abstract class BrowserDispatcher
+implements PseudoServlet {
     private final static Logger log = Logger.getLogger(BrowserDispatcher.class.getName());
-    private final Map browserBoundServlets = new HashMap();
     private final long browserTimeout;
 
-    public BrowserDispatcher(Configuration configuration) {
+    protected final Map<String, BrowserEntry> browserBoundServlets = new HashMap<String, BrowserEntry>();
+
+    public BrowserDispatcher(final Configuration configuration) {
         this.browserTimeout = configuration.getAttributeAsLong("browserTimeout", 10 * 60 * 1000);
     }
 
@@ -46,16 +48,15 @@ public abstract class BrowserDispatcher implements PseudoServlet {
 
     public void shutdown() {
         synchronized (browserBoundServlets) {
-            Iterator i = new ArrayList(browserBoundServlets.values()).iterator();
-            while (i.hasNext()) {
-                ((PseudoServlet)i.next()).shutdown();
+            List<BrowserEntry> browserEntryList = new ArrayList<BrowserEntry>(browserBoundServlets.values());
+            for (final BrowserEntry browserEntry : browserEntryList) {
+                browserEntry.shutdown();
             }
         }
     }
 
-    protected abstract PseudoServlet newServer(String browserID) throws Exception;
-
-    protected void checkSession(String browserID) throws Exception {
+    protected void checkSession(String browserID)
+    throws Exception {
         synchronized (browserBoundServlets) {
             if (!browserBoundServlets.containsKey(browserID)) {
                 browserBoundServlets.put(browserID, new BrowserEntry(browserID, this.newServer(browserID)));
@@ -63,27 +64,31 @@ public abstract class BrowserDispatcher implements PseudoServlet {
         }
     }
 
-    protected PseudoServlet lookupServer(final String browserID) {
+    protected void discardUnusedServlets() {
         synchronized (browserBoundServlets) {
-            return (PseudoServlet)browserBoundServlets.get(browserID);
-        }
-    }
-
-    private void discardUnusedServlets() {
-        synchronized (browserBoundServlets) {
-            Iterator i = new ArrayList(browserBoundServlets.values()).iterator();
-            while (i.hasNext()) {
-                ((BrowserEntry)i.next()).discardIfExpired();
+            List<BrowserEntry> browserEntryList = new ArrayList<BrowserEntry>(browserBoundServlets.values());
+            for (final BrowserEntry browserEntry : browserEntryList) {
+                browserEntry.discardIfExpired();
             }
         }
     }
 
-    private class BrowserEntry implements PseudoServlet {
+    protected PseudoServlet lookupServer(final String browserID) {
+        synchronized (browserBoundServlets) {
+            return browserBoundServlets.get(browserID);
+        }
+    }
+
+    protected abstract PseudoServlet newServer(String browserID)
+    throws Exception;
+
+    protected class BrowserEntry
+    implements PseudoServlet {
         private String id;
         private PseudoServlet servlet;
         private long lastAccess = System.currentTimeMillis();
 
-        private BrowserEntry(String id, PseudoServlet servlet) {
+        public BrowserEntry(final String id, final PseudoServlet servlet) {
             this.id = id;
             this.servlet = servlet;
             if (log.isLoggable(Level.FINEST)) {

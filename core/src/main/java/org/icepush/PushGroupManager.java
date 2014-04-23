@@ -33,6 +33,8 @@ public interface PushGroupManager {
 
     void cancelExpiryTimeouts(String browserID);
 
+    void clearPendingNotification(String pushID);
+
     void clearPendingNotifications(Set<String> pushIDSet);
 
     void deleteNotificationReceiver(NotificationBroadcaster.Receiver observer);

@@ -35,7 +35,9 @@ import org.icepush.SequenceTaggingServer;
 import org.icepush.http.PushServer;
 import org.icepush.util.Slot;
 
-public class BrowserBoundServlet extends PathDispatcher implements PseudoServlet {
+public class BrowserBoundServlet
+extends PathDispatcher
+implements PseudoServlet {
     private final static Logger log = Logger.getLogger(BrowserBoundServlet.class.getName());
 
     private static final Pattern NAME_VALUE = Pattern.compile("\\=");
@@ -47,6 +49,8 @@ public class BrowserBoundServlet extends PathDispatcher implements PseudoServlet
     protected final PushContext pushContext;
     protected final ServletContext servletContext;
     protected final boolean terminateBlockingConnectionOnShutdown;
+
+    protected boolean setUp = false;
 
     public BrowserBoundServlet(
         final String browserID, final PushContext pushContext, final ServletContext servletContext,
@@ -62,19 +66,40 @@ public class BrowserBoundServlet extends PathDispatcher implements PseudoServlet
         this.heartbeatInterval =
             new Slot(
                 configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout));
+    }
 
-        dispatchOn(
-            ".*listen\\.icepush",
-            new EnvironmentAdaptingServlet(createBlockingConnectionServer(), heartbeatInterval, configuration));
+    @Override
+    public void service(final HttpServletRequest request, final HttpServletResponse response)
+    throws Exception, IllegalStateException {
+        checkSetUp();
+        super.service(request, response);
+    }
+
+    public void setUp() {
+        dispatchOn(".*listen\\.icepush", newListen());
         dispatchOn(".*create-push-id\\.icepush", newCreatePushID());
         dispatchOn(".*notify\\.icepush", newNotifyPushID());
         dispatchOn(".*add-group-member\\.icepush", newAddGroupMember());
         dispatchOn(".*remove-group-member\\.icepush", newRemoveGroupMember());
+        setUp = true;
+    }
+
+    @Override
+    public void shutdown()
+    throws IllegalStateException {
+        checkSetUp();
+        super.shutdown();
+    }
+
+    protected void checkSetUp()
+    throws IllegalStateException {
+        if (!setUp) {
+            throw new IllegalStateException("Browser Bound Servlet is not set-up.");
+        }
     }
 
     protected PushServer createBlockingConnectionServer() {
-        Slot sequenceNo =
-            new Slot(0L);
+        Slot sequenceNo = new Slot(0L);
         return
             new ConfigurationServer(
                 heartbeatInterval,
@@ -83,37 +108,47 @@ public class BrowserBoundServlet extends PathDispatcher implements PseudoServlet
                 new PushStormDetectionServer(
                     new SequenceTaggingServer(
                         sequenceNo,
-                        new BlockingConnectionServer(
-                            browserID,
-                            monitoringScheduler,
-                            heartbeatInterval,
-                            terminateBlockingConnectionOnShutdown,
-                            configuration
-                        )
+                        newBlockingConnectionServer()
                     ),
                     configuration
                 )
             );
     }
 
-    protected AddGroupMember newAddGroupMember() {
+    protected PseudoServlet newAddGroupMember() {
         return new AddGroupMember();
     }
 
-    protected CreatePushID newCreatePushID() {
+    protected BlockingConnectionServer newBlockingConnectionServer() {
+        BlockingConnectionServer _blockBlockingConnectionServer =
+            new BlockingConnectionServer(
+                browserID, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration
+            );
+        _blockBlockingConnectionServer.setUp();
+        return _blockBlockingConnectionServer;
+    }
+
+    protected PseudoServlet newCreatePushID() {
         return new CreatePushID();
     }
 
-    protected NotifyPushID newNotifyPushID() {
+    protected PseudoServlet newListen() {
+        return new EnvironmentAdaptingServlet(createBlockingConnectionServer(), heartbeatInterval, configuration);
+    }
+
+    protected PseudoServlet newNotifyPushID() {
         return new NotifyPushID();
     }
 
-    protected RemoveGroupMember newRemoveGroupMember() {
+    protected PseudoServlet newRemoveGroupMember() {
         return new RemoveGroupMember();
     }
 
-    protected class AddGroupMember extends AbstractPseudoServlet {
-        public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    protected class AddGroupMember
+    extends AbstractPseudoServlet
+    implements PseudoServlet {
+        public void service(HttpServletRequest request, HttpServletResponse response)
+        throws Exception {
             String groupName = request.getParameter("group");
             String pushID = request.getParameter("id");
             addGroupMember(groupName, pushID);
@@ -126,8 +161,11 @@ public class BrowserBoundServlet extends PathDispatcher implements PseudoServlet
         }
     }
 
-    protected class CreatePushID extends AbstractPseudoServlet {
-        public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    protected class CreatePushID
+    extends AbstractPseudoServlet
+    implements PseudoServlet {
+        public void service(HttpServletRequest request, HttpServletResponse response)
+        throws Exception {
             response.setContentType("text/plain");
             response.getOutputStream().print(createPushID(request, response));
         }
@@ -137,8 +175,11 @@ public class BrowserBoundServlet extends PathDispatcher implements PseudoServlet
         }
     }
 
-    protected class NotifyPushID extends AbstractPseudoServlet {
-        public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    protected class NotifyPushID
+    extends AbstractPseudoServlet
+    implements PseudoServlet {
+        public void service(HttpServletRequest request, HttpServletResponse response)
+        throws Exception {
             String groupName = request.getParameter("group");
             PushConfiguration pushConfiguration;
 
@@ -190,8 +231,11 @@ public class BrowserBoundServlet extends PathDispatcher implements PseudoServlet
         }
     }
 
-    protected class RemoveGroupMember extends AbstractPseudoServlet {
-        public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    protected class RemoveGroupMember
+    extends AbstractPseudoServlet
+    implements PseudoServlet {
+        public void service(HttpServletRequest request, HttpServletResponse response)
+        throws Exception {
             String group = request.getParameter("group");
             String pushID = request.getParameter("id");
             removeGroupMember(group, pushID);

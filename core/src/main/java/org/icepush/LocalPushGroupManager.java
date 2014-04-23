@@ -61,7 +61,7 @@ implements InternalPushGroupManager, PushGroupManager {
     };
     private static final Comparator<Notification> ScheduledAtComparator = new Comparator<Notification>() {
         public int compare(Notification a, Notification b) {
-            return (int) (a.configuration.getScheduledAt() - b.configuration.getScheduledAt());
+            return (int) (a.getPushConfiguration().getScheduledAt() - b.getPushConfiguration().getScheduledAt());
         }
     };
     private final Notification NOOP = new Notification("---") {
@@ -163,6 +163,15 @@ implements InternalPushGroupManager, PushGroupManager {
         }
     }
 
+    public void clearPendingNotification(final String pushID) {
+        getPendingNotifiedPushIDSetLock().lock();
+        try {
+            clearPendingNotifications(getModifiablePendingNotifiedPushIDSet(), pushID);
+        } finally {
+            getPendingNotifiedPushIDSetLock().unlock();
+        }
+    }
+
     public void clearPendingNotifications(final Set<String> pushIDSet) {
         getPendingNotifiedPushIDSetLock().lock();
         try {
@@ -258,7 +267,7 @@ implements InternalPushGroupManager, PushGroupManager {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(Level.FINE, "Push Notification request for Push Group '" + groupName + "'.");
         }
-        if (!queue.offer(new Notification(groupName))) {
+        if (!queue.offer(newNotification(groupName))) {
             // Leave at INFO
             if (LOGGER.isLoggable(Level.INFO)) {
                 LOGGER.log(
@@ -278,9 +287,9 @@ implements InternalPushGroupManager, PushGroupManager {
         }
         Notification notification;
         if (pushConfiguration.getAttributes().get("subject") != null) {
-            notification = new OutOfBandNotification(groupName, pushConfiguration);
+            notification = newOutOfBandNotification(groupName, pushConfiguration);
         } else {
-            notification = new Notification(groupName, pushConfiguration);
+            notification = newNotification(groupName, pushConfiguration);
         }
         //add this notification to a blocking queue
         queue.add(notification);
@@ -303,7 +312,7 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public void removePendingNotification(final String pushID) {
-        clearPendingNotifications(new HashSet<String>(Arrays.asList(pushID)));
+        clearPendingNotification(pushID);
     }
 
     public void removePendingNotifications(final Set<String> pushIDSet) {
@@ -325,14 +334,8 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public void startConfirmationTimeout(final Set<NotificationEntry> notificationSet) {
-        for (final NotificationEntry notificationEntry : notificationSet) {
-            PushID _pushID = getPushID(notificationEntry.getPushID());
-            if (_pushID != null) {
-                Browser _browser = getBrowser(_pushID.getBrowserID());
-                if (_browser != null) {
-                    _browser.startConfirmationTimeout(notificationEntry.getGroupName());
-                }
-            }
+        for (final NotificationEntry _notificationEntry : notificationSet) {
+            startConfirmationTimeout(_notificationEntry);
         }
     }
 
@@ -529,6 +532,19 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected void clearPendingNotifications(
+        final Set<NotificationEntry> pendingNotifiedPushIDSet, final String pushID) {
+
+        Iterator<NotificationEntry> pendingNotifiedPushIDIterator =
+            new HashSet<NotificationEntry>(pendingNotifiedPushIDSet).iterator();
+        while (pendingNotifiedPushIDIterator.hasNext()) {
+            NotificationEntry _pendingNotifiedPushID = pendingNotifiedPushIDIterator.next();
+            if (_pendingNotifiedPushID.getPushID().equals(pushID)) {
+                pendingNotifiedPushIDSet.remove(_pendingNotifiedPushID);
+            }
+        }
+    }
+
+    protected void clearPendingNotifications(
         final Set<NotificationEntry> pendingNotifiedPushIDSet, final Set<String> pushIDSet) {
 
         Iterator<NotificationEntry> pendingNotifiedPushIDIterator =
@@ -607,6 +623,24 @@ implements InternalPushGroupManager, PushGroupManager {
         return new Group(name, getGroupTimeout());
     }
 
+    protected Notification newNotification(
+        final String groupName) {
+
+        return new Notification(groupName);
+    }
+
+    protected Notification newNotification(
+        final String groupName, final PushConfiguration pushConfiguration) {
+
+        return new Notification(groupName, pushConfiguration);
+    }
+
+    protected OutOfBandNotification newOutOfBandNotification(
+        final String groupName, final PushConfiguration pushConfiguration) {
+
+        return new OutOfBandNotification(groupName, pushConfiguration);
+    }
+
     protected PushID newPushID(final String id) {
         PushID pushID = new PushID(id, getPushIDTimeout(), getCloudPushIDTimeout());
         pushID.startExpiryTimeout();
@@ -681,22 +715,30 @@ implements InternalPushGroupManager, PushGroupManager {
         }
     }
 
-    private class Notification implements Runnable {
-        private final PushConfiguration DEFAULT_CONFIGURATION = new PushConfiguration();
+    protected void startConfirmationTimeout(final NotificationEntry notificationEntry) {
+        PushID _pushID = getPushID(notificationEntry.getPushID());
+        if (_pushID != null) {
+            Browser _browser = getBrowser(_pushID.getBrowserID());
+            if (_browser != null) {
+                _browser.startConfirmationTimeout(notificationEntry.getGroupName());
+            }
+        }
+    }
 
+    protected class Notification
+    implements Runnable {
         protected final String groupName;
         protected final Set<String> exemptPushIDSet = new HashSet<String>();
-        protected PushConfiguration configuration;
+        protected PushConfiguration pushConfiguration;
 
-        public Notification(String groupName) {
-            this.groupName = groupName;
-            this.configuration = DEFAULT_CONFIGURATION;
+        protected Notification(String groupName) {
+            this(groupName, new PushConfiguration());
         }
 
-        public Notification(final String groupName, final PushConfiguration config) {
+        protected Notification(final String groupName, final PushConfiguration pushConfiguration) {
             this.groupName = groupName;
-            this.configuration = config;
-            Set<String> pushIDSet = (Set<String>)config.getAttributes().get("pushIDSet");
+            this.pushConfiguration = pushConfiguration;
+            Set<String> pushIDSet = (Set<String>)this.pushConfiguration.getAttributes().get("pushIDSet");
             if (pushIDSet != null) {
                 this.exemptPushIDSet.addAll(pushIDSet);
             }
@@ -711,18 +753,19 @@ implements InternalPushGroupManager, PushGroupManager {
                     }
                     Set<String> pushIDSet = new HashSet<String>(Arrays.asList(group.getPushIDs()));
                     pushIDSet.removeAll(exemptPushIDSet);
-                    Set<NotificationEntry> notificationSet = new HashSet<NotificationEntry>();
+                    Set<NotificationEntry> notificationEntrySet = new HashSet<NotificationEntry>();
                     for (final String pushID : pushIDSet) {
-                        notificationSet.add(new NotificationEntry(pushID, groupName));
+                        notificationEntrySet.add(newNotificationEntry(pushID, groupName));
                     }
+                    filterNotificationEntrySet(notificationEntrySet);
                     getPendingNotifiedPushIDSetLock().lock();
                     try {
-                        getModifiablePendingNotifiedPushIDSet().addAll(notificationSet);
+                        getModifiablePendingNotifiedPushIDSet().addAll(notificationEntrySet);
                     } finally {
                         getPendingNotifiedPushIDSetLock().unlock();
                     }
-                    startConfirmationTimeout(notificationSet);
-                    outboundNotifier.broadcast(notificationSet, configuration.getDuration());
+                    startConfirmationTimeout(notificationEntrySet);
+                    outboundNotifier.broadcast(notificationEntrySet, getPushConfiguration().getDuration());
                     pushed(groupName);
                 }
             } finally {
@@ -736,14 +779,24 @@ implements InternalPushGroupManager, PushGroupManager {
                 nextNotification.exemptPushIDSet.addAll(Arrays.asList(group.getPushIDs()));
             }
         }
+
+        protected void filterNotificationEntrySet(final Set<NotificationEntry> notificationEntrySet) {
+        }
+
+        protected PushConfiguration getPushConfiguration() {
+            return pushConfiguration;
+        }
+
+        protected NotificationEntry newNotificationEntry(final String pushID, final String groupName) {
+            return new NotificationEntry(pushID, groupName);
+        }
     }
 
-    private class OutOfBandNotification extends Notification {
-        private final PushConfiguration config;
-
-        public OutOfBandNotification(String groupName, PushConfiguration config) {
-            super(groupName, config);
-            this.config = config;
+    protected class OutOfBandNotification
+    extends Notification
+    implements Runnable {
+        protected OutOfBandNotification(final String groupName, final PushConfiguration pushConfiguration) {
+            super(groupName, pushConfiguration);
         }
 
         public void run() {
@@ -755,7 +808,7 @@ implements InternalPushGroupManager, PushGroupManager {
             for (final String pushID : pushIDs) {
                 Browser browser = getBrowser(getPushID(pushID).getBrowserID());
                 if (browser != null) {
-                    browser.setPushConfiguration(config);
+                    browser.setPushConfiguration(getPushConfiguration());
                 }
             }
             super.run();
@@ -779,19 +832,19 @@ implements InternalPushGroupManager, PushGroupManager {
                         TreeSet<Notification> notifications = new TreeSet(ScheduledAtComparator);
                         notifications.addAll(queue);
                         Notification scheduledNotification = notifications.first();
-                        long scheduledAt = scheduledNotification.configuration.getScheduledAt();
+                        long scheduledAt = scheduledNotification.getPushConfiguration().getScheduledAt();
                         if (scheduledAt < currentTime) {
                             //ready to send
                             queue.remove(scheduledNotification);
 
-                            long duration = scheduledNotification.configuration.getDuration();
+                            long duration = scheduledNotification.getPushConfiguration().getDuration();
                             long endOfScheduledNotification = scheduledAt + duration;
 
                             for (Notification nextScheduledNotification: notifications) {
                                 //skip first notification
                                 if (nextScheduledNotification == scheduledNotification) continue;
                                 //test if it overlaps
-                                if (endOfScheduledNotification > nextScheduledNotification.configuration.getScheduledAt()) {
+                                if (endOfScheduledNotification > nextScheduledNotification.getPushConfiguration().getScheduledAt()) {
                                     //coalesce current notification with next overlapping notification
                                     scheduledNotification.coalesceWith(nextScheduledNotification);
                                 } else {

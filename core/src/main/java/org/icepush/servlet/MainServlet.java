@@ -125,17 +125,27 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected PseudoServlet createBrowserBoundServlet(final String browserID) {
-        return new BrowserBoundServlet(browserID, pushContext, servletContext, monitoringScheduler, configuration, terminateConnectionOnShutdown);
+        BrowserBoundServlet browserBoundServlet =
+            new BrowserBoundServlet(
+                browserID,
+                pushContext,
+                servletContext,
+                monitoringScheduler,
+                configuration,
+                terminateConnectionOnShutdown
+            );
+        browserBoundServlet.setUp();
+        return browserBoundServlet;
     }
 
     protected PseudoServlet createBrowserDispatcher() {
         return
             new CheckBrowserIDServlet(
-                    new BrowserDispatcher(configuration) {
-                        protected PseudoServlet newServer(final String browserID) {
-                            return createBrowserBoundServlet(browserID);
-                        }
-                    });
+                new BrowserDispatcher(configuration) {
+                    protected PseudoServlet newServer(final String browserID) {
+                        return createBrowserBoundServlet(browserID);
+                    }
+                });
     }
 
     protected void createOutOfBandNotifier(final ServletContext servletContext) {

@@ -53,6 +53,9 @@ implements PushGroupManager {
     public void cancelExpiryTimeouts(final String browserID) {
     }
 
+    public void clearPendingNotification(final String pushID) {
+    }
+
     public void clearPendingNotifications(final Set<String> pushIDSet) {
     }
 

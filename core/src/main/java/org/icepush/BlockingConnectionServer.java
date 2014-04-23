@@ -26,7 +26,6 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
@@ -67,6 +66,9 @@ implements NotificationBroadcaster.Receiver, PushServer {
     private final long minCloudPushInterval;
     private final long maxHeartbeatInterval;
     private final long minHeartbeatInterval;
+
+    private final Set<NotificationListener>listenerSet = new CopyOnWriteArraySet<NotificationListener>();
+
     private String browserID;
     private long responseTimeoutTime;
     private PushServer activeServer;
@@ -78,30 +80,33 @@ implements NotificationBroadcaster.Receiver, PushServer {
     private long requestTimestamp = System.currentTimeMillis();
     private long backOffDelay = 0;
 
+    private boolean setUp = false;
+
     public BlockingConnectionServer(
         final String browserID, final Timer monitoringScheduler, final Slot heartbeat,
         final boolean terminateBlockingConnectionOnShutdown, final Configuration configuration) {
 
         this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", 10 * 1000);
         this.browserID = browserID;
-        this.pushGroupManager.addBrowser(newBrowser(getBrowserID(), getMinCloudPushInterval()));
-        this.pushGroupManager.addBlockingConnectionServer(getBrowserID(), this);
         this.monitoringScheduler = monitoringScheduler;
         this.heartbeatInterval = heartbeat;
         this.defaultConnectionRecreationTimeout = configuration.getAttributeAsLong("connectionRecreationTimeout", 5000);
-        //add monitor
-        this.monitoringScheduler.scheduleAtFixedRate(this, 0, 1000);
         this.pushGroupManager.addNotificationReceiver(this);
         this.maxHeartbeatInterval =
             configuration.getAttributeAsLong("maxHeartbeatInterval", Math.round(3 * heartbeat.getLongValue()));
         this.minHeartbeatInterval =
             configuration.getAttributeAsLong("minHeartbeatInterval", heartbeat.getLongValue() / 3);
-
         //define blocking server
-        activeServer = new RunningServer(terminateBlockingConnectionOnShutdown);
+        this.activeServer = new RunningServer(terminateBlockingConnectionOnShutdown);
     }
 
-    public synchronized void backOff(final long delay) {
+    public void addNotificationListener(final NotificationListener listener) {
+        listenerSet.add(listener);
+    }
+
+    public synchronized void backOff(final long delay)
+    throws IllegalStateException {
+        checkSetUp();
         if (delay > 0) {
             backOffDelay = delay;
             respondIfBackOffRequested();
@@ -112,30 +117,30 @@ implements NotificationBroadcaster.Receiver, PushServer {
         return browserID;
     }
 
-    public boolean isInterested(Set<NotificationEntry> notificationSet) {
-        Iterator<NotificationEntry> notificationEntryIterator = notificationSet.iterator();
-        while (notificationEntryIterator.hasNext()) {
-            if (pushGroupManager.getBrowser(getBrowserID()).getPushIDSet().contains(notificationEntryIterator.next().getPushID())) {
+    public boolean isInterested(final Set<NotificationEntry> notificationEntrySet) {
+        for (final NotificationEntry _notificationEntry : notificationEntrySet) {
+            if (getPushGroupManager().
+                    getBrowser(getBrowserID()).getPushIDSet().contains(_notificationEntry.getPushID())) {
+
                 return true;
             }
         }
         return false;
     }
 
-    public void service(final PushRequest pushRequest)
-    throws Exception {
-        activeServer.service(pushRequest);
+    public void receive(final Set<NotificationEntry> notificationSet)
+    throws IllegalStateException {
+        checkSetUp();
+        sendNotifications(notificationSet);
     }
 
-    public void shutdown() {
-        cancel();
-        pushGroupManager.deleteNotificationReceiver(this);
-        pushGroupManager.removeBlockingConnectionServer(getBrowserID());
-        pushGroupManager.removeBrowser(pushGroupManager.getBrowser(getBrowserID()));
-        activeServer.shutdown();
+    public void removeNotificationListener(final NotificationListener listener) {
+        listenerSet.remove(listener);
     }
 
-    public void run() {
+    public void run()
+    throws IllegalStateException {
+        checkSetUp();
         try {
             if (System.currentTimeMillis() > responseTimeoutTime) {
                 respondIfPendingRequest(NOOP_TIMEOUT);
@@ -145,6 +150,37 @@ implements NotificationBroadcaster.Receiver, PushServer {
                 LOGGER.log(
                     Level.WARNING, "Exception caught on " + this.getClass().getName() + " TimerTask.", exception);
             }
+        }
+    }
+
+    public void service(final PushRequest pushRequest)
+    throws Exception, IllegalStateException {
+        checkSetUp();
+        activeServer.service(pushRequest);
+    }
+
+    public void setUp() {
+        pushGroupManager.addBrowser(newBrowser(getBrowserID(), getMinCloudPushInterval()));
+        pushGroupManager.addBlockingConnectionServer(getBrowserID(), this);
+        setUp = true;
+        //add monitor
+        monitoringScheduler.scheduleAtFixedRate(this, 0, 1000);
+    }
+
+    public void shutdown()
+    throws IllegalStateException {
+        checkSetUp();
+        cancel();
+        pushGroupManager.deleteNotificationReceiver(this);
+        pushGroupManager.removeBlockingConnectionServer(getBrowserID());
+        pushGroupManager.removeBrowser(pushGroupManager.getBrowser(getBrowserID()));
+        activeServer.shutdown();
+    }
+
+    protected void checkSetUp()
+    throws IllegalStateException {
+        if (!setUp) {
+            throw new IllegalStateException("Blocking Connection Server has not been set-up.");
         }
     }
 
@@ -160,30 +196,88 @@ implements NotificationBroadcaster.Receiver, PushServer {
         return new Browser(browserID, minCloudPushInterval);
     }
 
-    private synchronized boolean sendNotifications(final Set<NotificationEntry> notificationSet) {
-        //stop sending notifications if pushID are not used anymore by the browser
-        Set<NotificationEntry> matchingSet = new HashSet<NotificationEntry>();
-        Iterator<NotificationEntry> notificationEntryIterator = notificationSet.iterator();
-        while (notificationEntryIterator.hasNext()) {
-            NotificationEntry notificationEntry = notificationEntryIterator.next();
-            if (pushGroupManager.getBrowser(getBrowserID()).getPushIDSet().contains(notificationEntry.getPushID())) {
-                matchingSet.add(notificationEntry);
+    protected void notificationSent(final NotificationEvent event) {
+        for (final NotificationListener listener : listenerSet) {
+            listener.notificationSent(event);
+        }
+    }
+
+    private void adjustConnectionRecreationTimeout(final PushRequest pushRequest) {
+        Browser browser = pushGroupManager.getBrowser(getBrowserID());
+        for (final String pushIDString : browser.getPushIDSet()) {
+            PushID pushID = pushGroupManager.getPushID(pushIDString);
+            if (pushID != null) {
+                if (browser.getStatus().getConnectionRecreationTimeout() == -1) {
+                    browser.getStatus().setConnectionRecreationTimeout(defaultConnectionRecreationTimeout);
+                }
+                browser.getStatus().backUpConnectionRecreationTimeout();
             }
         }
-        boolean anyNotifications = !matchingSet.isEmpty();
-        if (anyNotifications) {
-            pushGroupManager.getBrowser(getBrowserID()).
-                addNotifiedPushIDs(matchingSet);
-            pushGroupManager.getBrowser(getBrowserID()).
-                retainNotifiedPushIDs(pushGroupManager.getPendingNotificationSet());
-            resetTimeout(pendingRequest.peek());
-            respondIfNotificationsAvailable();
+        long now = System.currentTimeMillis();
+        long elapsed = now - requestTimestamp;
+        requestTimestamp = now;
+        long currentResponseDelay = requestTimestamp - responseTimestamp;
+        //adaptive timeout -- see algorithm described in PUSH-164
+        long responseDelay = currentResponseDelay;
+        for (final String pushIDString : browser.getPushIDSet()) {
+            PushID pushID = pushGroupManager.getPushID(pushIDString);
+            if (pushID != null) {
+                responseDelay = Math.max(responseDelay, (browser.getStatus().getConnectionRecreationTimeout() * 4) / 5);
+                responseDelay = Math.min(responseDelay, (browser.getStatus().getConnectionRecreationTimeout() * 3) / 2);
+                responseDelay = Math.max(responseDelay, 500);
+                browser.getStatus().setConnectionRecreationTimeout(
+                    (responseDelay + (browser.getStatus().getConnectionRecreationTimeout() * 4)) / 5);
+            }
         }
-        return anyNotifications;
+
+        if (LOGGER.isLoggable(Level.FINE)) {
+            setNotifyBackURI(pushRequest);
+            LOGGER.log(
+                Level.FINE,
+                "ICEpush metric:" +
+                    " IP: " + pushRequest.getRemoteAddr() +
+                    " pushIds: " + browser.getPushIDSet() +
+                    " Cloud Push ID: " + browser.getNotifyBackURI() +
+                    " Browser: " + browser.getID() +
+                    " last request: " + elapsed +
+                    " Latency: " + currentResponseDelay);
+        }
+    }
+
+    private void recordResponseTime() {
+        responseTimestamp = System.currentTimeMillis();
     }
 
     private void resendLastNotifications() {
         sendNotifications(pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet());
+    }
+
+    private void resetTimeout(final PushRequest pushRequest) {
+        long clientSideHeartbeatInterval;
+        if (pushRequest != null) {
+            try {
+                clientSideHeartbeatInterval = pushRequest.getHeartbeatInterval();
+            } catch (final NumberFormatException exception) {
+                clientSideHeartbeatInterval = Long.MAX_VALUE;
+            }
+        } else {
+            clientSideHeartbeatInterval = Long.MAX_VALUE;
+        }
+        long serverSideHeartbeatInterval = heartbeatInterval.getLongValue();
+        long heartbeatInterval =
+            Math.min(
+                Math.max(
+                    Math.min(clientSideHeartbeatInterval, serverSideHeartbeatInterval),
+                    minHeartbeatInterval),
+                maxHeartbeatInterval);
+        responseTimeoutTime = System.currentTimeMillis() +heartbeatInterval;
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(Level.FINE,
+                "Heartbeat Interval: " +
+                    "client-side '" + clientSideHeartbeatInterval + "', " +
+                    "server-side '" + serverSideHeartbeatInterval + "', " +
+                    "used '" + heartbeatInterval + "'.");
+        }
     }
 
     private synchronized boolean respondIfBackOffRequested() {
@@ -240,34 +334,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
         }
     }
 
-    private void resetTimeout(final PushRequest pushRequest) {
-        long clientSideHeartbeatInterval;
-        if (pushRequest != null) {
-            try {
-                clientSideHeartbeatInterval = pushRequest.getHeartbeatInterval();
-            } catch (final NumberFormatException exception) {
-                clientSideHeartbeatInterval = Long.MAX_VALUE;
-            }
-        } else {
-            clientSideHeartbeatInterval = Long.MAX_VALUE;
-        }
-        long serverSideHeartbeatInterval = heartbeatInterval.getLongValue();
-        long heartbeatInterval =
-            Math.min(
-                Math.max(
-                    Math.min(clientSideHeartbeatInterval, serverSideHeartbeatInterval),
-                    minHeartbeatInterval),
-                maxHeartbeatInterval);
-        responseTimeoutTime = System.currentTimeMillis() +heartbeatInterval;
-        if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(Level.FINE,
-                "Heartbeat Interval: " +
-                    "client-side '" + clientSideHeartbeatInterval + "', " +
-                    "server-side '" + serverSideHeartbeatInterval + "', " +
-                    "used '" + heartbeatInterval + "'.");
-        }
-    }
-
     private boolean respondIfPendingRequest(final PushResponseHandler handler) {
         PushRequest previousRequest = pendingRequest.poll();
         if (previousRequest != null) {
@@ -288,8 +354,34 @@ implements NotificationBroadcaster.Receiver, PushServer {
         return false;
     }
 
-    public void receive(final Set<NotificationEntry> notificationSet) {
-        sendNotifications(notificationSet);
+    private synchronized boolean sendNotifications(final Set<NotificationEntry> notificationSet) {
+        //stop sending notifications if pushID are not used anymore by the browser
+        Set<NotificationEntry> matchingSet = new HashSet<NotificationEntry>();
+        Iterator<NotificationEntry> notificationEntryIterator = notificationSet.iterator();
+        while (notificationEntryIterator.hasNext()) {
+            NotificationEntry notificationEntry = notificationEntryIterator.next();
+            if (pushGroupManager.getBrowser(getBrowserID()).getPushIDSet().contains(notificationEntry.getPushID())) {
+                matchingSet.add(notificationEntry);
+            }
+        }
+        boolean anyNotifications = !matchingSet.isEmpty();
+        if (anyNotifications) {
+            pushGroupManager.getBrowser(getBrowserID()).
+                addNotifiedPushIDs(matchingSet);
+            pushGroupManager.getBrowser(getBrowserID()).
+                retainNotifiedPushIDs(pushGroupManager.getPendingNotificationSet());
+            resetTimeout(pendingRequest.peek());
+            respondIfNotificationsAvailable();
+        }
+        return anyNotifications;
+    }
+
+    private void setNotifyBackURI(final PushRequest pushRequest) {
+        String notifyBack = pushRequest.getNotifyBackURI();
+        if (notifyBack != null && notifyBack.trim().length() != 0) {
+            pushGroupManager.getBrowser(getBrowserID()).
+                setNotifyBackURI(pushGroupManager.newNotifyBackURI(notifyBack), true);
+        }
     }
 
     private class RunningServer
@@ -352,77 +444,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
             activeServer = AfterShutdown;
             respondIfPendingRequest(
                 terminateBlockingConnectionOnShutdown ? closeConnectionShutdown : NOOP_SHUTDOWN);
-        }
-    }
-
-    private void adjustConnectionRecreationTimeout(final PushRequest pushRequest) {
-        Browser browser = pushGroupManager.getBrowser(getBrowserID());
-        for (final String pushIDString : browser.getPushIDSet()) {
-            PushID pushID = pushGroupManager.getPushID(pushIDString);
-            if (pushID != null) {
-                if (browser.getStatus().getConnectionRecreationTimeout() == -1) {
-                    browser.getStatus().setConnectionRecreationTimeout(defaultConnectionRecreationTimeout);
-                }
-                browser.getStatus().backUpConnectionRecreationTimeout();
-            }
-        }
-        long now = System.currentTimeMillis();
-        long elapsed = now - requestTimestamp;
-        requestTimestamp = now;
-        long currentResponseDelay = requestTimestamp - responseTimestamp;
-        //adaptive timeout -- see algorithm described in PUSH-164
-        long responseDelay = currentResponseDelay;
-        for (final String pushIDString : browser.getPushIDSet()) {
-            PushID pushID = pushGroupManager.getPushID(pushIDString);
-            if (pushID != null) {
-                responseDelay = Math.max(responseDelay, (browser.getStatus().getConnectionRecreationTimeout() * 4) / 5);
-                responseDelay = Math.min(responseDelay, (browser.getStatus().getConnectionRecreationTimeout() * 3) / 2);
-                responseDelay = Math.max(responseDelay, 500);
-                browser.getStatus().setConnectionRecreationTimeout(
-                    (responseDelay + (browser.getStatus().getConnectionRecreationTimeout() * 4)) / 5);
-            }
-        }
-
-        if (LOGGER.isLoggable(Level.FINE)) {
-            setNotifyBackURI(pushRequest);
-            LOGGER.log(
-                Level.FINE,
-                "ICEpush metric:" +
-                    " IP: " + pushRequest.getRemoteAddr() +
-                    " pushIds: " + browser.getPushIDSet() +
-                    " Cloud Push ID: " + browser.getNotifyBackURI() +
-                    " Browser: " + browser.getID() +
-                    " last request: " + elapsed +
-                    " Latency: " + currentResponseDelay);
-        }
-    }
-
-    private void recordResponseTime() {
-        responseTimestamp = System.currentTimeMillis();
-    }
-
-    private void setNotifyBackURI(final PushRequest pushRequest) {
-        String notifyBack = pushRequest.getNotifyBackURI();
-        if (notifyBack != null && notifyBack.trim().length() != 0) {
-            pushGroupManager.getBrowser(getBrowserID()).
-                setNotifyBackURI(pushGroupManager.newNotifyBackURI(notifyBack), true);
-        }
-    }
-
-    private final Set<NotificationListener>
-        listenerSet = new CopyOnWriteArraySet<NotificationListener>();
-
-    public void addNotificationListener(final NotificationListener listener) {
-        listenerSet.add(listener);
-    }
-
-    public void removeNotificationListener(final NotificationListener listener) {
-        listenerSet.remove(listener);
-    }
-
-    protected void notificationSent(final NotificationEvent event) {
-        for (final NotificationListener listener : listenerSet) {
-            listener.notificationSent(event);
         }
     }
 }

@@ -15,7 +15,8 @@
  */
 package org.icepush.servlet;
 
-public abstract class AbstractPseudoServlet implements PseudoServlet {
+public abstract class AbstractPseudoServlet
+implements PseudoServlet {
     public void shutdown() {
     }
 }
