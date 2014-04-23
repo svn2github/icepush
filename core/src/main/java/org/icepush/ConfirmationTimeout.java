@@ -69,6 +69,9 @@ extends TimerTask {
                                 getBrowserID()
                             },
                             groupName);
+                    localPushGroupManager.
+                        clearPendingNotifications(_browser.getPushIDSet());
+                    _browser.removeNotifiedPushIDs(_browser.getLastNotifiedPushIDSet());
                 }
             }
             _browser.cancelConfirmationTimeout();
