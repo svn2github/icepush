@@ -164,7 +164,7 @@ var AsyncConnection;
                                     info(logger, reason);
                                 }
                                 //avoid to reconnect
-                                stop(timeoutBomb);
+                                stopTimeoutBombs();
                             }
                             receiveXWindowHeader(response);
                         });
@@ -202,8 +202,7 @@ var AsyncConnection;
             });
             method(stop, noop);
         });
-        var timeoutBomb = NoopDelay;
-        var pendingTimeoutBombs = [];
+        var pendingTimeoutThunks = [];
         var timeoutThunks = [
             function() {
                 warn(logger, 'failed to connect, first retry...');
@@ -259,28 +258,39 @@ var AsyncConnection;
                 broadcast(connectionDownListeners);
             }
         ];
+        var stopTimeoutBombs = noop;
 
         function chainTimeoutBombs(thunks, interval) {
-            stop(timeoutBomb);
+            stopTimeoutBombs();
             var remainingThunks = copy(thunks);
-            timeoutBomb = runOnce(inject(reverse(thunks), NoopDelay, function(result, thunk) {
-                return Delay(function() {
-                    remainingThunks = reject(remainingThunks, function(i) {
-                        return i == thunk;
-                    });
-                    thunk();
-                    timeoutBomb = runOnce(result);
-                }, interval);
-            }));
+            function startTimeoutBombs() {
+                var run = true;
+                var timeoutBomb = runOnce(inject(reverse(thunks), NoopDelay, function(result, thunk) {
+                    return Delay(function() {
+                        if (run) {
+                            remainingThunks.length = remainingThunks.length - 1;
+                            thunk();
+                            timeoutBomb = runOnce(result);
+                        }
+                    }, interval);
+                }));
+
+                return function() {
+                    stop(timeoutBomb);
+                    run = false;
+                }
+            }
+            stopTimeoutBombs = startTimeoutBombs();
+
             return remainingThunks;
         }
 
         function resetTimeoutBomb() {
-            pendingTimeoutBombs = chainTimeoutBombs(timeoutThunks, heartbeatTimeout);
+            pendingTimeoutThunks = chainTimeoutBombs(timeoutThunks, heartbeatTimeout);
         }
 
         function adjustTimeoutInterval() {
-            pendingTimeoutBombs = chainTimeoutBombs(pendingTimeoutBombs, heartbeatTimeout);
+            pendingTimeoutThunks = chainTimeoutBombs(pendingTimeoutThunks, heartbeatTimeout);
         }
 
         function initializeConnection() {
@@ -363,7 +373,7 @@ var AsyncConnection;
                             if (notEmpty(registeredPushIds())) {
                                 initializeConnection();
                             } else {
-                                stop(timeoutBomb);
+                                stopTimeoutBombs();
                             }
                         }
                         updateLease();
@@ -384,7 +394,7 @@ var AsyncConnection;
                     }
                 } else {
                     //ensure that only one blocking connection exists
-                    stop(timeoutBomb);
+                    stopTimeoutBombs();
                     abort(listener);
                 }
 
@@ -445,7 +455,7 @@ var AsyncConnection;
                 if (not(paused)) {
                     abort(listener);
                     stop(blockingConnectionMonitor);
-                    stop(timeoutBomb);
+                    stopTimeoutBombs();
                     connect = noop;
                     paused = true;
                 }
@@ -485,13 +495,14 @@ var AsyncConnection;
                     //shutdown once
                     method(shutdown, noop);
                     connect = noop;
+                    resetTimeoutBomb = noop;
                 } catch (e) {
                     error(logger, 'error during shutdown', e);
                     //ignore, we really need to shutdown
                 } finally {
                     onReceiveListeners = connectionDownListeners = onServerErrorListeners = [];
                     abort(listener);
-                    stop(timeoutBomb);
+                    stopTimeoutBombs();
                     stop(blockingConnectionMonitor);
                     removeSlot(listening);
                 }

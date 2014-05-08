@@ -445,6 +445,7 @@ if (!window.ice.icepush) {
 
             function dispose() {
                 try {
+                    info(logger, 'shutting down bridge...');
                     dispose = noop;
                     disposeBroadcast(notificationBroadcaster);
                 } finally {
@@ -473,6 +474,7 @@ if (!window.ice.icepush) {
                 } else {
                     var mimeType = getHeader(response, 'Content-Type');
                     warn(logger, 'unknown content in response - ' + mimeType + ', expected text/xml');
+                    dispose();
                 }
 
                 //update sequence number incremented by the server
