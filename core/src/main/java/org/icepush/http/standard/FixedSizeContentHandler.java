@@ -38,12 +38,20 @@ public abstract class FixedSizeContentHandler implements ResponseHandler {
         StringWriter writer = new StringWriter();
         writeTo(writer);
         writer.write("\n\n");
-        writer.flush();
         byte[] content = writer.getBuffer().toString().getBytes(characterSet);
         response.setHeader("Content-Type", mimeType + "; charset=" + characterSet);
-        response.setHeader("Content-Length", content.length);
+
+        //PUSH-315: setting the Content-Length causes a problem on Liferay 6.2 where
+        //short XML responses to various push requests (e.g. <noop/>) are truncated
+        //or missing entirely.
+//        response.setHeader("Content-Length", content.length);
+
         OutputStream out = response.writeBody();
-        out.write(content);
-        out.close();
+        try {
+            out.write(content);
+            out.flush();
+        } finally {
+            out.close();
+        }
     }
 }
