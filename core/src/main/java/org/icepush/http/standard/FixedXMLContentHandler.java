@@ -17,7 +17,7 @@ package org.icepush.http.standard;
 
 import org.icepush.http.Response;
 
-public abstract class FixedXMLContentHandler extends FixedSizeContentHandler {
+public abstract class FixedXMLContentHandler extends ContentTypeContentHandler {
 
     protected FixedXMLContentHandler() {
         super("text/xml", "UTF-8");

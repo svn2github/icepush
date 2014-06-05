@@ -23,11 +23,11 @@ import java.io.Writer;
 import org.icepush.http.Response;
 import org.icepush.http.ResponseHandler;
 
-public abstract class FixedSizeContentHandler implements ResponseHandler {
+public abstract class ContentTypeContentHandler implements ResponseHandler {
     private String mimeType;
     private String characterSet;
 
-    protected FixedSizeContentHandler(String mimeType, String characterSet) {
+    protected ContentTypeContentHandler(String mimeType, String characterSet) {
         this.mimeType = mimeType;
         this.characterSet = characterSet;
     }
@@ -47,11 +47,7 @@ public abstract class FixedSizeContentHandler implements ResponseHandler {
 //        response.setHeader("Content-Length", content.length);
 
         OutputStream out = response.writeBody();
-        try {
-            out.write(content);
-            out.flush();
-        } finally {
-            out.close();
-        }
+        out.write(content);
+        out.flush();
     }
 }
