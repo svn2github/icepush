@@ -387,9 +387,9 @@ implements InternalPushGroupManager, PushGroupManager {
                     LOGGER.log(
                         Level.FINE,
                         "Start confirmation timeout for Browser '" + browserID + "' (" +
-                                "URI: '" + notifyBackURI + "', " +
-                                "timeout: '" + timeout + "', " +
-                                "sequence number: '" + sequenceNumber + "'" +
+                            "URI: '" + notifyBackURI + "', " +
+                            "timeout: '" + timeout + "', " +
+                            "sequence number: '" + sequenceNumber + "'" +
                         ").");
                 }
                 try {
@@ -431,10 +431,10 @@ implements InternalPushGroupManager, PushGroupManager {
                 LOGGER.log(
                     Level.FINE,
                     "Start expiry timeout for PushID '" + pushID + "' (" +
-                            "timeout: '" +
-                                (!_isCloudPushID ? _pushID.getPushIDTimeout() : _pushID.getCloudPushIDTimeout()) +
-                            "', " +
-                            "sequence number: '" + sequenceNumber + "'" +
+                        "timeout: '" +
+                            (!_isCloudPushID ? _pushID.getPushIDTimeout() : _pushID.getCloudPushIDTimeout()) +
+                        "', " +
+                        "sequence number: '" + sequenceNumber + "'" +
                     ").");
             }
             try {
@@ -497,6 +497,7 @@ implements InternalPushGroupManager, PushGroupManager {
             } else {
                 _pushID = newPushID(pushID);
                 pushIDMap.put(pushID, _pushID);
+                _pushID.startExpiryTimeout();
                 _modified = true;
             }
             _modified |= _pushID.addToGroup(groupName);
@@ -642,9 +643,7 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected PushID newPushID(final String id) {
-        PushID pushID = new PushID(id, getPushIDTimeout(), getCloudPushIDTimeout());
-        pushID.startExpiryTimeout();
-        return pushID;
+        return new PushID(id, getPushIDTimeout(), getCloudPushIDTimeout());
     }
 
     protected boolean removeBrowser(final Map<String, org.icepush.Browser> browserMap, final Browser browser) {
