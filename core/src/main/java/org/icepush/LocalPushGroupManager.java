@@ -265,14 +265,14 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public void push(final String groupName) {
         if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(Level.FINE, "Push Notification request for Push Group '" + groupName + "'.");
+            LOGGER.log(Level.FINE, "Push Notification request for Group '" + groupName + "'.");
         }
         if (!queue.offer(newNotification(groupName))) {
             // Leave at INFO
             if (LOGGER.isLoggable(Level.INFO)) {
                 LOGGER.log(
                     Level.INFO,
-                    "Push Notification request for Push Group '" + groupName + "' was dropped, " +
+                    "Push Notification request for Group '" + groupName + "' was dropped, " +
                         "queue maximum size reached.");
             }
         }
@@ -282,11 +282,11 @@ implements InternalPushGroupManager, PushGroupManager {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
                 Level.FINE,
-                "Push Notification request for Push Group '" + groupName + "' " +
-                    "(Push configuration: '" + pushConfiguration + "').");
+                "Push Notification request for Group '" + groupName + "' " +
+                    "(Push Configuration: '" + pushConfiguration + "').");
         }
         Notification notification;
-        if (pushConfiguration.getAttributes().get("subject") != null) {
+        if (isOutOfBandNotification(pushConfiguration)) {
             notification = newOutOfBandNotification(groupName, pushConfiguration);
         } else {
             notification = newNotification(groupName, pushConfiguration);
@@ -379,7 +379,7 @@ implements InternalPushGroupManager, PushGroupManager {
         NotifyBackURI notifyBackURI = browser.getNotifyBackURI();
         if (notifyBackURI != null &&
             notifyBackURI.getTimestamp() + browser.getMinCloudPushInterval() <= System.currentTimeMillis() + timeout &&
-            browser.getPushConfiguration() != null) {
+            isOutOfBandNotification(browser.getPushConfiguration())) {
 
             ConfirmationTimeout confirmationTimeout = getConfirmationTimeoutMap().get(browserID);
             if (confirmationTimeout == null) {
@@ -610,6 +610,10 @@ implements InternalPushGroupManager, PushGroupManager {
         return pushIDTimeout;
     }
 
+    protected boolean isOutOfBandNotification(final PushConfiguration pushConfiguration) {
+        return pushConfiguration != null && pushConfiguration.getAttributes().containsKey("subject");
+    }
+
     protected ConfirmationTimeout newConfirmationTimeout(
         final String browserID, final String groupName, final long timeout) {
 
@@ -757,13 +761,19 @@ implements InternalPushGroupManager, PushGroupManager {
                         notificationEntrySet.add(newNotificationEntry(pushID, groupName));
                     }
                     filterNotificationEntrySet(notificationEntrySet);
+                    for (final NotificationEntry notificationEntry : notificationEntrySet) {
+                        Browser browser = getBrowser(getPushID(notificationEntry.getPushID()).getBrowserID());
+                        if (browser != null) {
+                            browser.setPushConfiguration(getPushConfiguration());
+                        }
+                    }
                     getPendingNotifiedPushIDSetLock().lock();
                     try {
                         getModifiablePendingNotifiedPushIDSet().addAll(notificationEntrySet);
                     } finally {
                         getPendingNotifiedPushIDSetLock().unlock();
                     }
-                    startConfirmationTimeout(notificationEntrySet);
+                    beforeBroadcast(notificationEntrySet);
                     outboundNotifier.broadcast(notificationEntrySet, getPushConfiguration().getDuration());
                     pushed(groupName);
                 }
@@ -777,6 +787,9 @@ implements InternalPushGroupManager, PushGroupManager {
             if (group != null) {
                 nextNotification.exemptPushIDSet.addAll(Arrays.asList(group.getPushIDs()));
             }
+        }
+
+        protected void beforeBroadcast(final Set<NotificationEntry> notificationEntrySet) {
         }
 
         protected void filterNotificationEntrySet(final Set<NotificationEntry> notificationEntrySet) {
@@ -798,19 +811,10 @@ implements InternalPushGroupManager, PushGroupManager {
             super(groupName, pushConfiguration);
         }
 
-        public void run() {
-            Group group = getModifiableGroupMap().get(groupName);
-            String[] pushIDs = STRINGS;
-            if (group != null) {
-                pushIDs = group.getPushIDs();
-            }
-            for (final String pushID : pushIDs) {
-                Browser browser = getBrowser(getPushID(pushID).getBrowserID());
-                if (browser != null) {
-                    browser.setPushConfiguration(getPushConfiguration());
-                }
-            }
-            super.run();
+        @Override
+        protected void beforeBroadcast(final Set<NotificationEntry> notificationEntrySet) {
+            // Only needed for Cloud Push
+            startConfirmationTimeout(notificationEntrySet);
         }
     }
 
