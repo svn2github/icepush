@@ -347,8 +347,12 @@ implements NotificationBroadcaster.Receiver, PushServer {
                 recordResponseTime();
                 previousRequest.respondWith(handler);
                 return true;
+            } catch (IOException e) {
+                LOGGER.fine("Possible communication issue encountered while responding: " + e.getMessage());
+                return true;
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                LOGGER.severe("Failed to respond to pending request: " + e.getMessage());
+                return true;
             }
         }
         return false;
