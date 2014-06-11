@@ -30,7 +30,6 @@ var shutdown = operator();
 var AsyncConnection;
 
 (function() {
-    var PushIDs = 'ice.pushids';
     var HeartbeatInterval = 'ice.push.heartbeat';
     var ConnectionRunning = 'ice.connection.running';
     var ConnectionLease = 'ice.connection.lease';
@@ -75,16 +74,6 @@ var AsyncConnection;
             connectionDownListeners = [];
         });
 
-        var sendXWindowHeader = noop;
-        var receiveXWindowHeader = function (response) {
-            var xWindow = getHeader(response, "X-Set-Window-Cookie");
-            if (xWindow) {
-                sendXWindowHeader = function(request) {
-                    setHeader(request, "X-Window-Cookie", xWindow);
-                };
-            }
-        };
-
         //remove the blocking connection marker so that everytime a new
         //bridge instance is created the blocking connection will
         //be re-established
@@ -126,18 +115,15 @@ var AsyncConnection;
                     var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
                     listener = postAsynchronously(channel, uri, function(q) {
                         addNameValue(q, BrowserIDName, getValue(browserID));
+                        addNameValue(q, WindowID, namespace.windowID);
                         addNameValue(q, APIKey, ice.push.configuration.apikey);
                         addNameValue(q, AccessToken, ice.push.configuration.access_token);
                         addNameValue(q, Realm, ice.push.configuration.realm);
                         addNameValue(q, HeartbeatInterval, heartbeatTimeout - NetworkDelay);
-                        each(lastSentPushIds, curry(addNameValue, q, 'ice.pushid'));
+                        each(lastSentPushIds, curry(addNameValue, q, PushID));
+                        broadcast(onSendListeners, [q]);
                         askForConfiguration(q);
-                    }, function(request) {
-                        FormPost(request);
-                        sendXWindowHeader(request);
-                        setHeader(request, 'ice.push.window', namespace.windowID);
-                        broadcast(onSendListeners, [request]);
-                    }, $witch(function (condition) {
+                    }, FormPost, $witch(function (condition) {
                         condition(OK, function(response) {
                             var reconnect = getHeader(response, 'X-Connection') != 'close';
                             var nonEmptyResponse = notEmpty(contentAsText(response));
@@ -166,7 +152,6 @@ var AsyncConnection;
                                 //avoid to reconnect
                                 stopTimeoutBombs();
                             }
-                            receiveXWindowHeader(response);
                         });
                         condition(ServerInternalError, retryOnServerError);
                     }));
@@ -465,11 +450,11 @@ var AsyncConnection;
                 if (paused) {
                     var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
                     postAsynchronously(channel, uri, function(q) {
-                        each(lastSentPushIds, curry(addNameValue, q, 'ice.pushid'));
+                        addNameValue(q, WindowID, namespace.windowID);
+                        each(lastSentPushIds, curry(addNameValue, q, PushID));
                         parameterCallback(curry(addNameValue, q));
                     }, function(request) {
                         FormPost(request);
-                        setHeader(request, 'ice.push.window', namespace.windowID);
                         headerCallback(curry(setHeader, request));
                     }, $witch(function (condition) {
                         condition(OK, function(response) {

@@ -50,10 +50,7 @@ implements PushRequest, Request {
 
     public String getBrowserID() {
         if (cachedBrowserID == null) {
-            cachedBrowserID = getHeader("ice.push.browser");
-            if (cachedBrowserID == null) {
-                cachedBrowserID = getParameter("ice.push.browser");
-            }
+            cachedBrowserID = getParameter("ice.push.browser");
         }
         return cachedBrowserID;
     }
@@ -69,14 +66,14 @@ implements PushRequest, Request {
     public long getHeartbeatTimestamp()
     throws NumberFormatException {
         if (cachedHeartbeatTimestamp == null) {
-            cachedHeartbeatTimestamp = getHeaderAsLong("ice.push.heartbeatTimestamp");
+            cachedHeartbeatTimestamp = getParameterAsLong("ice.push.heartbeatTimestamp", 0);
         }
         return cachedHeartbeatTimestamp;
     }
 
     public String getNotifyBackURI() {
         if (cachedNotifyBackURI == null) {
-            cachedNotifyBackURI = getHeader("ice.notifyBack");
+            cachedNotifyBackURI = getParameter("ice.notifyBack", null);
         }
         return cachedNotifyBackURI;
     }
@@ -91,14 +88,14 @@ implements PushRequest, Request {
     public long getSequenceNumber()
     throws NumberFormatException {
         if (cachedSequenceNumber == null) {
-            cachedSequenceNumber = getHeaderAsLong("ice.push.sequence");
+            cachedSequenceNumber = getParameterAsLong("ice.push.sequence", 0);
         }
         return cachedSequenceNumber;
     }
 
     public String getWindowID() {
         if (cachedWindowID == null) {
-            cachedWindowID = getHeader("ice.push.window");
+            cachedWindowID = getParameter("ice.push.window", null);
         }
         return cachedWindowID;
     }

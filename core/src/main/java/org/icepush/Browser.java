@@ -76,11 +76,7 @@ implements Serializable {
     }
 
     public static String getBrowserID(final HttpServletRequest request) {
-        String _browserID = getBrowserIDFromHeader(request);
-        if (_browserID == null) {
-            _browserID = getBrowserIDFromParameter(request);
-        }
-        return _browserID;
+        return getBrowserIDFromParameter(request);
     }
 
     public String getID() {
@@ -244,10 +240,6 @@ implements Serializable {
 
     protected void setStatus(final Status status) {
         this.status = status;
-    }
-
-    private static String getBrowserIDFromHeader(final HttpServletRequest request) {
-        return request.getHeader(BROWSER_ID_NAME);
     }
 
     private static String getBrowserIDFromParameter(final HttpServletRequest request) {

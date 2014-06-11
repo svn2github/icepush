@@ -76,12 +76,16 @@ if (!window.ice.icepush) {
         };
 
         //constants
+        var PushID = 'ice.pushid';
         var PushIDs = 'ice.pushids';
         var BrowserIDName = 'ice.push.browser';
+        var WindowID = 'ice.push.window';
         var APIKey = "ice.push.apikey";
         var AccessToken = "ice.push.access_token";
         var Realm = "ice.push.realm";
         var NotifiedPushIDs = 'ice.notified.pushids';
+        var HeartbeatTimestamp = 'ice.push.heartbeatTimestamp';
+        var SequenceNumber = 'ice.push.sequence';
 
         var handler = window.console ? ConsoleLogHandler(debug) : WindowLogHandler(debug, window.location.href);
         namespace.windowID = namespace.windowID || substring(Math.random().toString(16), 2, 7);
@@ -455,16 +459,13 @@ if (!window.ice.icepush) {
 
             onUnload(window, dispose);
 
-            onSend(asyncConnection, function(request) {
+            onSend(asyncConnection, function(query) {
                 if(sequenceNo){
                     //send current sequence number
-                    setHeader(request, 'ice.push.sequence', sequenceNo);
-                }
-                if (browserID) {
-                    setHeader(request, 'ice.push.browser', getValue(browserID));
+                    addNameValue(query, SequenceNumber, sequenceNo);
                 }
                 if (heartbeatTimestamp) {
-                    setHeader(request, 'ice.push.heartbeatTimestamp', heartbeatTimestamp);
+                    addNameValue(query, HeartbeatTimestamp, heartbeatTimestamp);
                 }
             });
 
@@ -478,9 +479,9 @@ if (!window.ice.icepush) {
                 }
 
                 //update sequence number incremented by the server
-                sequenceNo = Number(getHeader(response, 'ice.push.sequence'));
-                if (hasHeader(response, 'ice.push.heartbeatTimestamp')) {
-                    heartbeatTimestamp = Number(getHeader(response, 'ice.push.heartbeatTimestamp'));
+                sequenceNo = Number(getHeader(response, SequenceNumber));
+                if (hasHeader(response, HeartbeatTimestamp)) {
+                    heartbeatTimestamp = Number(getHeader(response, HeartbeatTimestamp));
                 }
             });
 
@@ -532,10 +533,10 @@ if (!window.ice.icepush) {
                 },
 
                 onSend: function(callback) {
-                    onSend(asyncConnection, function(request) {
-                        //the callback parameters: function(addHeader) {...; addHeader('A', '123'); ...}
+                    onSend(asyncConnection, function(query) {
+                        //the callback parameters: function(addParameter) {...; addParameter('A', '123'); ...}
                         callback(function(name, value) {
-                            setHeader(request, name, value);
+                            addNameValue(query, name, value);
                         });
                     });
                 },
