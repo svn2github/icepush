@@ -95,7 +95,7 @@ var AsyncConnection;
         function askForConfiguration(query) {
             //request configuration once, but only after ice.push.browser cookie is set
             if (getValue(browserID)) {
-                addNameValue(query, 'ice.sendConfiguration', '');
+                parameter(query, 'ice.sendConfiguration', '');
                 askForConfiguration = noop;
             }
         }
@@ -114,13 +114,13 @@ var AsyncConnection;
                     debug(logger, 'connect...');
                     var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
                     listener = postAsynchronously(channel, uri, function(q) {
-                        addNameValue(q, BrowserIDName, getValue(browserID));
-                        addNameValue(q, WindowID, namespace.windowID);
-                        addNameValue(q, APIKey, ice.push.configuration.apikey);
-                        addNameValue(q, AccessToken, ice.push.configuration.access_token);
-                        addNameValue(q, Realm, ice.push.configuration.realm);
-                        addNameValue(q, HeartbeatInterval, heartbeatTimeout - NetworkDelay);
-                        each(lastSentPushIds, curry(addNameValue, q, PushID));
+                        parameter(q, BrowserIDName, getValue(browserID));
+                        parameter(q, WindowID, namespace.windowID);
+                        parameter(q, APIKey, ice.push.configuration.apikey);
+                        parameter(q, AccessToken, ice.push.configuration.access_token);
+                        parameter(q, Realm, ice.push.configuration.realm);
+                        parameter(q, HeartbeatInterval, heartbeatTimeout - NetworkDelay);
+                        each(lastSentPushIds, curry(parameter, q, PushID));
                         broadcast(onSendListeners, [q]);
                         askForConfiguration(q);
                     }, FormPost, $witch(function (condition) {
@@ -450,9 +450,9 @@ var AsyncConnection;
                 if (paused) {
                     var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
                     postAsynchronously(channel, uri, function(q) {
-                        addNameValue(q, WindowID, namespace.windowID);
-                        each(lastSentPushIds, curry(addNameValue, q, PushID));
-                        parameterCallback(curry(addNameValue, q));
+                        parameter(q, WindowID, namespace.windowID);
+                        each(lastSentPushIds, curry(parameter, q, PushID));
+                        parameterCallback(curry(parameter, q));
                     }, function(request) {
                         FormPost(request);
                         headerCallback(curry(setHeader, request));

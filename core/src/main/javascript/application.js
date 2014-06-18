@@ -166,6 +166,14 @@ if (!window.ice.icepush) {
             return mimeType && startsWith(mimeType, 'text/xml');
         }
 
+        function parameter(query, name, value) {
+            var prefix = namespace.push.configuration.parameterPrefix;
+            if (prefix) {
+                name = prefix + name;
+            }
+            addNameValue(query, name, value);
+        }
+
         var commandDispatcher = CommandDispatcher();
         register(commandDispatcher, 'parsererror', ParsingError);
         register(commandDispatcher, 'macro', Macro(commandDispatcher));
@@ -214,10 +222,10 @@ if (!window.ice.icepush) {
                 var id;
                 var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
                 postSynchronously(apiChannel, uri, function (query) {
-                    addNameValue(query, BrowserIDName, getValue(browserID));
-                    addNameValue(query, APIKey, ice.push.configuration.apikey);
-                    addNameValue(query, AccessToken, ice.push.configuration.access_token);
-                    addNameValue(query, Realm, ice.push.configuration.realm);
+                    parameter(query, BrowserIDName, getValue(browserID));
+                    parameter(query, APIKey, ice.push.configuration.apikey);
+                    parameter(query, AccessToken, ice.push.configuration.access_token);
+                    parameter(query, Realm, ice.push.configuration.realm);
                 }, FormPost, $witch(function (condition) {
                     condition(OK, function(response) {
                         if (isXMLResponse(response)) {
@@ -240,11 +248,11 @@ if (!window.ice.icepush) {
             notify: function(group, options) {
                 var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
-                    addNameValue(q, BrowserIDName, getValue(browserID));
-                    addNameValue(q, APIKey, ice.push.configuration.apikey);
-                    addNameValue(q, AccessToken, ice.push.configuration.access_token);
-                    addNameValue(q, Realm, ice.push.configuration.realm);
-                    addNameValue(q, 'group', group);
+                    parameter(q, BrowserIDName, getValue(browserID));
+                    parameter(q, APIKey, ice.push.configuration.apikey);
+                    parameter(q, AccessToken, ice.push.configuration.access_token);
+                    parameter(q, Realm, ice.push.configuration.realm);
+                    parameter(q, 'group', group);
                     if (options) {
                         //provide default values if missing
                         if (!options.duration) {
@@ -257,13 +265,13 @@ if (!window.ice.icepush) {
                             if (options.hasOwnProperty(name)) {
                                 var value = options[name];
                                 if (name == 'delay') {
-                                    addNameValue(q, 'delay', value);
+                                    parameter(q, 'delay', value);
                                 } else if (name == 'at') {
-                                    addNameValue(q, 'at', value);
+                                    parameter(q, 'at', value);
                                 } else if (name == 'duration') {
-                                    addNameValue(q, 'duration', value);
+                                    parameter(q, 'duration', value);
                                 } else {
-                                    addNameValue(q, 'option', name + '=' + value);
+                                    parameter(q, 'option', name + '=' + value);
                                 }
                             }
                         }
@@ -276,12 +284,12 @@ if (!window.ice.icepush) {
             addGroupMember: function(group, id) {
                 var uri = resolveURI(namespace.push.configuration.addGroupMemberURI || 'add-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
-                    addNameValue(q, BrowserIDName, getValue(browserID));
-                    addNameValue(q, APIKey, ice.push.configuration.apikey);
-                    addNameValue(q, AccessToken, ice.push.configuration.access_token);
-                    addNameValue(q, Realm, ice.push.configuration.realm);
-                    addNameValue(q, 'group', group);
-                    addNameValue(q, 'id', id);
+                    parameter(q, BrowserIDName, getValue(browserID));
+                    parameter(q, APIKey, ice.push.configuration.apikey);
+                    parameter(q, AccessToken, ice.push.configuration.access_token);
+                    parameter(q, Realm, ice.push.configuration.realm);
+                    parameter(q, 'group', group);
+                    parameter(q, 'id', id);
                 }, FormPost, $witch(function(condition) {
                     condition(ServerInternalError, throwServerError);
                 }));
@@ -290,12 +298,12 @@ if (!window.ice.icepush) {
             removeGroupMember: function(group, id) {
                 var uri = resolveURI(namespace.push.configuration.removeGroupMemberURI || 'remove-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
-                    addNameValue(q, BrowserIDName, getValue(browserID));
-                    addNameValue(q, APIKey, ice.push.configuration.apikey);
-                    addNameValue(q, AccessToken, ice.push.configuration.access_token);
-                    addNameValue(q, Realm, ice.push.configuration.realm);
-                    addNameValue(q, 'group', group);
-                    addNameValue(q, 'id', id);
+                    parameter(q, BrowserIDName, getValue(browserID));
+                    parameter(q, APIKey, ice.push.configuration.apikey);
+                    parameter(q, AccessToken, ice.push.configuration.access_token);
+                    parameter(q, Realm, ice.push.configuration.realm);
+                    parameter(q, 'group', group);
+                    parameter(q, 'id', id);
                 }, FormPost, $witch(function(condition) {
                     condition(ServerInternalError, throwServerError);
                 }));
@@ -303,11 +311,11 @@ if (!window.ice.icepush) {
 
             get: function(uri, parameters, responseCallback) {
                 getAsynchronously(apiChannel, uri, function(query) {
-                    addNameValue(query, BrowserIDName, getValue(browserID));
-                    addNameValue(query, APIKey, ice.push.configuration.apikey);
-                    addNameValue(query, AccessToken, ice.push.configuration.access_token);
-                    addNameValue(query, Realm, ice.push.configuration.realm);
-                    parameters(curry(addNameValue, query));
+                    parameter(query, BrowserIDName, getValue(browserID));
+                    parameter(query, APIKey, ice.push.configuration.apikey);
+                    parameter(query, AccessToken, ice.push.configuration.access_token);
+                    parameter(query, Realm, ice.push.configuration.realm);
+                    parameters(curry(parameter, query));
                 }, noop, $witch(function(condition) {
                     condition(OK, function(response) {
                         responseCallback(statusCode(response), contentAsText(response), contentAsDOM(response));
@@ -318,11 +326,11 @@ if (!window.ice.icepush) {
 
             post: function(uri, parameters, responseCallback) {
                 postAsynchronously(apiChannel, uri, function(query) {
-                    addNameValue(query, BrowserIDName, getValue(browserID));
-                    addNameValue(query, APIKey, ice.push.configuration.apikey);
-                    addNameValue(query, AccessToken, ice.push.configuration.access_token);
-                    addNameValue(query, Realm, ice.push.configuration.realm);
-                    parameters(curry(addNameValue, query));
+                    parameter(query, BrowserIDName, getValue(browserID));
+                    parameter(query, APIKey, ice.push.configuration.apikey);
+                    parameter(query, AccessToken, ice.push.configuration.access_token);
+                    parameter(query, Realm, ice.push.configuration.realm);
+                    parameters(curry(parameter, query));
                 }, FormPost, $witch(function(condition) {
                     condition(OK, function(response) {
                         responseCallback(statusCode(response), contentAsText(response), contentAsDOM(response));
@@ -462,10 +470,10 @@ if (!window.ice.icepush) {
             onSend(asyncConnection, function(query) {
                 if(sequenceNo){
                     //send current sequence number
-                    addNameValue(query, SequenceNumber, sequenceNo);
+                    parameter(query, SequenceNumber, sequenceNo);
                 }
                 if (heartbeatTimestamp) {
-                    addNameValue(query, HeartbeatTimestamp, heartbeatTimestamp);
+                    parameter(query, HeartbeatTimestamp, heartbeatTimestamp);
                 }
             });
 
@@ -536,7 +544,7 @@ if (!window.ice.icepush) {
                     onSend(asyncConnection, function(query) {
                         //the callback parameters: function(addParameter) {...; addParameter('A', '123'); ...}
                         callback(function(name, value) {
-                            addNameValue(query, name, value);
+                            parametr(query, name, value);
                         });
                     });
                 },

@@ -31,17 +31,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.icepush.CheckBrowserIDServlet;
-import org.icepush.CodeServer;
-import org.icepush.Configuration;
-import org.icepush.NotificationProvider;
-import org.icepush.OutOfBandNotifier;
-import org.icepush.ProductInfo;
-import org.icepush.PushContext;
-import org.icepush.PushGroupManager;
-import org.icepush.PushGroupManagerFactory;
-import org.icepush.PushInternalContext;
-import org.icepush.PushNotification;
+import org.icepush.*;
 import org.icepush.http.standard.CacheControlledServer;
 import org.icepush.http.standard.CompressingServer;
 import org.icepush.util.ExtensionRegistry;
@@ -139,13 +129,13 @@ public class MainServlet implements PseudoServlet {
     }
 
     protected PseudoServlet createBrowserDispatcher() {
-        return
-            new CheckBrowserIDServlet(
-                new BrowserDispatcher(configuration) {
-                    protected PseudoServlet newServer(final String browserID) {
-                        return createBrowserBoundServlet(browserID);
-                    }
-                });
+        return new RemoveParameterPrefix(
+                 new CheckBrowserIDServlet(
+                    new BrowserDispatcher(configuration) {
+                        protected PseudoServlet newServer(final String browserID) {
+                            return createBrowserBoundServlet(browserID);
+                        }
+                    }));
     }
 
     protected void createOutOfBandNotifier(final ServletContext servletContext) {
