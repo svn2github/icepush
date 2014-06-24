@@ -198,18 +198,22 @@ implements PseudoServlet {
             String delay = request.getParameter("delay");
             if (delay != null) {
                 String duration = request.getParameter("duration");
-                if (pushConfiguration == null) {
-                    pushConfiguration = new PushConfiguration();
+                if (duration != null) {
+                    if (pushConfiguration == null) {
+                        pushConfiguration = new PushConfiguration();
+                    }
+                    pushConfiguration.delayed(Long.parseLong(delay), Long.parseLong(duration));
                 }
-                pushConfiguration.delayed(Long.parseLong(delay), Long.parseLong(duration));
             }
             String at = request.getParameter("at");
             if (at != null) {
                 String duration = request.getParameter("duration");
-                if (pushConfiguration == null) {
-                    pushConfiguration = new PushConfiguration();
+                if (duration != null) {
+                    if (pushConfiguration == null) {
+                        pushConfiguration = new PushConfiguration();
+                    }
+                    pushConfiguration.scheduled(new Date(Long.parseLong(at)), Long.parseLong(duration));
                 }
-                pushConfiguration.scheduled(new Date(Long.parseLong(at)), Long.parseLong(duration));
             }
 
             if (pushConfiguration == null) {
