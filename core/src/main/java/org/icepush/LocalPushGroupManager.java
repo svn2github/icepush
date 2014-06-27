@@ -92,6 +92,7 @@ implements InternalPushGroupManager, PushGroupManager {
     private final long groupTimeout;
     private final long cloudPushIDTimeout;
     private final long pushIDTimeout;
+    private final long minCloudPushInterval;
     private final ServletContext context;
 
     private long lastTouchScan = System.currentTimeMillis();
@@ -103,6 +104,7 @@ implements InternalPushGroupManager, PushGroupManager {
         this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", 2 * 60 * 1000);
         this.pushIDTimeout = configuration.getAttributeAsLong("pushIdTimeout", 2 * 60 * 1000);
         this.cloudPushIDTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", 30 * 60 * 1000);
+        this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", 10 * 1000);
         int notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", 1000);
         this.queue = new LinkedBlockingQueue<Notification>(notificationQueueSize);
         this.queueConsumer = new QueueConsumerTask();
@@ -497,6 +499,7 @@ implements InternalPushGroupManager, PushGroupManager {
             } else {
                 _pushID = newPushID(pushID);
                 pushIDMap.put(pushID, _pushID);
+                addBrowser(newBrowser(_pushID.getBrowserID(), getMinCloudPushInterval()));
                 _pushID.startExpiryTimeout();
                 _modified = true;
             }
@@ -586,6 +589,10 @@ implements InternalPushGroupManager, PushGroupManager {
         return groupTimeout;
     }
 
+    protected long getMinCloudPushInterval() {
+        return minCloudPushInterval;
+    }
+
     protected ConcurrentMap<String, Browser> getModifiableBrowserMap() {
         return browserMap;
     }
@@ -612,6 +619,10 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected boolean isOutOfBandNotification(final PushConfiguration pushConfiguration) {
         return pushConfiguration != null && pushConfiguration.getAttributes().containsKey("subject");
+    }
+
+    protected Browser newBrowser(final String browserID, final long minCloudPushInterval) {
+        return new Browser(browserID, minCloudPushInterval);
     }
 
     protected ConfirmationTimeout newConfirmationTimeout(
@@ -751,16 +762,31 @@ implements InternalPushGroupManager, PushGroupManager {
             try {
                 Group group = getModifiableGroupMap().get(groupName);
                 if (group != null) {
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(Level.FINE, "Push Notification triggered for Push Group '" + groupName + "'.");
-                    }
                     Set<String> pushIDSet = new HashSet<String>(Arrays.asList(group.getPushIDs()));
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(
+                            Level.FINE,
+                            "Notification triggered for Group '" + groupName + "' with " +
+                                "original Push-ID Set '" + pushIDSet + "'.");
+                    }
                     pushIDSet.removeAll(exemptPushIDSet);
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(
+                            Level.FINE,
+                            "Notification triggered for Group '" + groupName + "' with " +
+                                "Push-ID Set '" + pushIDSet + "' after exemption.");
+                    }
                     Set<NotificationEntry> notificationEntrySet = new HashSet<NotificationEntry>();
                     for (final String pushID : pushIDSet) {
                         notificationEntrySet.add(newNotificationEntry(pushID, groupName));
                     }
                     filterNotificationEntrySet(notificationEntrySet);
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(
+                            Level.FINE,
+                            "Notification triggered for Group '" + groupName + "' with " +
+                                "Notification Entry Set '" + notificationEntrySet + "' after filtering.");
+                    }
                     for (final NotificationEntry notificationEntry : notificationEntrySet) {
                         Browser browser = getBrowser(getPushID(notificationEntry.getPushID()).getBrowserID());
                         if (browser != null) {
