@@ -164,22 +164,6 @@ implements Serializable {
             (this.pushIDSet != null && !this.pushIDSet.equals(pushIDSet))) {
 
             this.pushIDSet = new HashSet<String>(pushIDSet);
-            for (final String _pushIDString : this.pushIDSet) {
-                PushID _pushID =
-                    ((InternalPushGroupManager)
-                        PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
-                            getPushID(_pushIDString);
-                if (_pushID != null)  {
-                    _pushID.setBrowserID(getID());
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(Level.FINE, "Valid Push-ID " + _pushIDString);
-                    }
-                } else {
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(Level.FINE, "INVALID Push-ID " + _pushIDString);
-                    }
-                }
-            }
             _modified = true;
         }
         return _modified;

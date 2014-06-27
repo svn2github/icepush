@@ -30,14 +30,17 @@ implements Serializable {
 
     private final Set<String> groupSet = new HashSet<String>();
 
+    private final String pushID;
+    private final String browserID;
+    private final String subID;
+
     private final long cloudPushIDTimeout;
-    private final String id;
     private final long pushIDTimeout;
 
-    private String browserID;
-
-    protected PushID(final String id, final long pushIDTimeout, final long cloudPushIDTimeout) {
-        this.id = id;
+    protected PushID(final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
+        this.pushID = pushID;
+        this.browserID = this.pushID.substring(0, this.pushID.indexOf(':'));
+        this.subID = this.pushID.substring(this.pushID.indexOf(':') + 1);
         this.pushIDTimeout = pushIDTimeout;
         this.cloudPushIDTimeout = cloudPushIDTimeout;
     }
@@ -85,7 +88,11 @@ implements Serializable {
     }
 
     public String getID() {
-        return id;
+        return pushID;
+    }
+
+    public String getSubID() {
+        return subID;
     }
 
     public boolean removeFromGroup(String groupName) {
@@ -93,22 +100,11 @@ implements Serializable {
         if (groupSet.isEmpty()) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
-                    Level.FINE, "Disposed PushID '" + id + "' since it no longer belongs to any Push Group.");
+                    Level.FINE, "Disposed PushID '" + getID() + "' since it no longer belongs to any Push Group.");
             }
             ((InternalPushGroupManager)
                 PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-            ).removePushID(id);
-        }
-        return _modified;
-    }
-
-    public boolean setBrowserID(final String browserID) {
-        boolean _modified = false;
-        if ((this.browserID == null && browserID != null) ||
-            (this.browserID != null && !this.browserID.equals(browserID))) {
-
-            this.browserID = browserID;
-            _modified = true;
+            ).removePushID(getID());
         }
         return _modified;
     }
@@ -155,8 +151,9 @@ implements Serializable {
                 append("browserID: '").append(getBrowserID()).append(", ").
                 append("cloudPushIDTimeout: '").append(getCloudPushIDTimeout()).append("', ").
                 append("groupSet: '").append(getGroupSet()).append("', ").
-                append("id: '").append(getID()).append("', ").
-                append("pushIDTimeout: '").append(getPushIDTimeout()).append("'").
+                append("pushID: '").append(getID()).append("', ").
+                append("pushIDTimeout: '").append(getPushIDTimeout()).append("', ").
+                append("subID: '").append(getSubID()).append("'").
                     toString();
     }
 }
