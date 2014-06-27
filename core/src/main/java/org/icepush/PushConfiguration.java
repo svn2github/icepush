@@ -103,7 +103,7 @@ implements Serializable {
                 append("PushConfiguration[").
                     append("attributes: '").append(getAttributes()).append("', ").
                     append("duration: '").append(getDuration()).append("', ").
-                    append("scheduledAt: '").append(getScheduledAt()).append("'").
+                    append("scheduledAt: '").append(new Date(getScheduledAt())).append("'").
                 append("]").
                     toString();
     }
