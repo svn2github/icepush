@@ -51,6 +51,11 @@ implements NotificationBroadcaster.Receiver, PushServer {
             @Override
             public void respond(final PushResponse pushResponse)
             throws Exception {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Received duplicate listen.icepush request for Browser-ID '" + getBrowserID() + "'.");
+                }
                 super.respond(pushResponse);
                 pushGroupManager.getBrowser(getBrowserID()).getStatus().revertConnectionRecreationTimeout();
             }
@@ -301,12 +306,13 @@ implements NotificationBroadcaster.Receiver, PushServer {
                     @Override
                     public void writeTo(final Writer writer)
                     throws IOException {
-                        super.writeTo(writer);
                         if (LOGGER.isLoggable(Level.FINE)) {
                             LOGGER.log(
                                 Level.FINE,
-                                "Push Notifications available for PushIDs '" + getPushIDSet() + "', trying to respond.");
+                                "Send Notifications for Browser-ID '" + getBrowserID() + "' " +
+                                    "with Push-IDs '" + getPushIDSet() + "'.");
                         }
+                        super.writeTo(writer);
                         pushGroupManager.
                             clearPendingNotifications(
                                 pushGroupManager.getBrowser(getBrowserID()).getPushIDSet());
@@ -399,6 +405,12 @@ implements NotificationBroadcaster.Receiver, PushServer {
         public void service(final PushRequest pushRequest) throws Exception {
             resetTimeout(pushRequest);
             try {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Received listen.icepush request from Browser-ID '" + pushRequest.getBrowserID() + "' " +
+                            "for Push-IDs '" + pushRequest.getPushIDSet() + "'.");
+                }
                 pushGroupManager.getBrowser(getBrowserID()).setPushIDSet(pushRequest.getPushIDSet());
                 adjustConnectionRecreationTimeout(pushRequest);
 
