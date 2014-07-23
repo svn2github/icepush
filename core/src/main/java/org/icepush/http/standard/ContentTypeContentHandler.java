@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.logging.Logger;
 
 import org.icepush.http.Response;
 import org.icepush.http.ResponseHandler;
@@ -38,16 +39,18 @@ public abstract class ContentTypeContentHandler implements ResponseHandler {
         StringWriter writer = new StringWriter();
         writeTo(writer);
         writer.write("\n\n");
+        writer.flush();
+
         byte[] content = writer.getBuffer().toString().getBytes(characterSet);
         response.setHeader("Content-Type", mimeType + "; charset=" + characterSet);
 
         //PUSH-315: setting the Content-Length causes a problem on Liferay 6.2 where
         //short XML responses to various push requests (e.g. <noop/>) are truncated
         //or missing entirely.
-//        response.setHeader("Content-Length", content.length);
+
+        //response.setHeader("Content-Length", content.length);
 
         OutputStream out = response.writeBody();
         out.write(content);
-        out.flush();
     }
 }
