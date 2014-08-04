@@ -18,62 +18,88 @@ var setValue = operator();
 var getValue = operator();
 var existsSlot;
 var removeSlot;
-var lookupSlot;
 var Slot;
 
 (function () {
-    if (window.localStorage) {
-        Slot = function LocalStorageSlot(name, val) {
-            window.localStorage.setItem(name, window.localStorage.getItem(name) || '');
+    if (namespace.push.configuration.nonSharedConnection) {
+        //create slot that is visible only to the current window
+        var slots = {};
+        Slot = function LocalWindowSlot(name, val) {
+            slots[name] = val || '';
 
-            return object(function(method) {
-                method(getValue, function(self) {
-                    var val = window.localStorage.getItem(name);
-                    return val ? val : '';
+            return object(function (method) {
+                method(getValue, function (self) {
+                    var value = slots[name];
+                    return value ? value : '';
                 });
 
-                method(setValue, function(self, val) {
-                    window.localStorage.setItem(name, val || '');
+                method(setValue, function (self, val) {
+                    slots[name] = val;
                 });
             });
         };
 
-        existsSlot = function(name) {
-            return window.localStorage.getItem(name) != null;
+        existsSlot = function (name) {
+            return slots[name] != null;
         };
 
-        removeSlot = function(name) {
-            window.localStorage.removeItem(name);
+        removeSlot = function (name) {
+            delete slots[name];
         };
     } else {
-        Slot = function CookieSlot(name, val) {
-            var c = existsCookie(name) ? lookupCookie(name) : Cookie(name, val);
+        if (window.localStorage) {
+            Slot = function LocalStorageSlot(name, val) {
+                window.localStorage.setItem(name, window.localStorage.getItem(name) || '');
 
-            return object(function(method) {
-                method(getValue, function(self) {
-                    try {
-                        return value(c);
-                    } catch (e) {
-                        c = Cookie(name, '');
-                        return '';
-                    }
+                return object(function (method) {
+                    method(getValue, function (self) {
+                        var val = window.localStorage.getItem(name);
+                        return val ? val : '';
+                    });
+
+                    method(setValue, function (self, val) {
+                        window.localStorage.setItem(name, val || '');
+                    });
                 });
+            };
 
-                method(setValue, function(self, val) {
-                    try {
-                        update(c, val);
-                    } catch (e) {
-                        c = Cookie(name, val);
-                    }
+            existsSlot = function (name) {
+                return window.localStorage.getItem(name) != null;
+            };
+
+            removeSlot = function (name) {
+                window.localStorage.removeItem(name);
+            };
+        } else {
+            Slot = function CookieSlot(name, val) {
+                var c = existsCookie(name) ? lookupCookie(name) : Cookie(name, val);
+
+                return object(function (method) {
+                    method(getValue, function (self) {
+                        try {
+                            return value(c);
+                        } catch (e) {
+                            c = Cookie(name, '');
+                            return '';
+                        }
+                    });
+
+                    method(setValue, function (self, val) {
+                        try {
+                            update(c, val);
+                        } catch (e) {
+                            c = Cookie(name, val);
+                        }
+                    });
                 });
-            });
-        };
+            };
 
-        existsSlot = existsCookie;
+            existsSlot = existsCookie;
 
-        removeSlot = function(name) {
-            if (existsCookie(name)) {
-                remove(lookupCookie(name));
+            removeSlot = function (name) {
+                if (existsCookie(name)) {
+                    remove(lookupCookie(name));
+                }
             }
         }
     }
