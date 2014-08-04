@@ -21,7 +21,7 @@ var removeSlot;
 var Slot;
 
 (function () {
-    if (namespace.push.configuration.nonSharedConnection) {
+    if (false) {
         //create slot that is visible only to the current window
         var slots = {};
         Slot = function LocalWindowSlot(name, val) {
