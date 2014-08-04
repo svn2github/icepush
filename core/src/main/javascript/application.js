@@ -544,7 +544,7 @@ if (!window.ice.icepush) {
                     onSend(asyncConnection, function(query) {
                         //the callback parameters: function(addParameter) {...; addParameter('A', '123'); ...}
                         callback(function(name, value) {
-                            parametr(query, name, value);
+                            parameter(query, name, value);
                         });
                     });
                 },
