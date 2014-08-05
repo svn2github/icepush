@@ -21,86 +21,135 @@ var removeSlot;
 var Slot;
 
 (function () {
-    if (false) {
-        //create slot that is visible only to the current window
-        var slots = {};
-        Slot = function LocalWindowSlot(name, val) {
-            slots[name] = val || '';
+    //create slot that is visible only to the current window
+    var slots = {};
+    var WindowSlot = function (name, val) {
+        slots[name] = val || '';
+
+        return object(function (method) {
+            method(getValue, function (self) {
+                var value = slots[name];
+                return value ? value : '';
+            });
+
+            method(setValue, function (self, val) {
+                slots[name] = val;
+            });
+        });
+    };
+
+    var existsWindowSlot = function (name) {
+        return slots[name] != null;
+    };
+
+    var removeWindowSlot = function (name) {
+        delete slots[name];
+    };
+
+    //create slot that is visible to the entire browser (all windows)
+    var BrowserSlot;
+    var existsBrowserSlot;
+    var removeBrowserSlot;
+    if (window.localStorage) {
+        BrowserSlot = function LocalStorageSlot(name, val) {
+            window.localStorage.setItem(name, window.localStorage.getItem(name) || '');
 
             return object(function (method) {
                 method(getValue, function (self) {
-                    var value = slots[name];
-                    return value ? value : '';
+                    var val = window.localStorage.getItem(name);
+                    return val ? val : '';
                 });
 
                 method(setValue, function (self, val) {
-                    slots[name] = val;
+                    window.localStorage.setItem(name, val || '');
                 });
             });
         };
 
-        existsSlot = function (name) {
-            return slots[name] != null;
+        existsBrowserSlot = function (name) {
+            return window.localStorage.getItem(name) != null;
         };
 
-        removeSlot = function (name) {
-            delete slots[name];
+        removeBrowserSlot = function (name) {
+            window.localStorage.removeItem(name);
         };
     } else {
-        if (window.localStorage) {
-            Slot = function LocalStorageSlot(name, val) {
-                window.localStorage.setItem(name, window.localStorage.getItem(name) || '');
+        BrowserSlot = function CookieSlot(name, val) {
+            var c = existsCookie(name) ? lookupCookie(name) : Cookie(name, val);
 
-                return object(function (method) {
-                    method(getValue, function (self) {
-                        var val = window.localStorage.getItem(name);
-                        return val ? val : '';
-                    });
-
-                    method(setValue, function (self, val) {
-                        window.localStorage.setItem(name, val || '');
-                    });
+            return object(function (method) {
+                method(getValue, function (self) {
+                    try {
+                        return value(c);
+                    } catch (e) {
+                        c = Cookie(name, '');
+                        return '';
+                    }
                 });
-            };
 
-            existsSlot = function (name) {
-                return window.localStorage.getItem(name) != null;
-            };
-
-            removeSlot = function (name) {
-                window.localStorage.removeItem(name);
-            };
-        } else {
-            Slot = function CookieSlot(name, val) {
-                var c = existsCookie(name) ? lookupCookie(name) : Cookie(name, val);
-
-                return object(function (method) {
-                    method(getValue, function (self) {
-                        try {
-                            return value(c);
-                        } catch (e) {
-                            c = Cookie(name, '');
-                            return '';
-                        }
-                    });
-
-                    method(setValue, function (self, val) {
-                        try {
-                            update(c, val);
-                        } catch (e) {
-                            c = Cookie(name, val);
-                        }
-                    });
+                method(setValue, function (self, val) {
+                    try {
+                        update(c, val);
+                    } catch (e) {
+                        c = Cookie(name, val);
+                    }
                 });
-            };
+            });
+        };
 
-            existsSlot = existsCookie;
+        existsBrowserSlot = existsCookie;
 
-            removeSlot = function (name) {
-                if (existsCookie(name)) {
-                    remove(lookupCookie(name));
-                }
+        removeBrowserSlot = function (name) {
+            if (existsCookie(name)) {
+                remove(lookupCookie(name));
             }
         }
     }
+
+    function nonSharedSlot() {
+        return namespace.push && namespace.push.configuration && namespace.push.configuration.nonSharedConnection;
+    }
+
+    Slot = function (name, val) {
+        return object(function (method) {
+            var slot;
+            var previousSharingType;
+            function acquireSlot() {
+                var currentSharingType = nonSharedSlot();
+                var oldVal;
+                //get value from the previous slot
+                if (slot) {
+                    oldVal = getValue(slot);
+                }
+                //re-create slot if type differs or slot does not exist
+                if (previousSharingType != currentSharingType || !slot) {
+                    slot = currentSharingType ? WindowSlot(name) : BrowserSlot(name);
+                    previousSharingType = currentSharingType;
+                }
+                //set previous value if defined
+                if (oldVal) {
+                    setValue(slot, oldVal);
+                }
+
+                return slot;
+            }
+
+
+            method(getValue, function (self) {
+                return getValue(acquireSlot());
+            });
+
+            method(setValue, function (self, val) {
+                setValue(acquireSlot(), val);
+            });
+        });
+    };
+
+    existsSlot = function (name) {
+        return nonSharedSlot() ? existsWindowSlot(name) : existsBrowserSlot(name);
+    };
+
+    removeSlot = function (name) {
+        return nonSharedSlot() ? removeWindowSlot(name) : removeBrowserSlot(name);
+    };
 }());
