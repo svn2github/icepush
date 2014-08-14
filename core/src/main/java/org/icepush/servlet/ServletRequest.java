@@ -213,10 +213,14 @@ implements Request {
 
     public String getRemoteHost() {
         if (!disableRemoteHostLookup) {
-            LOGGER.info("Remote Host: " + request.getRemoteHost());
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(Level.FINE, "Remote Host: " + request.getRemoteHost());
+            }
             return request.getRemoteHost();
         } else {
-            LOGGER.info("Remote Host: " + request.getRemoteAddr());
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(Level.FINE, "Remote Host: " + request.getRemoteAddr());
+            }
             return request.getRemoteAddr();
         }
     }
