@@ -25,6 +25,8 @@ public interface PushGroupManager {
 
     boolean addMember(String groupName, String pushId);
 
+    boolean addMember(String groupName, String pushId, PushConfiguration pushConfiguration);
+
     void addNotificationReceiver(NotificationBroadcaster.Receiver receiver);
 
     void addPushGroupListener(PushGroupListener listener);
@@ -53,7 +55,7 @@ public interface PushGroupManager {
 
     void push(String groupName);
 
-    void push(String groupName, PushConfiguration config);
+    void push(String groupName, PushConfiguration pushConfiguration);
 
     void pruneParkedIDs(NotifyBackURI notifyBackURI, Set<String> listenedPushIDSet);
 

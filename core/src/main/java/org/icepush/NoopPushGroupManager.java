@@ -37,7 +37,11 @@ implements PushGroupManager {
         return false;
     }
 
-    public boolean addMember(final String groupName, final String pushId) {
+    public boolean addMember(final String groupName, final String pushID) {
+        return false;
+    }
+
+    public boolean addMember(final String groupName, final String pushID, final PushConfiguration pushConfiguration) {
         return false;
     }
 

@@ -123,6 +123,10 @@ implements InternalPushGroupManager, PushGroupManager {
         return addMember(getModifiableGroupMap(), getModifiablePushIDMap(), groupName, pushID);
     }
 
+    public boolean addMember(final String groupName, final String pushID, final PushConfiguration pushConfiguration) {
+        return addMember(getModifiableGroupMap(), getModifiablePushIDMap(), groupName, pushID, pushConfiguration);
+    }
+
     public void addNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
         outboundNotifier.addReceiver(observer);
     }
@@ -244,8 +248,10 @@ implements InternalPushGroupManager, PushGroupManager {
         return new NotifyBackURI(uri);
     }
 
-    public void park(final String pushId, final NotifyBackURI notifyBackURI) {
-        parkedPushIDs.put(pushId, notifyBackURI);
+    public void park(final String pushID, final NotifyBackURI notifyBackURI) {
+        if (getPushID(pushID).isCloudPushEnabled()) {
+            parkedPushIDs.put(pushID, notifyBackURI);
+        }
     }
 
     public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final Set<String> listenedPushIDSet) {
@@ -351,23 +357,25 @@ implements InternalPushGroupManager, PushGroupManager {
         final String browserID, final String groupName, final long sequenceNumber) {
 
         Browser browser = getBrowser(browserID);
-        NotifyBackURI notifyBackURI = browser.getNotifyBackURI();
-        if (notifyBackURI != null) {
-            long now = System.currentTimeMillis();
-            long timeout = browser.getStatus().getConnectionRecreationTimeout() * 2;
-            LOGGER.log(Level.FINE, "Calculated confirmation timeout: '" + timeout + "'");
-            if (notifyBackURI.getTimestamp() + browser.getMinCloudPushInterval() <= now + timeout) {
-                return startConfirmationTimeout(browserID, groupName, sequenceNumber, timeout);
-            } else {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Timeout is within the minimum Cloud Push interval for URI '" + notifyBackURI + "'. (" +
-                            "timestamp: '" + notifyBackURI.getTimestamp() + "', " +
-                            "minCloudPushInterval: '" + browser.getMinCloudPushInterval() + "', " +
-                            "now: '" + now + "', " +
-                            "timeout: '" + timeout + "'" +
-                        ")");
+        if (browser.isCloudPushEnabled()) {
+            NotifyBackURI notifyBackURI = browser.getNotifyBackURI();
+            if (notifyBackURI != null) {
+                long now = System.currentTimeMillis();
+                long timeout = browser.getStatus().getConnectionRecreationTimeout() * 2;
+                LOGGER.log(Level.FINE, "Calculated confirmation timeout: '" + timeout + "'");
+                if (notifyBackURI.getTimestamp() + browser.getMinCloudPushInterval() <= now + timeout) {
+                    return startConfirmationTimeout(browserID, groupName, sequenceNumber, timeout);
+                } else {
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(
+                            Level.FINE,
+                            "Timeout is within the minimum Cloud Push interval for URI '" + notifyBackURI + "'. (" +
+                                "timestamp: '" + notifyBackURI.getTimestamp() + "', " +
+                                "minCloudPushInterval: '" + browser.getMinCloudPushInterval() + "', " +
+                                "now: '" + now + "', " +
+                                "timeout: '" + timeout + "'" +
+                            ")");
+                    }
                 }
             }
         }
@@ -378,38 +386,44 @@ implements InternalPushGroupManager, PushGroupManager {
         final String browserID, final String groupName, final long sequenceNumber, final long timeout) {
 
         Browser browser = getBrowser(browserID);
-        NotifyBackURI notifyBackURI = browser.getNotifyBackURI();
-        if (notifyBackURI != null &&
-            notifyBackURI.getTimestamp() + browser.getMinCloudPushInterval() <= System.currentTimeMillis() + timeout &&
-            isOutOfBandNotification(browser.getPushConfiguration())) {
+        if (browser.isCloudPushEnabled()) {
+            NotifyBackURI notifyBackURI = browser.getNotifyBackURI();
+            if (notifyBackURI != null &&
+                notifyBackURI.getTimestamp() + browser.getMinCloudPushInterval() <=
+                    System.currentTimeMillis() + timeout &&
+                isOutOfBandNotification(browser.getPushConfiguration())) {
 
-            ConfirmationTimeout confirmationTimeout = getConfirmationTimeoutMap().get(browserID);
-            if (confirmationTimeout == null) {
+                ConfirmationTimeout confirmationTimeout = getConfirmationTimeoutMap().get(browserID);
+                if (confirmationTimeout == null) {
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(
+                            Level.FINE,
+                            "Start confirmation timeout for Browser '" + browserID + "' (" +
+                                "URI: '" + notifyBackURI + "', " +
+                                "timeout: '" + timeout + "', " +
+                                "sequence number: '" + sequenceNumber + "'" +
+                            ").");
+                    }
+                    try {
+
+                        ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")
+                        ).
+                            schedule(
+                                confirmationTimeout = newConfirmationTimeout(browserID, groupName, timeout), timeout
+                            );
+                        getConfirmationTimeoutMap().put(browserID, confirmationTimeout);
+                        return true;
+                    } catch (final IllegalStateException exception) {
+                        // timeoutTimer was cancelled or its timer thread terminated.
+                        return false;
+                    }
+                }
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
-                        "Start confirmation timeout for Browser '" + browserID + "' (" +
-                            "URI: '" + notifyBackURI + "', " +
-                            "timeout: '" + timeout + "', " +
-                            "sequence number: '" + sequenceNumber + "'" +
-                        ").");
+                        "Confirmation timeout already scheduled for PushID '" + browserID + "' " +
+                            "(URI: '" + notifyBackURI + "', timeout: '" + timeout + "').");
                 }
-                try {
-
-                    ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")).
-                        schedule(confirmationTimeout = newConfirmationTimeout(browserID, groupName, timeout), timeout);
-                    getConfirmationTimeoutMap().put(browserID, confirmationTimeout);
-                    return true;
-                } catch (final IllegalStateException exception) {
-                    // timeoutTimer was cancelled or its timer thread terminated.
-                    return false;
-                }
-            }
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Confirmation timeout already scheduled for PushID '" + browserID + "' " +
-                        "(URI: '" + notifyBackURI + "', timeout: '" + timeout + "').");
             }
         }
         return false;
@@ -491,6 +505,13 @@ implements InternalPushGroupManager, PushGroupManager {
         final Map<String, Group> groupMap, final Map<String, PushID> pushIDMap, final String groupName,
         final String pushID) {
 
+        return addMember(groupMap, pushIDMap, groupName, pushID, null);
+    }
+
+    protected boolean addMember(
+        final Map<String, Group> groupMap, final Map<String, PushID> pushIDMap, final String groupName,
+        final String pushID, final PushConfiguration pushConfiguration) {
+
         boolean _modified = false;
         if (groupMap != null && pushIDMap != null && groupName != null && pushID != null) {
             PushID _pushID;
@@ -503,11 +524,14 @@ implements InternalPushGroupManager, PushGroupManager {
                 _pushID.startExpiryTimeout();
                 _modified = true;
             }
-            _modified |= _pushID.addToGroup(groupName);
+            _modified |= _pushID.addToGroup(groupName, pushConfiguration);
             _modified |= addToGroup(groupMap, groupName, pushID);
             memberAdded(groupName, pushID);
             if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "Added PushID '" + pushID + "' to Push Group '" + groupName + "'.");
+                LOGGER.log(
+                    Level.FINE,
+                    "Added PushID '" + pushID + "' to Push Group '" + groupName + "' with " +
+                        "Push Configuration '" + pushConfiguration + "'.");
             }
         }
         return _modified;

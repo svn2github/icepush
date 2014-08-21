@@ -119,6 +119,19 @@ implements Serializable {
         return !notifiedPushIDQueue.isEmpty();
     }
 
+    public boolean isCloudPushEnabled() {
+        InternalPushGroupManager _pushGroupManager =
+            (InternalPushGroupManager)
+                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
+        for (final String _pushIDString : pushIDSet) {
+            PushID _pushID = _pushGroupManager.getPushID(_pushIDString);
+            if (_pushID != null && _pushID.isCloudPushEnabled()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean removeNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
         return this.notifiedPushIDQueue.removeAll(notifiedPushIDCollection);
     }

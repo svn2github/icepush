@@ -151,13 +151,28 @@ implements PseudoServlet {
         throws Exception {
             String groupName = request.getParameter("group");
             String pushID = request.getParameter("id");
-            addGroupMember(groupName, pushID);
+            String cloudPush = request.getParameter("cloudPush");
+            if (cloudPush != null) {
+                PushConfiguration pushConfiguration = new PushConfiguration();
+                pushConfiguration.getAttributes().put("cloudPush", Boolean.valueOf(cloudPush));
+                addGroupMember(groupName, pushID, pushConfiguration);
+            } else {
+                addGroupMember(groupName, pushID);
+            }
             response.setContentType("text/plain");
             response.setContentLength(0);
         }
 
-        protected void addGroupMember(final String groupName, final String pushID) {
+        protected void addGroupMember(
+            final String groupName, final String pushID) {
+
             pushContext.addGroupMember(groupName, pushID);
+        }
+
+        protected void addGroupMember(
+            final String groupName, final String pushID, final PushConfiguration pushConfiguration) {
+
+            pushContext.addGroupMember(groupName, pushID, pushConfiguration);
         }
     }
 

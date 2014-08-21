@@ -38,6 +38,26 @@ public class PushContext {
 
     /**
      * <p>
+     *     Adds the specified <code>pushID</code> to the group with the specified <code>groupName</code>.
+     * </p>
+     *
+     * @param      groupName
+     *                 The name of the group the specified <code>pushID</code> needs to be added to.
+     * @param      pushID
+     *                 The Push ID that needs to be added.
+     */
+    public void addGroupMember(final String groupName, final String pushID) {
+        ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+            addMember(groupName, pushID);
+    }
+
+    public void addGroupMember(final String groupName, final String pushID, final PushConfiguration pushConfiguration) {
+        ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+            addMember(groupName, pushID, pushConfiguration);
+    }
+
+    /**
+     * <p>
      *     Instructs the specified browser to back off from ajax push listen for the specified number of milliseconds.
      * </p>
      *
@@ -108,28 +128,13 @@ public class PushContext {
      *
      * @param      groupName
      *                 The group name of the group.
-     * @param      config
+     * @param      pushConfiguration
      *                 The Push configuration.
      * @see        #push(String)
      */
-    public void push(final String groupName, PushConfiguration config) {
+    public void push(final String groupName, PushConfiguration pushConfiguration) {
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
-            push(groupName, config);
-    }
-
-    /**
-     * <p>
-     *     Adds the specified <code>pushId</code> to the group with the specified <code>groupName</code>.
-     * </p>
-     *
-     * @param      groupName
-     *                 The name of the group the specified <code>pushId</code> needs to be added to.
-     * @param      pushId
-     *                 The Push ID that needs to be added.
-     */
-    public void addGroupMember(final String groupName, final String pushId) {
-        ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
-            addMember(groupName, pushId);
+            push(groupName, pushConfiguration);
     }
 
     /**

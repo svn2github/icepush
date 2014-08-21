@@ -17,8 +17,8 @@
 package org.icepush;
 
 import java.io.Serializable;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -28,7 +28,7 @@ implements Serializable {
 
     private static final Logger LOGGER = Logger.getLogger(PushID.class.getName());
 
-    private final Set<String> groupSet = new HashSet<String>();
+    private final Map<String, Boolean> groupMembershipMap = new HashMap<String, Boolean>();
 
     private final String pushID;
     private final String browserID;
@@ -46,7 +46,25 @@ implements Serializable {
     }
 
     public boolean addToGroup(final String groupName) {
-        return groupSet.add(groupName);
+        return addToGroup(groupName, null);
+    }
+
+    public boolean addToGroup(final String groupName, final PushConfiguration pushConfiguration) {
+        boolean _modified = false;
+        Boolean _currentCloudPush;
+        if (pushConfiguration != null) {
+            _currentCloudPush = (Boolean)pushConfiguration.getAttributes().get("cloudPush");
+            if (_currentCloudPush == null) {
+                _currentCloudPush = Boolean.TRUE;
+            }
+        } else {
+            _currentCloudPush = Boolean.TRUE;
+        }
+        Boolean _previousCloudPush = groupMembershipMap.put(groupName, _currentCloudPush);
+        if (_previousCloudPush == null || !_previousCloudPush.equals(_currentCloudPush)) {
+            _modified = true;
+        }
+        return _modified;
     }
 
     public boolean cancelExpiryTimeout() {
@@ -71,13 +89,13 @@ implements Serializable {
             ((InternalPushGroupManager)
                 PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
             ).removePendingNotification(getID());
-            for (String groupName : getGroupSet()) {
-                Group group =
+            for (final String _groupName : getGroupMembershipMap().keySet()) {
+                Group _group =
                     ((InternalPushGroupManager)
                         PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-                    ).getGroup(groupName);
-                if (group != null) {
-                    group.removePushID(getID());
+                    ).getGroup(_groupName);
+                if (_group != null) {
+                    _group.removePushID(getID());
                 }
             }
         }
@@ -95,9 +113,22 @@ implements Serializable {
         return subID;
     }
 
-    public boolean removeFromGroup(String groupName) {
-        boolean _modified = groupSet.remove(groupName);
-        if (groupSet.isEmpty()) {
+    public boolean isCloudPushEnabled() {
+        for (final boolean _cloudPush : groupMembershipMap.values()) {
+            if (_cloudPush) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean isCloudPushEnabled(final String groupName) {
+        return groupMembershipMap.get(groupName);
+    }
+
+    public boolean removeFromGroup(final String groupName) {
+        boolean _modified = groupMembershipMap.remove(groupName);
+        if (groupMembershipMap.isEmpty()) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE, "Disposed PushID '" + getID() + "' since it no longer belongs to any Push Group.");
@@ -137,8 +168,8 @@ implements Serializable {
         return cloudPushIDTimeout;
     }
 
-    protected Set<String> getGroupSet() {
-        return groupSet;
+    protected Map<String, Boolean> getGroupMembershipMap() {
+        return groupMembershipMap;
     }
 
     protected long getPushIDTimeout() {
@@ -150,7 +181,7 @@ implements Serializable {
             new StringBuilder().
                 append("browserID: '").append(getBrowserID()).append(", ").
                 append("cloudPushIDTimeout: '").append(getCloudPushIDTimeout()).append("', ").
-                append("groupSet: '").append(getGroupSet()).append("', ").
+                append("groupMembershipMap: '").append(getGroupMembershipMap()).append("', ").
                 append("pushID: '").append(getID()).append("', ").
                 append("pushIDTimeout: '").append(getPushIDTimeout()).append("', ").
                 append("subID: '").append(getSubID()).append("'").
