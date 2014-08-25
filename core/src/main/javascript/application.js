@@ -281,7 +281,7 @@ if (!window.ice.icepush) {
                 }));
             },
 
-            addGroupMember: function(group, id) {
+            addGroupMember: function(group, id, options) {
                 var uri = resolveURI(namespace.push.configuration.addGroupMemberURI || 'add-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
                     parameter(q, BrowserIDName, getValue(browserID));
@@ -290,6 +290,13 @@ if (!window.ice.icepush) {
                     parameter(q, Realm, ice.push.configuration.realm);
                     parameter(q, 'group', group);
                     parameter(q, 'id', id);
+                    if (options) {
+                        for (var name in options) {
+                            if (options.hasOwnProperty(name)) {
+                                parameter(q, name, options[name]);
+                            }
+                        }
+                    }
                 }, FormPost, $witch(function(condition) {
                     condition(ServerInternalError, throwServerError);
                 }));
