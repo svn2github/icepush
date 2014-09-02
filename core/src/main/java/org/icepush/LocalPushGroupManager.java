@@ -249,8 +249,15 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public void park(final String pushID, final NotifyBackURI notifyBackURI) {
-        if (getPushID(pushID).isCloudPushEnabled()) {
-            parkedPushIDs.put(pushID, notifyBackURI);
+        PushID _pushID = getPushID(pushID);
+        if (_pushID != null) {
+            if (_pushID.isCloudPushEnabled()) {
+                parkedPushIDs.put(pushID, notifyBackURI);
+            }
+        } else {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(Level.FINE, "Unknown Push-ID '" + pushID + "' not eligible for parking.");
+            }
         }
     }
 
