@@ -267,6 +267,13 @@ implements Request {
             // object appears a little corrupted.
 
             String host = getRemoteHost();
+
+            //Methods getRemoteHost() and getRemoteAddr() are not available in a portlet environment
+            //so in that case, the host will be null.
+            if (host == null && LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.fine("cannot resolve host (likely running in a portal)");
+            }
+
             StringBuffer data = new StringBuffer("+ Request does not contain parameter '" + name + "' host: \n");
             data.append("  Originator: ").append(host).append("\n");
             data.append("  Path: ").append(requestURI.toString()).append("\n");
