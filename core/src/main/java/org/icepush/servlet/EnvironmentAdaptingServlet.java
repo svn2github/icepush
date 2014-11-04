@@ -15,6 +15,7 @@
  */
 package org.icepush.servlet;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,8 +26,12 @@ import org.icepush.Configuration;
 import org.icepush.http.PushServer;
 import org.icepush.util.Slot;
 
-public class EnvironmentAdaptingServlet implements PseudoServlet {
-    private final static Logger LOGGER = Logger.getLogger(EnvironmentAdaptingServlet.class.getName());
+public class EnvironmentAdaptingServlet
+implements PseudoServlet {
+    private static final Logger LOGGER = Logger.getLogger(EnvironmentAdaptingServlet.class.getName());
+
+    private static final AtomicBoolean LOGGING_ADAPTING = new AtomicBoolean(false);
+    private static final AtomicBoolean LOGGING_REVERTING = new AtomicBoolean(false);
 
     private final Configuration configuration;
     private final Slot heartbeatInterval;
@@ -41,10 +46,14 @@ public class EnvironmentAdaptingServlet implements PseudoServlet {
         this.heartbeatInterval = heartbeatInterval;
         this.configuration = configuration;
         if (configuration.getAttributeAsBoolean("useAsyncContext", isAsyncARPAvailable())) {
-            LOGGER.log(Level.INFO, "Adapting to Servlet 3.0 AsyncContext environment");
+            if (!LOGGING_ADAPTING.getAndSet(true)) {
+                LOGGER.log(Level.INFO, "Adapting to Servlet 3.0 AsyncContext environment");
+            }
             servlet = new AsyncAdaptingServlet(this.pushServer, this.heartbeatInterval, this.configuration);
         } else {
-            LOGGER.log(Level.INFO, "Adapting to Thread Blocking environment");
+            if (!LOGGING_ADAPTING.getAndSet(true)) {
+                LOGGER.log(Level.INFO, "Adapting to Thread Blocking environment");
+            }
             servlet = new ThreadBlockingAdaptingServlet(this.pushServer, this.heartbeatInterval, this.configuration);
         }
     }
@@ -54,7 +63,9 @@ public class EnvironmentAdaptingServlet implements PseudoServlet {
         try {
             servlet.service(request, response);
         } catch (EnvironmentAdaptingException exception) {
-            LOGGER.log(Level.INFO, "Falling back to Thread Blocking environment");
+            if (!LOGGING_REVERTING.getAndSet(true)) {
+                LOGGER.log(Level.INFO, "Falling back to Thread Blocking environment");
+            }
             servlet = new ThreadBlockingAdaptingServlet(pushServer, heartbeatInterval, configuration);
             servlet.service(request, response);
         }

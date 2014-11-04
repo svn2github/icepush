@@ -15,6 +15,7 @@
  */
 package org.icepush.servlet;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 import javax.servlet.AsyncContext;
@@ -27,8 +28,11 @@ import org.icepush.http.PushResponseHandler;
 import org.icepush.http.PushServer;
 import org.icepush.util.Slot;
 
-public class AsyncAdaptingServlet implements PseudoServlet {
-    private final static Logger LOGGER = Logger.getLogger(AsyncAdaptingServlet.class.getName());
+public class AsyncAdaptingServlet
+implements PseudoServlet {
+    private static final Logger LOGGER = Logger.getLogger(AsyncAdaptingServlet.class.getName());
+
+    private static final AtomicBoolean LOGGING_ADAPTED = new AtomicBoolean(false);
 
     private final Configuration configuration;
     private final Slot heartbeatInterval;
@@ -40,7 +44,9 @@ public class AsyncAdaptingServlet implements PseudoServlet {
         this.pushServer = pushServer;
         this.heartbeatInterval = heartbeatInterval;
         this.configuration = configuration;
-        LOGGER.info("Using Servlet 3.0 AsyncContext");
+        if (!LOGGING_ADAPTED.getAndSet(true)) {
+            LOGGER.info("Using Servlet 3.0 AsyncContext");
+        }
     }
 
     public void service(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
