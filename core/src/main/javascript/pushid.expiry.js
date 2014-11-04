@@ -29,12 +29,7 @@ var PushIDLiveliness;
             var confirmationChannel = "ice.push.confirm";
             var confirmLivelinessBroadcaster = LocalStorageNotificationBroadcaster(confirmationChannel, function (confirmedIDs) {
                 each(confirmedIDs, function (id) {
-                    var count = notificationResponsivness[id];
-                    if (count) {
-                        notificationResponsivness[id] = count - 1;
-                    } else {
-                        delete notificationResponsivness[id];
-                    }
+                    delete notificationResponsivness[id];
                 });
             });
 

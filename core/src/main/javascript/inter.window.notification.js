@@ -24,10 +24,10 @@ function LocalStorageNotificationBroadcaster(name, callback) {
 
     var oldValue = window.localStorage.getItem(name);
 
-    function storageListener() {
+    function storageListener(e) {
         var newValue = window.localStorage.getItem(name);
         try {
-            if (oldValue != newValue) {
+            if (e.key == name) {
                 callback(split(newValue, ' '));
             }
         } finally {

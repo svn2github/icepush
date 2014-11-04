@@ -432,7 +432,7 @@ if (!window.ice.icepush) {
                 //collect pushIDs that have not confirmed their notification
                 var ids = [];
                 for (var p in unresponsivePushIds) {
-                    if (unresponsivePushIds.hasOwnProperty(p) && unresponsivePushIds[p] > 3) {
+                    if (unresponsivePushIds.hasOwnProperty(p) && unresponsivePushIds[p] > 10) {
                         append(ids, p);
                     }
                 }
