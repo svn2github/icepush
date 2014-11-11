@@ -15,9 +15,6 @@
  */
 package org.icepush;
 
-import static org.icepush.NotificationEvent.NotificationType;
-import static org.icepush.NotificationEvent.TargetType;
-
 import java.io.IOException;
 import java.io.Writer;
 import java.util.HashSet;
@@ -74,6 +71,8 @@ implements NotificationBroadcaster.Receiver, PushServer {
 
     private final Set<NotificationListener>listenerSet = new CopyOnWriteArraySet<NotificationListener>();
 
+    private NotificationEventFactory notificationEventFactory = new DefaultNotificationEventFactory();
+
     private String browserID;
     private long responseTimeoutTime;
     private PushServer activeServer;
@@ -122,6 +121,10 @@ implements NotificationBroadcaster.Receiver, PushServer {
         return browserID;
     }
 
+    public NotificationEventFactory getNotificationEventFactory() {
+        return notificationEventFactory;
+    }
+
     public boolean isInterested(final Set<NotificationEntry> notificationEntrySet) {
         for (final NotificationEntry _notificationEntry : notificationEntrySet) {
             if (getPushGroupManager().
@@ -164,6 +167,10 @@ implements NotificationBroadcaster.Receiver, PushServer {
         activeServer.service(pushRequest);
     }
 
+    public void setNotificationEventFactory(final NotificationEventFactory notificationEventFactory) {
+        this.notificationEventFactory = notificationEventFactory;
+    }
+
     public void setUp() {
         pushGroupManager.addBrowser(newBrowser(getBrowserID(), getMinCloudPushInterval()));
         pushGroupManager.addBlockingConnectionServer(getBrowserID(), this);
@@ -201,9 +208,15 @@ implements NotificationBroadcaster.Receiver, PushServer {
         return new Browser(browserID, minCloudPushInterval);
     }
 
-    protected void notificationSent(final NotificationEvent event) {
+    protected void notificationSent(
+        final String groupName, final String pushType, final String notificationProvider,
+        final PushConfiguration pushConfiguration, final Object source) {
+
+        NotificationEvent notificationEvent =
+            getNotificationEventFactory().
+                createNotificationEvent(groupName, pushType, notificationProvider, pushConfiguration, source);
         for (final NotificationListener listener : listenerSet) {
-            listener.notificationSent(event);
+            listener.notificationSent(notificationEvent);
         }
     }
 
@@ -315,10 +328,12 @@ implements NotificationBroadcaster.Receiver, PushServer {
                         super.writeTo(writer);
                         pushGroupManager.
                             clearPendingNotifications(
-                                pushGroupManager.getBrowser(getBrowserID()).getPushIDSet());
+                                pushGroupManager.getBrowser(getBrowserID()).getPushIDSet()
+                            );
                         pushGroupManager.getBrowser(getBrowserID()).
                             removeNotifiedPushIDs(
-                                pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet());
+                                pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet()
+                            );
                         Set<String> groupNameSet = new HashSet<String>();
                         for (final NotificationEntry notificationEntry :
                                 pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet()) {
@@ -326,14 +341,9 @@ implements NotificationBroadcaster.Receiver, PushServer {
                             String groupName = notificationEntry.getGroupName();
                             if (groupNameSet.add(groupName)) {
                                 notificationSent(
-                                    new NotificationEvent(
-                                        TargetType.BROWSER_ID, getBrowserID(), groupName,
-                                        NotificationEvent.NotificationType.PUSH, this));
+                                    groupName, "PUSH", null, notificationEntry.getPushConfiguration(), this
+                                );
                             }
-                            notificationSent(
-                                new NotificationEvent(
-                                    TargetType.PUSH_ID, notificationEntry.getPushID(), groupName, NotificationType.PUSH,
-                                    this));
                         }
                     }
                 });
@@ -353,11 +363,27 @@ implements NotificationBroadcaster.Receiver, PushServer {
                 recordResponseTime();
                 previousRequest.respondWith(handler);
                 return true;
-            } catch (IOException e) {
-                LOGGER.fine("Possible communication issue encountered while responding: " + e.getMessage());
+            } catch (final IOException exception) {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Possible communication issue encountered while responding: " + exception.getMessage(),
+                        exception
+                    );
+                }
                 return true;
-            } catch (Exception e) {
-                LOGGER.severe("Failed to respond to pending request: " + e.getMessage());
+            } catch (final Exception exception) {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Failed to respond to pending request: " + exception.getMessage(),
+                        exception
+                    );
+                } else if (LOGGER.isLoggable(Level.SEVERE)) {
+                    LOGGER.log(
+                        Level.SEVERE,
+                        "Failed to respond to pending request: " + exception.getMessage());
+                }
                 return true;
             }
         }

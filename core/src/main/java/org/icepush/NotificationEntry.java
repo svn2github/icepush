@@ -26,10 +26,12 @@ implements Serializable {
 
     private final String pushID;
     private final String groupName;
+    private final PushConfiguration pushConfiguration;
 
-    public NotificationEntry(final String pushID, final String groupName) {
+    public NotificationEntry(final String pushID, final String groupName, final PushConfiguration pushConfiguration) {
         this.pushID = pushID;
         this.groupName = groupName;
+        this.pushConfiguration = pushConfiguration;
     }
 
     @Override
@@ -42,6 +44,10 @@ implements Serializable {
 
     public String getGroupName() {
         return groupName;
+    }
+
+    public PushConfiguration getPushConfiguration() {
+        return pushConfiguration;
     }
 
     public String getPushID() {
@@ -60,8 +66,9 @@ implements Serializable {
         return
             new StringBuilder().
                 append("NotificationEntry[").
-                    append("pushID: '").append(pushID).append("', ").
-                    append("groupName: '").append(groupName).append("'").
+                    append("pushID: '").append(getPushID()).append("', ").
+                    append("groupName: '").append(getGroupName()).append("', ").
+                    append("pushConfiguration: '").append(getPushConfiguration()).append("'").
                 append("]").
                     toString();
     }

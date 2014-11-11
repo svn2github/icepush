@@ -15,9 +15,6 @@
  */
 package org.icepush;
 
-import static org.icepush.NotificationEvent.NotificationType;
-import static org.icepush.NotificationEvent.TargetType;
-
 import java.net.URI;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -39,7 +36,7 @@ import org.icepush.util.ExtensionRegistry;
 public class EmailNotificationProvider
 extends AbstractNotificationProvider
 implements NotificationProvider {
-    private static final Logger log = Logger.getLogger(EmailNotificationProvider.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(EmailNotificationProvider.class.getName());
     private static final String SECURITY_NONE = "NONE";
     private static final String SECURITY_SSL = "SSL";
     private static final String SECURITY_TLS = "TLS";
@@ -89,7 +86,7 @@ implements NotificationProvider {
             if (null != password)  {
                 passwordHash = String.valueOf(password.hashCode()) + "(hash)";
             }
-            log.info("ICEpush Email Notification Provider Properties " +
+            LOGGER.info("ICEpush Email Notification Provider Properties " +
                     properties + " " + from + " " + user + ":" + passwordHash +
                     "@" + host + ":" + port);
 
@@ -104,8 +101,8 @@ implements NotificationProvider {
         outOfBandNotifier.registerProvider("mail", this);
     }
 
-    public void send(final String browserID, final String groupName, final PushNotification notification) {
-        (new SendMessage(browserID, groupName, notification)).start();
+    public void send(final String browserID, final String groupName, final PushNotification pushNotification) {
+        (new SendMessage(browserID, groupName, pushNotification)).start();
     }
 
     public static class AutoRegister implements ServletContextListener {
@@ -132,12 +129,12 @@ implements NotificationProvider {
     private class SendMessage extends Thread {
         private final String browserID;
         private final String groupName;
-        private final PushNotification notification;
+        private final PushNotification pushNotification;
 
-        public SendMessage(final String browserID, final String groupName, final PushNotification notification) {
+        public SendMessage(final String browserID, final String groupName, final PushNotification pushNotification) {
             this.browserID = browserID;
             this.groupName = groupName;
-            this.notification = notification;
+            this.pushNotification = pushNotification;
         }
 
         public void run() {
@@ -151,17 +148,14 @@ implements NotificationProvider {
             try {
                 mimeMessage.setFrom(fromAddress);
                 InternetAddress address = new InternetAddress(destinationURI.getSchemeSpecificPart());
-                mimeMessage.setSubject(notification.getSubject());
-                mimeMessage.setText(notification.getDetail());
+                mimeMessage.setSubject(pushNotification.getSubject());
+                mimeMessage.setText(pushNotification.getDetail());
                 Transport transport = session.getTransport(protocol);
                 transport.connect(host, port, user, password);
                 transport.sendMessage(mimeMessage, new InternetAddress[]{address});
-                notificationSent(
-                    new NotificationEvent(
-                        TargetType.BROWSER_ID, browserID, groupName, NotificationType.CLOUD_PUSH,
-                        EmailNotificationProvider.this));
+                notificationSent(groupName, "CLOUD_PUSH", "EMAIL", pushNotification, EmailNotificationProvider.this);
             } catch (MessagingException ex) {
-                log.log(Level.WARNING, "Failed to send email message.", ex);
+                LOGGER.log(Level.WARNING, "Failed to send email message.", ex);
             }
         }
     }

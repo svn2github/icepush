@@ -582,14 +582,18 @@ implements InternalPushGroupManager, PushGroupManager {
     protected void clearPendingNotifications(
         final Set<NotificationEntry> pendingNotifiedPushIDSet, final Set<String> pushIDSet) {
 
-        Iterator<NotificationEntry> pendingNotifiedPushIDIterator =
-            new HashSet<NotificationEntry>(pendingNotifiedPushIDSet).iterator();
-        while (pendingNotifiedPushIDIterator.hasNext()) {
-            NotificationEntry _pendingNotifiedPushID = pendingNotifiedPushIDIterator.next();
+        Set<NotificationEntry> _copyPendingNotifiedPushIDSet =
+            new HashSet<NotificationEntry>(pendingNotifiedPushIDSet);
+        Iterator<NotificationEntry> _pendingNotifiedPushIDIterator =
+            _copyPendingNotifiedPushIDSet.iterator();
+        while (_pendingNotifiedPushIDIterator.hasNext()) {
+            NotificationEntry _pendingNotifiedPushID = _pendingNotifiedPushIDIterator.next();
             if (pushIDSet.contains(_pendingNotifiedPushID.getPushID())) {
-                pendingNotifiedPushIDSet.remove(_pendingNotifiedPushID);
+                _pendingNotifiedPushIDIterator.remove();
             }
         }
+        pendingNotifiedPushIDSet.clear();
+        pendingNotifiedPushIDSet.addAll(_copyPendingNotifiedPushIDSet);
     }
 
     protected long getCloudPushIDTimeout() {
@@ -791,31 +795,31 @@ implements InternalPushGroupManager, PushGroupManager {
 
         public void run() {
             try {
-                Group group = getModifiableGroupMap().get(groupName);
+                Group group = getModifiableGroupMap().get(getGroupName());
                 if (group != null) {
                     Set<String> pushIDSet = new HashSet<String>(Arrays.asList(group.getPushIDs()));
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(
                             Level.FINE,
-                            "Notification triggered for Group '" + groupName + "' with " +
+                            "Notification triggered for Group '" + getGroupName() + "' with " +
                                 "original Push-ID Set '" + pushIDSet + "'.");
                     }
                     pushIDSet.removeAll(exemptPushIDSet);
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(
                             Level.FINE,
-                            "Notification triggered for Group '" + groupName + "' with " +
+                            "Notification triggered for Group '" + getGroupName() + "' with " +
                                 "Push-ID Set '" + pushIDSet + "' after exemption.");
                     }
                     Set<NotificationEntry> notificationEntrySet = new HashSet<NotificationEntry>();
                     for (final String pushID : pushIDSet) {
-                        notificationEntrySet.add(newNotificationEntry(pushID, groupName));
+                        notificationEntrySet.add(newNotificationEntry(pushID, getGroupName(), getPushConfiguration()));
                     }
                     filterNotificationEntrySet(notificationEntrySet);
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(
                             Level.FINE,
-                            "Notification triggered for Group '" + groupName + "' with " +
+                            "Notification triggered for Group '" + getGroupName() + "' with " +
                                 "Notification Entry Set '" + notificationEntrySet + "' after filtering.");
                     }
                     for (final NotificationEntry notificationEntry : notificationEntrySet) {
@@ -832,7 +836,7 @@ implements InternalPushGroupManager, PushGroupManager {
                     }
                     beforeBroadcast(notificationEntrySet);
                     outboundNotifier.broadcast(notificationEntrySet, getPushConfiguration().getDuration());
-                    pushed(groupName);
+                    pushed(getGroupName());
                 }
             } finally {
                 scanForExpiry();
@@ -840,7 +844,7 @@ implements InternalPushGroupManager, PushGroupManager {
         }
 
         public void coalesceWith(Notification nextNotification) {
-            Group group = getModifiableGroupMap().get(groupName);
+            Group group = getModifiableGroupMap().get(getGroupName());
             if (group != null) {
                 nextNotification.exemptPushIDSet.addAll(Arrays.asList(group.getPushIDs()));
             }
@@ -852,12 +856,18 @@ implements InternalPushGroupManager, PushGroupManager {
         protected void filterNotificationEntrySet(final Set<NotificationEntry> notificationEntrySet) {
         }
 
+        protected String getGroupName() {
+            return groupName;
+        }
+
         protected PushConfiguration getPushConfiguration() {
             return pushConfiguration;
         }
 
-        protected NotificationEntry newNotificationEntry(final String pushID, final String groupName) {
-            return new NotificationEntry(pushID, groupName);
+        protected NotificationEntry newNotificationEntry(
+            final String pushID, final String groupName, final PushConfiguration pushConfiguration) {
+
+            return new NotificationEntry(pushID, groupName, pushConfiguration);
         }
     }
 

@@ -18,6 +18,7 @@ package org.icepush;
 
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public abstract class AbstractNotificationProvider
@@ -27,17 +28,33 @@ implements NotificationProvider {
     private final Set<NotificationListener>
         listenerSet = new CopyOnWriteArraySet<NotificationListener>();
 
+    private NotificationEventFactory notificationEventFactory = new DefaultNotificationEventFactory();
+
     public void addNotificationProviderListener(final NotificationListener listener) {
         listenerSet.add(listener);
+    }
+
+    public NotificationEventFactory getNotificationEventFactory() {
+        return notificationEventFactory;
     }
 
     public void removeNotificationProviderListener(final NotificationListener listener) {
         listenerSet.remove(listener);
     }
 
-    protected void notificationSent(final NotificationEvent event) {
+    public void setNotificationEventFactory(final NotificationEventFactory notificationEventFactory) {
+        this.notificationEventFactory = notificationEventFactory;
+    }
+
+    protected void notificationSent(
+        final String groupName, final String pushType, final String notificationProvider,
+        final PushConfiguration pushConfiguration, final Object source) {
+
+        NotificationEvent _notificationEvent =
+            getNotificationEventFactory().
+                createNotificationEvent(groupName, pushType, notificationProvider, pushConfiguration, source);
         for (final NotificationListener listener : listenerSet) {
-            listener.notificationSent(event);
+            listener.notificationSent(_notificationEvent);
         }
     }
 }

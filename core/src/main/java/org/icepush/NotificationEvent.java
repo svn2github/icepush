@@ -24,45 +24,47 @@ public class NotificationEvent
 extends EventObject {
     private static final Logger LOGGER = Logger.getLogger(NotificationEvent.class.getName());
 
-    public static enum NotificationType {
-        PUSH,
-        CLOUD_PUSH
-    }
-
-    public static enum TargetType {
-        BROWSER_ID,
-        PUSH_ID
-    }
-
-    private final TargetType targetType;
-    private final String targetID;
     private final String groupName;
-    private final NotificationType notificationType;
+    private final String notificationProviderType;
+    private final String pushType;
 
     public NotificationEvent(
-        final TargetType targetType, final String targetID, final String groupName,
-        final NotificationType notificationType, final Object source) {
+        final String groupName, final String pushType, final String notificationProviderType, final Object source) {
 
         super(source);
-        this.targetType = targetType;
-        this.targetID = targetID;
         this.groupName = groupName;
-        this.notificationType = notificationType;
+        this.pushType = pushType;
+        this.notificationProviderType = notificationProviderType;
     }
 
     public String getGroupName() {
         return groupName;
     }
 
-    public NotificationType getNotificationType() {
-        return notificationType;
+    public String getNotificationProviderType() {
+        return notificationProviderType;
     }
 
-    public String getTargetID() {
-        return targetID;
+    public String getPushType() {
+        return pushType;
     }
 
-    public TargetType getTargetType() {
-        return targetType;
+    public String toString() {
+        return
+            new StringBuilder().
+                append("NotificationEvent[").
+                    append(membersAsString()).
+                append("]").
+                    toString();
+    }
+
+    protected String membersAsString() {
+        return
+            new StringBuilder().
+                append("groupName: '").append(getGroupName()).append("', ").
+                append("pushType: '").append(getPushType()).append("', ").
+                append("notificationProviderType: '").append(getNotificationProviderType()).append("', ").
+                append("source: '").append(getSource()).append("'").
+                    toString();
     }
 }
