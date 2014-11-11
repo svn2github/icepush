@@ -81,8 +81,9 @@ if (!window.ice.icepush) {
         var BrowserIDName = 'ice.push.browser';
         var WindowID = 'ice.push.window';
         var APIKey = "ice.push.apikey";
-        var AccessToken = "ice.push.access_token";
+        var Account = "ice.push.account";
         var Realm = "ice.push.realm";
+        var AccessToken = "ice.push.access_token";
         var NotifiedPushIDs = 'ice.notified.pushids';
         var HeartbeatTimestamp = 'ice.push.heartbeatTimestamp';
         var SequenceNumber = 'ice.push.sequence';
@@ -224,8 +225,9 @@ if (!window.ice.icepush) {
                 postSynchronously(apiChannel, uri, function (query) {
                     parameter(query, BrowserIDName, getValue(browserID));
                     parameter(query, APIKey, ice.push.configuration.apikey);
-                    parameter(query, AccessToken, ice.push.configuration.access_token);
+                    parameter(query, Account, ice.push.configuration.account);
                     parameter(query, Realm, ice.push.configuration.realm);
+                    parameter(query, AccessToken, ice.push.configuration.access_token);
                 }, FormPost, $witch(function (condition) {
                     condition(OK, function(response) {
                         if (isXMLResponse(response)) {
@@ -250,8 +252,9 @@ if (!window.ice.icepush) {
                 postAsynchronously(apiChannel, uri, function(q) {
                     parameter(q, BrowserIDName, getValue(browserID));
                     parameter(q, APIKey, ice.push.configuration.apikey);
-                    parameter(q, AccessToken, ice.push.configuration.access_token);
+                    parameter(q, Account, ice.push.configuration.account);
                     parameter(q, Realm, ice.push.configuration.realm);
+                    parameter(q, AccessToken, ice.push.configuration.access_token);
                     parameter(q, 'group', group);
                     if (options) {
                         //provide default values if missing
@@ -286,8 +289,9 @@ if (!window.ice.icepush) {
                 postAsynchronously(apiChannel, uri, function(q) {
                     parameter(q, BrowserIDName, getValue(browserID));
                     parameter(q, APIKey, ice.push.configuration.apikey);
-                    parameter(q, AccessToken, ice.push.configuration.access_token);
+                    parameter(q, Account, ice.push.configuration.account);
                     parameter(q, Realm, ice.push.configuration.realm);
+                    parameter(q, AccessToken, ice.push.configuration.access_token);
                     parameter(q, 'group', group);
                     parameter(q, 'id', id);
                     if (options) {
@@ -307,8 +311,9 @@ if (!window.ice.icepush) {
                 postAsynchronously(apiChannel, uri, function(q) {
                     parameter(q, BrowserIDName, getValue(browserID));
                     parameter(q, APIKey, ice.push.configuration.apikey);
-                    parameter(q, AccessToken, ice.push.configuration.access_token);
+                    parameter(q, Account, ice.push.configuration.account);
                     parameter(q, Realm, ice.push.configuration.realm);
+                    parameter(q, AccessToken, ice.push.configuration.access_token);
                     parameter(q, 'group', group);
                     parameter(q, 'id', id);
                 }, FormPost, $witch(function(condition) {
@@ -320,8 +325,9 @@ if (!window.ice.icepush) {
                 getAsynchronously(apiChannel, uri, function(query) {
                     parameter(query, BrowserIDName, getValue(browserID));
                     parameter(query, APIKey, ice.push.configuration.apikey);
-                    parameter(query, AccessToken, ice.push.configuration.access_token);
+                    parameter(query, Account, ice.push.configuration.account);
                     parameter(query, Realm, ice.push.configuration.realm);
+                    parameter(query, AccessToken, ice.push.configuration.access_token);
                     parameters(curry(parameter, query));
                 }, noop, $witch(function(condition) {
                     condition(OK, function(response) {
@@ -335,8 +341,9 @@ if (!window.ice.icepush) {
                 postAsynchronously(apiChannel, uri, function(query) {
                     parameter(query, BrowserIDName, getValue(browserID));
                     parameter(query, APIKey, ice.push.configuration.apikey);
-                    parameter(query, AccessToken, ice.push.configuration.access_token);
+                    parameter(query, Account, ice.push.configuration.account);
                     parameter(query, Realm, ice.push.configuration.realm);
+                    parameter(query, AccessToken, ice.push.configuration.access_token);
                     parameters(curry(parameter, query));
                 }, FormPost, $witch(function(condition) {
                     condition(OK, function(response) {
@@ -366,6 +373,7 @@ if (!window.ice.icepush) {
                 contextPath: '.',
                 blockingConnectionURI: 'listen.icepush',
                 apikey: '',
+                account: '',
                 realm: '',
                 access_token: ''
             }
