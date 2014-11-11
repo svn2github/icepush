@@ -15,6 +15,8 @@
  */
 package org.icepush.servlet;
 
+import static org.icepush.util.RequestUtilities.Patterns.NOTIFY_REQUEST;
+
 import java.net.SocketException;
 import java.net.URI;
 import java.util.HashMap;
@@ -38,7 +40,7 @@ import org.icepush.util.ExtensionRegistry;
 
 public class MainServlet implements PseudoServlet {
     private static final Logger log = Logger.getLogger(MainServlet.class.getName());
-    static HashSet<TraceListener> traceListeners = new HashSet();
+    static HashSet<TraceListener> traceListeners = new HashSet<TraceListener>();
     protected PathDispatcher dispatcher;
     protected Timer monitoringScheduler;
     protected PushContext pushContext;
@@ -102,52 +104,16 @@ public class MainServlet implements PseudoServlet {
         addDispatches();
     }
 
-    protected void addDispatches() {
-        dispatchOn(".*code\\.min\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
-            new CodeServer(new String[] {"ice.core/bridge-support.js", "ice.push/icepush.js"}))), configuration));
-        dispatchOn(".*code\\.icepush", new BasicAdaptingServlet(new CacheControlledServer(new CompressingServer(
-            new CodeServer(new String[] {"ice.core/bridge-support.uncompressed.js", "ice.push/icepush.uncompressed.js"}))), configuration));
-        addBrowserBoundDispatch();
+    public static void addTraceListener(TraceListener listener)  {
+        traceListeners.add(listener);
     }
 
-    protected void addBrowserBoundDispatch() {
-        dispatchOn(".*", createBrowserDispatcher());
-    }
-
-    protected PseudoServlet createBrowserBoundServlet(final String browserID) {
-        BrowserBoundServlet browserBoundServlet =
-            new BrowserBoundServlet(
-                browserID,
-                pushContext,
-                servletContext,
-                monitoringScheduler,
-                configuration,
-                terminateConnectionOnShutdown
-            );
-        browserBoundServlet.setUp();
-        return browserBoundServlet;
-    }
-
-    protected PseudoServlet createBrowserDispatcher() {
-        return new RemoveParameterPrefix(
-                 new CheckBrowserIDServlet(
-                    new BrowserDispatcher(configuration) {
-                        protected PseudoServlet newServer(final String browserID) {
-                            return createBrowserBoundServlet(browserID);
-                        }
-                    }));
-    }
-
-    protected void createOutOfBandNotifier(final ServletContext servletContext) {
-        new DefaultOutOfBandNotifier(servletContext);
-    }
-
-    public void dispatchOn(String pattern, PseudoServlet servlet) {
+    public void dispatchOn(final String pattern, final PseudoServlet servlet) {
         dispatcher.dispatchOn(pattern, servlet);
     }
 
-    public void service(HttpServletRequest request,
-                        HttpServletResponse response) throws Exception {
+    public void service(final HttpServletRequest request, final HttpServletResponse response)
+    throws Exception {
         try {
             dispatcher.service(request, response);
         } catch (SocketException e) {
@@ -184,14 +150,87 @@ public class MainServlet implements PseudoServlet {
         PushInternalContext.getInstance().removeAttribute(Timer.class.getName() + "$expiry");
     }
 
-    public static void trace(String message)  {
+    public static void trace(final String message)  {
         for (TraceListener listener : traceListeners)  {
             listener.handleTrace(message);
         }
     }
 
-    public static void addTraceListener(TraceListener listener)  {
-        traceListeners.add(listener);
+    protected void addBrowserBoundDispatch() {
+        dispatchOn(".*", createBrowserDispatcher());
+    }
+
+    protected void addDispatches() {
+        dispatchOn(
+            ".*code\\.min\\.icepush",
+            new BasicAdaptingServlet(
+                new CacheControlledServer(
+                    new CompressingServer(
+                        new CodeServer(getCompressedCodeResources())
+                    )
+                ),
+                configuration
+            )
+        );
+        dispatchOn(
+            ".*code\\.icepush",
+            new BasicAdaptingServlet(
+                new CacheControlledServer(
+                    new CompressingServer(
+                        new CodeServer(getCodeResources())
+                    )
+                ),
+                configuration
+            )
+        );
+        dispatchOn(
+            NOTIFY_REQUEST,
+            new RemoveParameterPrefix(newNotifyPushID())
+        );
+        addBrowserBoundDispatch();
+    }
+
+    protected PseudoServlet createBrowserBoundServlet(final String browserID) {
+        BrowserBoundServlet browserBoundServlet =
+            new BrowserBoundServlet(
+                browserID,
+                pushContext,
+                servletContext,
+                monitoringScheduler,
+                configuration,
+                terminateConnectionOnShutdown
+            );
+        browserBoundServlet.setUp();
+        return browserBoundServlet;
+    }
+
+    protected PseudoServlet createBrowserDispatcher() {
+        return
+            new RemoveParameterPrefix(
+                new CheckBrowserIDServlet(
+                    new BrowserDispatcher(configuration) {
+                        protected PseudoServlet newServer(final String browserID) {
+                            return createBrowserBoundServlet(browserID);
+                        }
+                    }
+                )
+            );
+    }
+
+    protected void createOutOfBandNotifier(final ServletContext servletContext) {
+        new DefaultOutOfBandNotifier(servletContext);
+    }
+
+    protected String[] getCodeResources() {
+        return new String[] {"ice.core/bridge-support.uncompressed.js", "ice.push/icepush.uncompressed.js"};
+    }
+
+    protected String[] getCompressedCodeResources() {
+        return new String[] {"ice.core/bridge-support.js", "ice.push/icepush.js"};
+    }
+
+    protected PseudoServlet newNotifyPushID() {
+        return new NotifyPushID(pushContext);
     }
 
     //Application can add itself as a TraceListener to receive
@@ -200,13 +239,13 @@ public class MainServlet implements PseudoServlet {
         public void handleTrace(String message);
     }
 
-    public static class ExtensionRegistration implements
-            ServletContextListener {
-        public void contextInitialized(ServletContextEvent servletContextEvent) {
+    public static class ExtensionRegistration
+    implements ServletContextListener {
+        public void contextInitialized(final ServletContextEvent servletContextEvent) {
             ExtensionRegistry.addExtension(servletContextEvent.getServletContext(), 1, "org.icepush.MainServlet", MainServlet.class);
         }
 
-        public void contextDestroyed(ServletContextEvent servletContextEvent) {
+        public void contextDestroyed(final ServletContextEvent servletContextEvent) {
         }
     }
 

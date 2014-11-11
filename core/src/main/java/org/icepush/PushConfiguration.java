@@ -15,18 +15,22 @@
  */
 package org.icepush;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 public class PushConfiguration
 implements Serializable {
     private static final long serialVersionUID = -5770414701296818792L;
 
     private static final Logger LOGGER = Logger.getLogger(PushConfiguration.class.getName());
+
+    private static final Pattern NAME_VALUE = Pattern.compile("\\=");
 
     private Map<String, Object> attributes = new HashMap<String, Object>();
     private long scheduledAt = System.currentTimeMillis();
@@ -80,6 +84,43 @@ implements Serializable {
             ((PushConfiguration)object).attributes.equals(attributes) &&
             ((PushConfiguration)object).duration == duration &&
             ((PushConfiguration)object).scheduledAt == scheduledAt;
+    }
+
+    public static PushConfiguration fromRequest(final HttpServletRequest request) {
+        PushConfiguration _pushConfiguration;
+        String[] options = request.getParameterValues("option");
+        if (options != null && options.length > 0) {
+            _pushConfiguration = new PushConfiguration();
+            Map<String,Object> attributes = _pushConfiguration.getAttributes();
+            for (int i = 0; i < options.length; i++) {
+                String option = options[i];
+                String[] nameValue = NAME_VALUE.split(option);
+                attributes.put(nameValue[0], nameValue[1]);
+            }
+        } else {
+            _pushConfiguration = null;
+        }
+        String delay = request.getParameter("delay");
+        if (delay != null) {
+            String duration = request.getParameter("duration");
+            if (duration != null) {
+                if (_pushConfiguration == null) {
+                    _pushConfiguration = new PushConfiguration();
+                }
+                _pushConfiguration.delayed(Long.parseLong(delay), Long.parseLong(duration));
+            }
+        }
+        String at = request.getParameter("at");
+        if (at != null) {
+            String duration = request.getParameter("duration");
+            if (duration != null) {
+                if (_pushConfiguration == null) {
+                    _pushConfiguration = new PushConfiguration();
+                }
+                _pushConfiguration.scheduled(new Date(Long.parseLong(at)), Long.parseLong(duration));
+            }
+        }
+        return _pushConfiguration;
     }
 
     public PushConfiguration scheduled(Date time, long duration) {
