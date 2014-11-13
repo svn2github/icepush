@@ -27,7 +27,7 @@ public class PushStormDetectionServer
 implements PushServer {
     private static final Logger LOGGER = Logger.getLogger(PushStormDetectionServer.class.getName());
 
-    private static final long DefaultLoopInterval = 700;
+    private static final long DefaultLoopInterval = 275;
     private static final long DefaultMaxTightLoopRequests = 25;
 
     private final PushServer pushServer;
