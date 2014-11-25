@@ -15,6 +15,7 @@
  */
 
 var testLiveliness = operator();
+var resetLiveliness = operator();
 var PushIDLiveliness;
 (function () {
     if (useLocalStorage()) {
@@ -22,8 +23,14 @@ var PushIDLiveliness;
             var notificationResponsivness = {};
 
             var testChannel = "ice.push.liveliness";
-            var testLivelinessBroadcaster = LocalStorageNotificationBroadcaster(testChannel, function () {
-                notifyWindows(confirmLivelinessBroadcaster, pushIdentifiers());
+            var testLivelinessBroadcaster = LocalStorageNotificationBroadcaster(testChannel, function (verifiedIds) {
+                var ids = pushIdentifiers();
+                var intersectedIds = intersect(verifiedIds, ids);
+                if (notEmpty(intersectedIds)) {
+                    setTimeout(function() {
+                        notifyWindows(confirmLivelinessBroadcaster, ids);
+                    }, 50);
+                }
             });
 
             var confirmationChannel = "ice.push.confirm";
@@ -57,7 +64,11 @@ var PushIDLiveliness;
                         }
                     });
 
-                    notifyWindows(testLivelinessBroadcaster, ids);
+                    each(ids, function(id, i) {
+                        setTimeout(function() {
+                            notifyWindows(testLivelinessBroadcaster, [id]);
+                        }, 20 * i);
+                    });
 
                     return notificationResponsivness;
                 });
