@@ -18,20 +18,17 @@ var notifyWindows = operator();
 var disposeBroadcast = operator();
 
 function LocalStorageNotificationBroadcaster(name, callback) {
+    var Separator = ':::';
+
     if (!window.localStorage.getItem(name)) {
         window.localStorage.setItem(name, '');
     }
 
-    var oldValue = window.localStorage.getItem(name);
-
     function storageListener(e) {
-        var newValue = window.localStorage.getItem(name);
-        try {
-            if (e.key == name) {
-                callback(split(newValue, ' '));
-            }
-        } finally {
-            oldValue = newValue;
+        var newValue = e.newValue;
+        if (e.key == name && newValue) {
+            var ids = split(newValue, Separator)[0];
+            callback(split(ids, ' '));
         }
     }
 
@@ -44,7 +41,7 @@ function LocalStorageNotificationBroadcaster(name, callback) {
     return object(function(method) {
         method(notifyWindows, function(self, newValue) {
             //the random number is required to force locaStorage event notification when stored value has not changed
-            window.localStorage.setItem(name, join(newValue, ' ') + ' ' + Math.random());
+            window.localStorage.setItem(name, join(newValue, ' ') + Separator + Math.random());
             //notify the current window as well, when not running in IE
             if (!/MSIE/.test(navigator.userAgent)) {
                 callback(newValue);

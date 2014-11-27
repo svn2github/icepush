@@ -390,7 +390,7 @@ if (!window.ice.icepush) {
             var configuration = XMLDynamicConfiguration(function() {
                 return configurationElement;
             });
-            var pushIdLiveliness = PushIDLiveliness(registeredWindowPushIds);
+            var pushIdExpiryMonitor = PushIDExpiryMonitor(logger);
             var asyncConnection = AsyncConnection(logger, windowID, configuration);
 
             register(commandDispatcher, 'configuration', function(message) {
@@ -435,28 +435,12 @@ if (!window.ice.icepush) {
                 }
             }
 
-            function removeUnusedPushIDs() {
-                var unresponsivePushIds = testLiveliness(pushIdLiveliness, registeredPushIds());
-                //collect pushIDs that have not confirmed their notification
-                var ids = [];
-                for (var p in unresponsivePushIds) {
-                    if (unresponsivePushIds.hasOwnProperty(p) && unresponsivePushIds[p] > 10) {
-                        append(ids, p);
-                    }
-                }
-                //remove unused pushIDs
-                if (notEmpty(ids)) {
-                    info(logger, 'expirying unused ids: ' + ids);
-                    delistPushIDsWithBrowser(ids);
-                }
-            }
-
             //choose between localStorage or cookie based inter-window communication
             var notificationBroadcaster = useLocalStorage() ?
                 LocalStorageNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications) : CookieBasedNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications);
 
             //register command that handles the noop message
-            register(commandDispatcher, 'noop', removeUnusedPushIDs);
+            register(commandDispatcher, 'noop', noop);
             //register command that handles the notified-pushids message
             register(commandDispatcher, 'notified-pushids', function(message) {
                 var text = message.firstChild;
@@ -464,7 +448,6 @@ if (!window.ice.icepush) {
                     var receivedPushIDs = split(text.data, ' ');
                     debug(logger, 'received notifications: ' + receivedPushIDs);
                     notifyWindows(notificationBroadcaster, purgeNonRegisteredPushIDs(asSet(receivedPushIDs)));
-                    removeUnusedPushIDs();
                 } else {
                     warn(logger, "No notification was received.");
                 }
@@ -520,6 +503,7 @@ if (!window.ice.icepush) {
             whenReEstablished(asyncConnection, function(windowID) {
                 info(logger, 'connection will be established in window [' + windowID + ']');
                 broadcast(blockingConnectionReEstablishedListeners);
+                (windowID == namespace.windowID ? resumePushIDExpiry : stopPushIDExpiry)(pushIdExpiryMonitor);
             });
 
             whenDown(asyncConnection, function(reconnectAttempts) {
