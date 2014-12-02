@@ -44,7 +44,7 @@ function LocalStorageNotificationBroadcaster(name, callback) {
             window.localStorage.setItem(name, join(newValue, ' ') + Separator + Math.random());
             //notify the current window as well, when not running in IE
             var agent = navigator.userAgent;
-            if (!/MSIE/.test(agent) && !/Trident\//.test(agent)) {
+            if (!/MSIE/.test(agent) && !/Trident/.test(agent)) {
                 callback(newValue);
             }
         });
