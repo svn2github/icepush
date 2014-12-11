@@ -93,6 +93,8 @@ public class PushContext {
                 browserID = Browser.generateBrowserID();
                 Cookie cookie = new Cookie(Browser.BROWSER_ID_NAME, browserID);
                 cookie.setPath("/");
+                cookie.setHttpOnly(true);
+                cookie.setSecure(true);
                 response.addCookie(cookie);
                 request.setAttribute(Browser.BROWSER_ID_NAME, browserID);
             } else {
