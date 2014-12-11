@@ -463,6 +463,9 @@ if (!window.ice.icepush) {
                 }
             }
 
+            onBeforeUnload(window, function() {
+                shutdown(asyncConnection);
+            });
             onUnload(window, dispose);
 
             onSend(asyncConnection, function(query) {
