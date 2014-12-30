@@ -35,7 +35,7 @@ var PushIDExpiryMonitor;
 
             var confirmationChannel = "ice.push.confirm";
             var confirmLivelinessBroadcaster = LocalStorageNotificationBroadcaster(confirmationChannel, function (confirmedIDs) {
-                console.info('received confirmation: ' + confirmedIDs);
+                info(logger, 'received confirmation: ' + confirmedIDs);
                 each(confirmedIDs, function (id) {
                     delete notificationResponsivness[id];
                 });
@@ -65,9 +65,10 @@ var PushIDExpiryMonitor;
                     }
                 });
 
-                info(logger, 'request confirmation: ' + ids);
-                notifyWindows(testLivelinessBroadcaster, ids);
-
+                if (notEmpty(ids)) {
+                    info(logger, 'request confirmation: ' + ids);
+                    notifyWindows(testLivelinessBroadcaster, ids);
+                }
                 return notificationResponsivness;
             }
 
