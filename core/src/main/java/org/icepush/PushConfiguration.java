@@ -57,7 +57,7 @@ implements Serializable {
      * @see        #PushConfiguration
      */
     public PushConfiguration(Map<String, Object> attributes)  {
-        this.attributes = attributes;
+        this.attributes = new HashMap<String, Object>(attributes);
     }
 
     /**
