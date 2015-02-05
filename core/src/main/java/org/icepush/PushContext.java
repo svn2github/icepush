@@ -88,18 +88,7 @@ public class PushContext {
     public synchronized String createPushId(HttpServletRequest request, HttpServletResponse response) {
         String browserID = Browser.getBrowserID(request);
         if (browserID == null) {
-            String currentBrowserID = (String)request.getAttribute(Browser.BROWSER_ID_NAME);
-            if (null == currentBrowserID) {
-                browserID = Browser.generateBrowserID();
-                Cookie cookie = new Cookie(Browser.BROWSER_ID_NAME, browserID);
-                cookie.setPath("/");
-                cookie.setHttpOnly(true);
-                cookie.setSecure(true);
-                response.addCookie(cookie);
-                request.setAttribute(Browser.BROWSER_ID_NAME, browserID);
-            } else {
-                browserID = currentBrowserID;
-            }
+            browserID = Browser.generateBrowserID();
         }
 
         String id = browserID + ":" + generateSubID();

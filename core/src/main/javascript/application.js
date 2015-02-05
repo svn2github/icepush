@@ -108,8 +108,19 @@ if (!window.ice.icepush) {
             }
         }
 
+        var browserID = Slot(BrowserIDName);
+
         function enlistPushIDsWithBrowser(ids) {
             var registeredIDs = split(getValue(pushIDsSlot), ' ');
+            //make sure browser ID is set before registering the push ID
+            if (!getValue(browserID)) {
+                try {
+                    var id = ids[0].split(':')[0];
+                    setValue(browserID, id);
+                } catch (ex) {
+                    error(namespace.logger, 'Failed to extract browser ID from push ID.');
+                }
+            }
             setValue(pushIDsSlot, join(asSet(concatenate(registeredIDs, ids)), ' '));
         }
 
@@ -179,13 +190,6 @@ if (!window.ice.icepush) {
         var commandDispatcher = CommandDispatcher();
         register(commandDispatcher, 'parsererror', ParsingError);
         register(commandDispatcher, 'macro', Macro(commandDispatcher));
-
-        var browserID = Slot(BrowserIDName);
-        try {
-            setValue(browserID, lookupCookieValue(BrowserIDName));
-        } catch (ex) {
-            //no problem, browser ID will be set by a configuration message
-        }
 
         register(commandDispatcher, 'browser', function(message) {
             setValue(browserID, message.getAttribute('id'));
