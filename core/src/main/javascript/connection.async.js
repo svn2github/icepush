@@ -110,8 +110,8 @@ var AsyncConnection;
 
                 lastSentPushIds = registeredPushIds();
                 if (isEmpty(lastSentPushIds)) {
-                    //mark blocking connection as not started, with current window as first candidate to re-initiate the connection
-                    offerCandidature();
+                    stopTimeoutBombs();
+                    broadcast(connectionStoppedListeners, ['connection stopped, no pushIDs registered']);
                 } else {
                     debug(logger, 'connect...');
                     var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
@@ -361,9 +361,6 @@ var AsyncConnection;
                             //but only when at least one pushId is registered
                             if (notEmpty(registeredPushIds())) {
                                 initializeConnection();
-                            } else {
-                                stopTimeoutBombs();
-                                broadcast(connectionStoppedListeners, ['connection stopped, no pushIDs registered']);
                             }
                         }
                         updateLease();
