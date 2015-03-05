@@ -508,8 +508,12 @@ if (!window.ice.icepush) {
                 }
             });
 
+            whenStopped(asyncConnection, function(reason) {
+                debug(logger, reason + ' in window [' + windowID + ']');
+                stopPushIDExpiry(pushIdExpiryMonitor);
+            });
+
             whenReEstablished(asyncConnection, function(windowID) {
-                info(logger, 'connection will be established in window [' + windowID + ']');
                 broadcast(blockingConnectionReEstablishedListeners);
                 (windowID == namespace.windowID ? resumePushIDExpiry : stopPushIDExpiry)(pushIdExpiryMonitor);
             });

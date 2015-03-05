@@ -20,6 +20,7 @@ var onReceive = operator();
 var onServerError = operator();
 var whenDown = operator();
 var whenTrouble = operator();
+var whenStopped = operator();
 var whenReEstablished = operator();
 var startConnection = operator();
 var resumeConnection = operator();
@@ -59,6 +60,7 @@ var AsyncConnection;
         var onServerErrorListeners = [];
         var connectionDownListeners = [];
         var connectionTroubleListeners = [];
+        var connectionStoppedListeners = [];
         var connectionReEstablished = [];
 
         var listener = object(function(method) {
@@ -152,6 +154,7 @@ var AsyncConnection;
                                 }
                                 //avoid to reconnect
                                 stopTimeoutBombs();
+                                broadcast(connectionStoppedListeners, ['connection stopped by server']);
                             }
                         });
                         condition(ServerInternalError, retryOnServerError);
@@ -360,6 +363,7 @@ var AsyncConnection;
                                 initializeConnection();
                             } else {
                                 stopTimeoutBombs();
+                                broadcast(connectionStoppedListeners, ['connection stopped, no pushIDs registered']);
                             }
                         }
                         updateLease();
@@ -418,6 +422,10 @@ var AsyncConnection;
                 append(connectionTroubleListeners, callback);
             });
 
+            method(whenStopped, function(self, callback) {
+                append(connectionStoppedListeners, callback);
+            });
+
             method(whenReEstablished, function(self, callback) {
                 append(connectionReEstablished, callback);
             });
@@ -444,6 +452,7 @@ var AsyncConnection;
                     stopTimeoutBombs();
                     connect = noop;
                     paused = true;
+                    broadcast(connectionStoppedListeners, ['connection stopped']);
                 }
             });
 
@@ -486,7 +495,8 @@ var AsyncConnection;
                     error(logger, 'error during shutdown', e);
                     //ignore, we really need to shutdown
                 } finally {
-                    onReceiveListeners = connectionDownListeners = onServerErrorListeners = [];
+                    broadcast(connectionStoppedListeners, ['connection stopped']);
+                    onReceiveListeners = connectionDownListeners = onServerErrorListeners = connectionStoppedListeners = [];
                     abort(listener);
                     stopTimeoutBombs();
                     stop(blockingConnectionMonitor);
