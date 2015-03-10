@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 
 public class Browser
@@ -76,7 +77,12 @@ implements Serializable {
     }
 
     public static String getBrowserID(final HttpServletRequest request) {
-        return getBrowserIDFromParameter(request);
+        String browserID = getBrowserIDFromCookie(request);
+        if (browserID == null) {
+            return getBrowserIDFromParameter(request);
+        } else {
+            return browserID;
+        }
     }
 
     public String getID() {
@@ -237,6 +243,17 @@ implements Serializable {
 
     protected void setStatus(final Status status) {
         this.status = status;
+    }
+
+    private static String getBrowserIDFromCookie(final HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        for (Cookie cookie : cookies) {
+            if (BROWSER_ID_NAME.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+
+        return null;
     }
 
     private static String getBrowserIDFromParameter(final HttpServletRequest request) {

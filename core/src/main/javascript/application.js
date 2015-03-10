@@ -109,6 +109,11 @@ if (!window.ice.icepush) {
         }
 
         var browserID = Slot(BrowserIDName);
+        try {
+            setValue(browserID, lookupCookieValue(BrowserIDName));
+        } catch (ex) {
+            //no problem, browser ID will be set by a configuration message
+        }
 
         function enlistPushIDsWithBrowser(ids) {
             var registeredIDs = split(getValue(pushIDsSlot), ' ');
