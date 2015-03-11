@@ -56,6 +56,11 @@ if (!window.ice.icepush) {
             append(notificationListeners, callback);
         };
 
+        var receiveListeners = [];
+        namespace.onBlockingConnectionReceive = function(callback) {
+            append(receiveListeners, callback);
+        };
+
         var serverErrorListeners = [];
         namespace.onBlockingConnectionServerError = function(callback) {
             append(serverErrorListeners, callback);
@@ -490,7 +495,9 @@ if (!window.ice.icepush) {
 
             onReceive(asyncConnection, function(response) {
                 if (isXMLResponse(response)) {
-                    deserializeAndExecute(commandDispatcher, contentAsDOM(response).documentElement);
+                    var message = contentAsDOM(response).documentElement;
+                    deserializeAndExecute(commandDispatcher, message);
+                    broadcast(receiveListeners, [ message ]);
                 } else {
                     var mimeType = getHeader(response, 'Content-Type');
                     warn(logger, 'unknown content in response - ' + mimeType + ', expected text/xml');
