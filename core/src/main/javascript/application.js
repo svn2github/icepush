@@ -479,7 +479,7 @@ if (!window.ice.icepush) {
             }
 
             onBeforeUnload(window, function() {
-                shutdown(asyncConnection);
+                pauseConnection(asyncConnection);
             });
             onUnload(window, dispose);
 
