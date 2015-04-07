@@ -41,7 +41,7 @@ implements Serializable {
      *     Constructs a new PushConfiguration.
      * </p>
      *
-     * @see        #PushConfiguration(Map<String, Object>)
+     * @see        #PushConfiguration(Map)
      */
     public PushConfiguration()  {
         attributes = new HashMap<String, Object>();
