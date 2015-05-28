@@ -1888,6 +1888,8 @@ _280=_285?_286:noop;
 return !_285;
 };
 function _286(_287,_288,_289,_28a,_28b){
+setTimeout(function(){
+try{
 var _28c=join(_289,".");
 if(_27d.test(_28c)){
 var _28d=_27f.ownerDocument;
@@ -1905,6 +1907,11 @@ _27f.appendChild(_290).appendChild(_28d.createTextNode(line));
 _27f.scrollTop=_27f.scrollHeight;
 }
 _281();
+}
+catch(ex){
+_280=noop;
+}
+},1);
 };
 function _291(){
 var _292=window.open("","_blank","scrollbars=1,width=800,height=680");

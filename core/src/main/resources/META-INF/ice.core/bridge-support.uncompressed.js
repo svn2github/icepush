@@ -1852,23 +1852,29 @@ ice.lib.logger = ice.module(function(exportAs) {
             return !disabled;
         }
         function displayEntry(priorityName, colorName, category, message, exception) {
-            var categoryName = join(category, '.');
-            if (categoryMatcher.test(categoryName)) {
-                var elementDocument = logContainer.ownerDocument;
-                var timestamp = new Date();
-                var completeMessage = join(['[', categoryName, '] : ', message, (exception ? join(['\n', exception.name, ' <', exception.message, '>'], '') : '')], '');
-                each(split(completeMessage, '\n'), function(line) {
-                    if (/(\w+)/.test(line)) {
-                        var eventNode = elementDocument.createElement('div');
-                        eventNode.style.padding = '3px';
-                        eventNode.style.color = colorName;
-                        eventNode.setAttribute("title", timestamp + ' | ' + priorityName)
-                        logContainer.appendChild(eventNode).appendChild(elementDocument.createTextNode(line));
+            setTimeout(function() {
+                try {
+                    var categoryName = join(category, '.');
+                    if (categoryMatcher.test(categoryName)) {
+                        var elementDocument = logContainer.ownerDocument;
+                        var timestamp = new Date();
+                        var completeMessage = join(['[', categoryName, '] : ', message, (exception ? join(['\n', exception.name, ' <', exception.message, '>'], '') : '')], '');
+                        each(split(completeMessage, '\n'), function(line) {
+                            if (/(\w+)/.test(line)) {
+                                var eventNode = elementDocument.createElement('div');
+                                eventNode.style.padding = '3px';
+                                eventNode.style.color = colorName;
+                                eventNode.setAttribute("title", timestamp + ' | ' + priorityName)
+                                logContainer.appendChild(eventNode).appendChild(elementDocument.createTextNode(line));
+                            }
+                        });
+                        logContainer.scrollTop = logContainer.scrollHeight;
                     }
-                });
-                logContainer.scrollTop = logContainer.scrollHeight;
-            }
-            trimLines();
+                    trimLines();
+                } catch (ex) {
+                    logEntry = noop;
+                }
+            }, 1);
         }
         function showWindow() {
             var logWindow = window.open('', '_blank', 'scrollbars=1,width=800,height=680');
