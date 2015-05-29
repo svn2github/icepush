@@ -1770,6 +1770,7 @@ eval(ice.importFrom("ice.lib.oo"));
 eval(ice.importFrom("ice.lib.collection"));
 eval(ice.importFrom("ice.lib.window"));
 eval(ice.importFrom("ice.lib.event"));
+eval(ice.importFrom("ice.lib.string"));
 var _238=operator();
 var info=operator();
 var warn=operator();
