@@ -86,7 +86,6 @@ if (!window.ice.icepush) {
         var PushIDs = 'ice.pushids';
         var BrowserIDName = 'ice.push.browser';
         var WindowID = 'ice.push.window';
-        var APIKey = "ice.push.apikey";
         var Account = "ice.push.account";
         var Realm = "ice.push.realm";
         var AccessToken = "ice.push.access_token";
@@ -239,7 +238,6 @@ if (!window.ice.icepush) {
                 var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
                 postSynchronously(apiChannel, uri, function (query) {
                     parameter(query, BrowserIDName, getValue(browserID));
-                    parameter(query, APIKey, ice.push.configuration.apikey);
                     parameter(query, Account, ice.push.configuration.account);
                     parameter(query, Realm, ice.push.configuration.realm);
                     parameter(query, AccessToken, ice.push.configuration.access_token);
@@ -266,7 +264,6 @@ if (!window.ice.icepush) {
                 var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
                     parameter(q, BrowserIDName, getValue(browserID));
-                    parameter(q, APIKey, ice.push.configuration.apikey);
                     parameter(q, Account, ice.push.configuration.account);
                     parameter(q, Realm, ice.push.configuration.realm);
                     parameter(q, AccessToken, ice.push.configuration.access_token);
@@ -303,7 +300,6 @@ if (!window.ice.icepush) {
                 var uri = resolveURI(namespace.push.configuration.addGroupMemberURI || 'add-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
                     parameter(q, BrowserIDName, getValue(browserID));
-                    parameter(q, APIKey, ice.push.configuration.apikey);
                     parameter(q, Account, ice.push.configuration.account);
                     parameter(q, Realm, ice.push.configuration.realm);
                     parameter(q, AccessToken, ice.push.configuration.access_token);
@@ -325,7 +321,6 @@ if (!window.ice.icepush) {
                 var uri = resolveURI(namespace.push.configuration.removeGroupMemberURI || 'remove-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
                     parameter(q, BrowserIDName, getValue(browserID));
-                    parameter(q, APIKey, ice.push.configuration.apikey);
                     parameter(q, Account, ice.push.configuration.account);
                     parameter(q, Realm, ice.push.configuration.realm);
                     parameter(q, AccessToken, ice.push.configuration.access_token);
@@ -339,7 +334,6 @@ if (!window.ice.icepush) {
             get: function(uri, parameters, responseCallback) {
                 getAsynchronously(apiChannel, uri, function(query) {
                     parameter(query, BrowserIDName, getValue(browserID));
-                    parameter(query, APIKey, ice.push.configuration.apikey);
                     parameter(query, Account, ice.push.configuration.account);
                     parameter(query, Realm, ice.push.configuration.realm);
                     parameter(query, AccessToken, ice.push.configuration.access_token);
@@ -355,7 +349,6 @@ if (!window.ice.icepush) {
             post: function(uri, parameters, responseCallback) {
                 postAsynchronously(apiChannel, uri, function(query) {
                     parameter(query, BrowserIDName, getValue(browserID));
-                    parameter(query, APIKey, ice.push.configuration.apikey);
                     parameter(query, Account, ice.push.configuration.account);
                     parameter(query, Realm, ice.push.configuration.realm);
                     parameter(query, AccessToken, ice.push.configuration.access_token);
@@ -387,7 +380,6 @@ if (!window.ice.icepush) {
             configuration: {
                 contextPath: '.',
                 blockingConnectionURI: 'listen.icepush',
-                apikey: '',
                 account: '',
                 realm: '',
                 access_token: ''

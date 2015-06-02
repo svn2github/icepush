@@ -118,7 +118,6 @@ var AsyncConnection;
                     listener = postAsynchronously(channel, uri, function(q) {
                         parameter(q, BrowserIDName, getValue(browserID));
                         parameter(q, WindowID, namespace.windowID);
-                        parameter(q, APIKey, ice.push.configuration.apikey);
                         parameter(q, Account, ice.push.configuration.account);
                         parameter(q, Realm, ice.push.configuration.realm);
                         parameter(q, AccessToken, ice.push.configuration.access_token);
