@@ -28,14 +28,14 @@ var PushIDExpiryMonitor;
                 var ids = registeredWindowPushIds();
                 var confirmedIds = intersect(verifiedIds, ids);
                 if (notEmpty(confirmedIds)) {
-                    info(logger, 'send confirmation: ' + ids);
+                    debug(logger, 'send confirmation: ' + ids);
                     notifyWindows(confirmLivelinessBroadcaster, ids);
                 }
             });
 
             var confirmationChannel = "ice.push.confirm";
             var confirmLivelinessBroadcaster = LocalStorageNotificationBroadcaster(confirmationChannel, function (confirmedIDs) {
-                info(logger, 'received confirmation: ' + confirmedIDs);
+                debug(logger, 'received confirmation: ' + confirmedIDs);
                 each(confirmedIDs, function (id) {
                     delete notificationResponsivness[id];
                 });
