@@ -50,28 +50,28 @@ var Slot;
     var BrowserSlot;
     var existsBrowserSlot;
     var removeBrowserSlot;
-    if (window.sessionStorage) {
+    if (window.localStorage) {
         BrowserSlot = function LocalStorageSlot(name, val) {
-            window.sessionStorage.setItem(name, window.sessionStorage.getItem(name) || '');
+            window.localStorage.setItem(name, window.localStorage.getItem(name) || '');
 
             return object(function (method) {
                 method(getValue, function (self) {
-                    var val = window.sessionStorage.getItem(name);
+                    var val = window.localStorage.getItem(name);
                     return val ? val : '';
                 });
 
                 method(setValue, function (self, val) {
-                    window.sessionStorage.setItem(name, val || '');
+                    window.localStorage.setItem(name, val || '');
                 });
             });
         };
 
         existsBrowserSlot = function (name) {
-            return window.sessionStorage.getItem(name) != null;
+            return window.localStorage.getItem(name) != null;
         };
 
         removeBrowserSlot = function (name) {
-            window.sessionStorage.removeItem(name);
+            window.localStorage.removeItem(name);
         };
     } else {
         BrowserSlot = function CookieSlot(name, val) {
