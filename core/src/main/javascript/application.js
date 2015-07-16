@@ -112,20 +112,13 @@ if (!window.ice.icepush) {
             }
         }
 
-        var browserID = Slot(BrowserIDName);
-        try {
-            setValue(browserID, lookupCookieValue(BrowserIDName));
-        } catch (ex) {
-            //no problem, browser ID will be set by a configuration message
-        }
-
         function enlistPushIDsWithBrowser(ids) {
             var registeredIDs = split(getValue(pushIDsSlot), ' ');
             //make sure browser ID is set before registering the push ID
-            if (!getValue(browserID)) {
+            if (!lookupCookieValue(BrowserIDName)) {
                 try {
                     var id = ids[0].split(':')[0];
-                    setValue(browserID, id);
+                    Cookie(BrowserIDName, id);
                 } catch (ex) {
                     error(namespace.logger, 'Failed to extract browser ID from push ID.');
                 }
@@ -201,7 +194,7 @@ if (!window.ice.icepush) {
         register(commandDispatcher, 'macro', Macro(commandDispatcher));
 
         register(commandDispatcher, 'browser', function(message) {
-            setValue(browserID, message.getAttribute('id'));
+            Cookie(BrowserIDName, message.getAttribute('id'));
         });
 
         var currentNotifications = [];
@@ -237,7 +230,7 @@ if (!window.ice.icepush) {
                 var id;
                 var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
                 postSynchronously(apiChannel, uri, function (query) {
-                    parameter(query, BrowserIDName, getValue(browserID));
+                    parameter(query, BrowserIDName, lookupCookieValue(BrowserIDName));
                     parameter(query, Account, ice.push.configuration.account);
                     parameter(query, Realm, ice.push.configuration.realm);
                     parameter(query, AccessToken, ice.push.configuration.access_token);
@@ -263,7 +256,7 @@ if (!window.ice.icepush) {
             notify: function(group, options) {
                 var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
-                    parameter(q, BrowserIDName, getValue(browserID));
+                    parameter(q, BrowserIDName, lookupCookieValue(BrowserIDName));
                     parameter(q, Account, ice.push.configuration.account);
                     parameter(q, Realm, ice.push.configuration.realm);
                     parameter(q, AccessToken, ice.push.configuration.access_token);
@@ -299,7 +292,7 @@ if (!window.ice.icepush) {
             addGroupMember: function(group, id, options) {
                 var uri = resolveURI(namespace.push.configuration.addGroupMemberURI || 'add-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
-                    parameter(q, BrowserIDName, getValue(browserID));
+                    parameter(q, BrowserIDName, lookupCookieValue(BrowserIDName));
                     parameter(q, Account, ice.push.configuration.account);
                     parameter(q, Realm, ice.push.configuration.realm);
                     parameter(q, AccessToken, ice.push.configuration.access_token);
@@ -320,7 +313,7 @@ if (!window.ice.icepush) {
             removeGroupMember: function(group, id) {
                 var uri = resolveURI(namespace.push.configuration.removeGroupMemberURI || 'remove-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
-                    parameter(q, BrowserIDName, getValue(browserID));
+                    parameter(q, BrowserIDName, lookupCookieValue(BrowserIDName));
                     parameter(q, Account, ice.push.configuration.account);
                     parameter(q, Realm, ice.push.configuration.realm);
                     parameter(q, AccessToken, ice.push.configuration.access_token);
@@ -333,7 +326,7 @@ if (!window.ice.icepush) {
 
             get: function(uri, parameters, responseCallback) {
                 getAsynchronously(apiChannel, uri, function(query) {
-                    parameter(query, BrowserIDName, getValue(browserID));
+                    parameter(query, BrowserIDName, lookupCookieValue(BrowserIDName));
                     parameter(query, Account, ice.push.configuration.account);
                     parameter(query, Realm, ice.push.configuration.realm);
                     parameter(query, AccessToken, ice.push.configuration.access_token);
@@ -348,7 +341,7 @@ if (!window.ice.icepush) {
 
             post: function(uri, parameters, responseCallback) {
                 postAsynchronously(apiChannel, uri, function(query) {
-                    parameter(query, BrowserIDName, getValue(browserID));
+                    parameter(query, BrowserIDName, lookupCookieValue(BrowserIDName));
                     parameter(query, Account, ice.push.configuration.account);
                     parameter(query, Realm, ice.push.configuration.realm);
                     parameter(query, AccessToken, ice.push.configuration.access_token);

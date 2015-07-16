@@ -86,8 +86,6 @@ var AsyncConnection;
         } catch (e) {
             //do nothing
         }
-        var browserID = Slot(BrowserIDName);
-
         var lastSentPushIds = registeredPushIds();
 
         function contextPath() {
@@ -96,7 +94,7 @@ var AsyncConnection;
 
         function askForConfiguration(query) {
             //request configuration once, but only after ice.push.browser cookie is set
-            if (getValue(browserID)) {
+            if (lookupCookieValue(BrowserIDName)) {
                 parameter(query, 'ice.sendConfiguration', '');
                 askForConfiguration = noop;
             }
@@ -116,7 +114,7 @@ var AsyncConnection;
                     debug(logger, 'connect...');
                     var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
                     listener = postAsynchronously(channel, uri, function(q) {
-                        parameter(q, BrowserIDName, getValue(browserID));
+                        parameter(q, BrowserIDName, lookupCookieValue(BrowserIDName));
                         parameter(q, WindowID, namespace.windowID);
                         parameter(q, Account, ice.push.configuration.account);
                         parameter(q, Realm, ice.push.configuration.realm);
@@ -364,7 +362,7 @@ var AsyncConnection;
                         }
                         updateLease();
                     }
-                    if (hasOwner() && isLeaseExpired()) {
+                    if (isLeaseExpired()) {
                         offerCandidature();
                         info(logger, 'blocking connection lease expired...candidate for its creation');
                     }
