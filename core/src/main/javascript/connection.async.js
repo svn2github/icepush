@@ -363,7 +363,7 @@ var AsyncConnection;
                         updateLease();
                     }
                     if (isLeaseExpired()) {
-                        offerCandidature();
+                        setTimeout(offerCandidature, Math.random() * pollingPeriod + pollingPeriod);
                         info(logger, 'blocking connection lease expired...candidate for its creation');
                     }
                 }
