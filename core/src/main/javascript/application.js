@@ -93,7 +93,7 @@ if (!window.ice.icepush) {
         var HeartbeatTimestamp = 'ice.push.heartbeatTimestamp';
         var SequenceNumber = 'ice.push.sequence';
 
-        var handler = window.console ? ConsoleLogHandler(debug) : WindowLogHandler(debug, window.location.href);
+        var handler = LocalStorageLogHandler(window.console ? ConsoleLogHandler(debug) : WindowLogHandler(debug, window.location.href));
         namespace.windowID = namespace.windowID || substring(Math.random().toString(16), 2, 7);
         namespace.logger = Logger([ 'icepush' ], handler);
         namespace.info = info;
