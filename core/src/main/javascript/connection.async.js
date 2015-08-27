@@ -293,7 +293,7 @@ var AsyncConnection;
         var contextPathSlot = Slot(ConnectionContextPath, contextPath());
 
         function updateLease() {
-            setValue(leaseSlot, (new Date).getTime() + pollingPeriod * 2);
+            setValue(leaseSlot, (new Date).getTime() + pollingPeriod * 3);
         }
 
         function isLeaseExpired() {
@@ -363,7 +363,9 @@ var AsyncConnection;
                         updateLease();
                     }
                     if (isLeaseExpired()) {
-                        setTimeout(offerCandidature, Math.random() * pollingPeriod + pollingPeriod);
+                        //offer candidature with random delay to decrease the chance of collision
+                        //maximum delay should be half the lease interval to avoid having the lease after it just expired
+                        setTimeout(offerCandidature, 1.5 * Math.random() * pollingPeriod);
                         info(logger, 'blocking connection lease expired...candidate for its creation');
                     }
                 }
