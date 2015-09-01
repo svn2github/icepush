@@ -1821,7 +1821,7 @@ _257(_23b,function(self,_258){
 _23b(_24d,_258);
 });
 _257(log,function(self,_259,_25a,_25b,_25c){
-if(localStorage["ice.localStorageLogHandler.enabled"]){
+if(window.localStorage&&window.localStorage["ice.localStorageLogHandler.enabled"]){
 var _25d=_248(_25a,_25b);
 var _25e;
 switch(_259){
