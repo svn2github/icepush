@@ -39,9 +39,9 @@ if (!window.ice.icepush) {
         //local storage doesn't work well in Firefox 3.6 and older
         var ffMatch = navigator.userAgent.match(/Firefox\/(\w\.?\w)/);
         var firefoxGreaterThan3point6 = ffMatch ? (Number(ffMatch[1]) > 3.6) : true;
-        var ieGreaterThan8 = !window.attachEvent;
+        var ie = window.attachEvent || /Trident.*rv\:11\./.test(navigator.userAgent) || /MSIE/.test(navigator.userAgent);
         function useLocalStorage() {
-            return window.localStorage && firefoxGreaterThan3point6 && ieGreaterThan8;
+            return window.localStorage && firefoxGreaterThan3point6 && !ie;
         }
 
         //include configuration.js

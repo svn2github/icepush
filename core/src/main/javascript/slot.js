@@ -50,7 +50,7 @@ var Slot;
     var BrowserSlot;
     var existsBrowserSlot;
     var removeBrowserSlot;
-    if (window.localStorage) {
+    if (useLocalStorage()) {
         BrowserSlot = function LocalStorageSlot(name, val) {
             window.localStorage.setItem(name, window.localStorage.getItem(name) || '');
 
