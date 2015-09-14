@@ -103,7 +103,7 @@ var Slot;
             if (existsCookie(name)) {
                 remove(lookupCookie(name));
             }
-        }
+        };
     }
 
     function nonSharedSlot() {
