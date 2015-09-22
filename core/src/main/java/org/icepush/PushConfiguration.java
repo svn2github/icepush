@@ -81,9 +81,9 @@ implements Serializable {
     public boolean equals(final Object object) {
         return
             object instanceof PushConfiguration &&
-            ((PushConfiguration)object).attributes.equals(attributes) &&
-            ((PushConfiguration)object).duration == duration &&
-            ((PushConfiguration)object).scheduledAt == scheduledAt;
+            ((PushConfiguration)object).getAttributes().equals(getAttributes()) &&
+            ((PushConfiguration)object).getDuration() == getDuration() &&
+            ((PushConfiguration)object).getScheduledAt() == getScheduledAt();
     }
 
     public static PushConfiguration fromRequest(final HttpServletRequest request) {
@@ -138,14 +138,26 @@ implements Serializable {
     }
 
     @Override
+    public int hashCode() {
+        return getAttributes().hashCode();
+    }
+
+    @Override
     public String toString() {
         return
             new StringBuilder().
                 append("PushConfiguration[").
-                    append("attributes: '").append(getAttributes()).append("', ").
-                    append("duration: '").append(getDuration()).append("', ").
-                    append("scheduledAt: '").append(new Date(getScheduledAt())).append("'").
+                    append(membersAsString()).
                 append("]").
+                    toString();
+    }
+
+    protected String membersAsString() {
+        return
+            new StringBuilder().
+                append("attributes: '").append(getAttributes()).append("', ").
+                append("duration: '").append(getDuration()).append("', ").
+                append("scheduledAt: '").append(new Date(getScheduledAt())).append("'").
                     toString();
     }
 }

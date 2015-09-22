@@ -23,14 +23,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeSet;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -88,7 +89,9 @@ implements InternalPushGroupManager, PushGroupManager {
     private final LocalNotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
     private final Timer timer = new Timer("Notification queue consumer.", true);
     private final TimerTask queueConsumer;
-    private final BlockingQueue<Notification> queue;
+    private final Lock notificationQueueLock = new ReentrantLock();
+    private final Condition notificationAvailableCondition = getNotificationQueueLock().newCondition();
+    private final Queue<Notification> notificationQueue;
     private final long groupTimeout;
     private final long cloudPushIDTimeout;
     private final long pushIDTimeout;
@@ -106,7 +109,7 @@ implements InternalPushGroupManager, PushGroupManager {
         this.cloudPushIDTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", 30 * 60 * 1000);
         this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", 10 * 1000);
         int notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", 1000);
-        this.queue = new LinkedBlockingQueue<Notification>(notificationQueueSize);
+        this.notificationQueue = new LinkedBlockingQueue<Notification>(notificationQueueSize);
         this.queueConsumer = new QueueConsumerTask();
         this.timer.schedule(queueConsumer, 0);
     }
@@ -282,14 +285,30 @@ implements InternalPushGroupManager, PushGroupManager {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(Level.FINE, "Push Notification request for Group '" + groupName + "'.");
         }
-        if (!queue.offer(newNotification(groupName))) {
-            // Leave at INFO
-            if (LOGGER.isLoggable(Level.INFO)) {
-                LOGGER.log(
-                    Level.INFO,
-                    "Push Notification request for Group '" + groupName + "' was dropped, " +
-                        "queue maximum size reached.");
+        Notification _notification = newNotification(groupName);
+        getNotificationQueueLock().lock();
+        try {
+            if (!getNotificationQueue().contains(_notification)) {
+                if (getNotificationQueue().offer(_notification)) {
+                    getNotificationAvailableCondition().signalAll();
+                } else {
+                    // Leave at INFO
+                    if (LOGGER.isLoggable(Level.INFO)) {
+                        LOGGER.log(
+                            Level.INFO,
+                            "Push Notification request for Group '" + groupName + "' was dropped, " +
+                                "queue maximum size reached.");
+                    }
+                }
+            } else {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Push Notification request for Push Group '" + groupName + "' was ignored, duplication.");
+                }
             }
+        } finally {
+            getNotificationQueueLock().unlock();
         }
     }
 
@@ -300,14 +319,28 @@ implements InternalPushGroupManager, PushGroupManager {
                 "Push Notification request for Group '" + groupName + "' " +
                     "(Push Configuration: '" + pushConfiguration + "').");
         }
-        Notification notification;
+        Notification _notification;
         if (isOutOfBandNotification(pushConfiguration)) {
-            notification = newOutOfBandNotification(groupName, pushConfiguration);
+            _notification = newOutOfBandNotification(groupName, pushConfiguration);
         } else {
-            notification = newNotification(groupName, pushConfiguration);
+            _notification = newNotification(groupName, pushConfiguration);
         }
-        //add this notification to a blocking queue
-        queue.add(notification);
+        getNotificationQueueLock().lock();
+        try {
+            if (!getNotificationQueue().contains(_notification)) {
+                //add this notification to a blocking queue
+                getNotificationQueue().add(_notification);
+                getNotificationAvailableCondition().signalAll();
+            } else {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Push Notification request for Push Group '" + groupName + "' was ignored, duplication.");
+                }
+            }
+        } finally {
+            getNotificationQueueLock().unlock();
+        }
     }
 
     public void removeBlockingConnectionServer(final String browserID) {
@@ -439,8 +472,8 @@ implements InternalPushGroupManager, PushGroupManager {
     public boolean startExpiryTimeout(final String pushID) {
         PushID _pushID = getPushID(pushID);
         if (_pushID != null) {
-            String browserID = getPushID(pushID).getBrowserID();
-            return startExpiryTimeout(pushID, null, browserID != null ? getBrowser(browserID).getSequenceNumber() : -1);
+            String _browserID = _pushID.getBrowserID();
+            return startExpiryTimeout(pushID, null, _browserID != null ? getBrowser(_browserID).getSequenceNumber() : -1);
         } else {
             return startExpiryTimeout(pushID, null, -1);
         }
@@ -644,6 +677,18 @@ implements InternalPushGroupManager, PushGroupManager {
         return pushIDMap;
     }
 
+    protected Condition getNotificationAvailableCondition() {
+        return notificationAvailableCondition;
+    }
+
+    protected Queue<Notification> getNotificationQueue() {
+        return notificationQueue;
+    }
+
+    protected Lock getNotificationQueueLock() {
+        return notificationQueueLock;
+    }
+
     protected Lock getPendingNotifiedPushIDSetLock() {
         return pendingNotifiedPushIDSetLock;
     }
@@ -789,8 +834,30 @@ implements InternalPushGroupManager, PushGroupManager {
             this.pushConfiguration = pushConfiguration;
             Set<String> pushIDSet = (Set<String>)this.pushConfiguration.getAttributes().get("pushIDSet");
             if (pushIDSet != null) {
-                this.exemptPushIDSet.addAll(pushIDSet);
+                this.getExemptPushIDSet().addAll(pushIDSet);
             }
+        }
+
+        public void coalesceWith(Notification nextNotification) {
+            Group group = getModifiableGroupMap().get(getGroupName());
+            if (group != null) {
+                nextNotification.getExemptPushIDSet().addAll(Arrays.asList(group.getPushIDs()));
+            }
+        }
+
+        @Override
+        public boolean equals(final Object object) {
+            return
+                object instanceof Notification &&
+                    ((Notification)object).getExemptPushIDSet().containsAll(getExemptPushIDSet()) &&
+                    ((Notification)object).getExemptPushIDSet().size() == getExemptPushIDSet().size() &&
+                    ((Notification)object).getGroupName().equals(getGroupName()) &&
+                    ((Notification)object).getPushConfiguration().equals(getPushConfiguration());
+        }
+
+        @Override
+        public int hashCode() {
+            return getGroupName().hashCode();
         }
 
         public void run() {
@@ -804,7 +871,7 @@ implements InternalPushGroupManager, PushGroupManager {
                             "Notification triggered for Group '" + getGroupName() + "' with " +
                                 "original Push-ID Set '" + pushIDSet + "'.");
                     }
-                    pushIDSet.removeAll(exemptPushIDSet);
+                    pushIDSet.removeAll(getExemptPushIDSet());
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(
                             Level.FINE,
@@ -843,17 +910,14 @@ implements InternalPushGroupManager, PushGroupManager {
             }
         }
 
-        public void coalesceWith(Notification nextNotification) {
-            Group group = getModifiableGroupMap().get(getGroupName());
-            if (group != null) {
-                nextNotification.exemptPushIDSet.addAll(Arrays.asList(group.getPushIDs()));
-            }
-        }
-
         protected void beforeBroadcast(final Set<NotificationEntry> notificationEntrySet) {
         }
 
         protected void filterNotificationEntrySet(final Set<NotificationEntry> notificationEntrySet) {
+        }
+
+        protected Set<String> getExemptPushIDSet() {
+            return exemptPushIDSet;
         }
 
         protected String getGroupName() {
@@ -893,37 +957,48 @@ implements InternalPushGroupManager, PushGroupManager {
                 //take tasks from the queue and execute them serially
                 while (running) {
                     try {
-                        long currentTime = System.currentTimeMillis();
+                        long _currentTime = System.currentTimeMillis();
                         //block until notifications are available
-                        Notification notification = queue.take();
-                        //put back notification, need to extract the next scheduled notification
-                        queue.offer(notification);
-                        //search what notification needs to be fired now
-                        TreeSet<Notification> notifications = new TreeSet(ScheduledAtComparator);
-                        notifications.addAll(queue);
-                        Notification scheduledNotification = notifications.first();
-                        long scheduledAt = scheduledNotification.getPushConfiguration().getScheduledAt();
-                        if (scheduledAt < currentTime) {
-                            //ready to send
-                            queue.remove(scheduledNotification);
-
-                            long duration = scheduledNotification.getPushConfiguration().getDuration();
-                            long endOfScheduledNotification = scheduledAt + duration;
-
-                            for (Notification nextScheduledNotification: notifications) {
-                                //skip first notification
-                                if (nextScheduledNotification == scheduledNotification) continue;
-                                //test if it overlaps
-                                if (endOfScheduledNotification > nextScheduledNotification.getPushConfiguration().getScheduledAt()) {
-                                    //coalesce current notification with next overlapping notification
-                                    scheduledNotification.coalesceWith(nextScheduledNotification);
-                                } else {
-                                    //stop when notification windows (durations) do not overlap anymore
-                                    break;
-                                }
+                        getNotificationQueueLock().lock();
+                        try {
+                            if (getNotificationQueue().isEmpty()) {
+                                getNotificationAvailableCondition().await();
                             }
+//                            Notification notification = getNotificationQueue().poll();
+//                            //put back notification, need to extract the next scheduled notification
+//                            queue.offer(notification);
+                            //search what notification needs to be fired now
+                            TreeSet<Notification> _notificationTreeSet =
+                                new TreeSet<Notification>(ScheduledAtComparator);
+                            _notificationTreeSet.addAll(getNotificationQueue());
+                            Notification _scheduledNotification = _notificationTreeSet.first();
+                            long _scheduledAt = _scheduledNotification.getPushConfiguration().getScheduledAt();
+                            if (_scheduledAt < _currentTime) {
+                                //ready to send
+                                getNotificationQueue().remove(_scheduledNotification);
+                                long _duration = _scheduledNotification.getPushConfiguration().getDuration();
+                                long _endOfScheduledNotification = _scheduledAt + _duration;
 
-                            scheduledNotification.run();
+                                for (final Notification _nextScheduledNotification : _notificationTreeSet) {
+                                    //skip first notification
+                                    if (_nextScheduledNotification == _scheduledNotification) {
+                                        continue;
+                                    }
+                                    //test if it overlaps
+                                    if (_endOfScheduledNotification >
+                                            _nextScheduledNotification.getPushConfiguration().getScheduledAt()) {
+
+                                        //coalesce current notification with next overlapping notification
+                                        _scheduledNotification.coalesceWith(_nextScheduledNotification);
+                                    } else {
+                                        //stop when notification windows (durations) do not overlap anymore
+                                        break;
+                                    }
+                                }
+                                _scheduledNotification.run();
+                            }
+                        } finally {
+                            getNotificationQueueLock().unlock();
                         }
                     } catch (Throwable t)  {
                         LOGGER.log(Level.WARNING, "Notification queue encountered ", t);
@@ -939,8 +1014,14 @@ implements InternalPushGroupManager, PushGroupManager {
 
         public boolean cancel() {
             running = false;
-            queue.offer(NOOP);//add noop to unblock the queue
-            return super.cancel();
+            getNotificationQueueLock().lock();
+            try {
+                getNotificationQueue().offer(NOOP);//add noop to unblock the queue
+                getNotificationAvailableCondition().signalAll();
+                return super.cancel();
+            } finally {
+                getNotificationQueueLock().unlock();
+            }
         }
     }
 }
