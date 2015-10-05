@@ -26,6 +26,7 @@ var startConnection = operator();
 var resumeConnection = operator();
 var pauseConnection = operator();
 var controlRequest = operator();
+var reconfigure = operator();
 var changeHeartbeatInterval = operator();
 var shutdown = operator();
 var AsyncConnection;
@@ -165,9 +166,22 @@ var AsyncConnection;
         var connect = requestForBlockingResponse;
 
         //build callbacks only after 'connection' function was defined
-        var retryTimeouts = collect(split(attributeAsString(configuration, 'serverErrorRetryTimeouts', '1000 2000 4000'), ' '), Number);
-        var retryOnServerError = timedRetryAbort(connect, broadcaster(onServerErrorListeners), retryTimeouts);
-        var heartbeatTimeout = attributeAsNumber(configuration, 'heartbeatTimeout', 15000) + NetworkDelay;
+        var heartbeatTimeout;
+        var networkErrorRetryTimeouts;
+        function setupNetworkErrorRetries() {
+            heartbeatTimeout = attributeAsNumber(configuration, 'heartbeatTimeout', 15000);
+            networkErrorRetryTimeouts = collect(split(attributeAsString(configuration, 'networkErrorRetryTimeouts', '1 1 1 2 2 3'), ' '), Number);
+        }
+        setupNetworkErrorRetries();
+
+        var serverErrorRetryTimeouts;
+        var retryOnServerError;
+        function setupServerErrorRetries() {
+            serverErrorRetryTimeouts = collect(split(attributeAsString(configuration, 'serverErrorRetryTimeouts', '1000 2000 4000'), ' '), Number);
+            retryOnServerError = timedRetryAbort(connect, broadcaster(onServerErrorListeners), serverErrorRetryTimeouts);
+        }
+        setupServerErrorRetries();
+
         //count the number of consecutive empty responses
         var emptyResponseRetries;
         function resetEmptyResponseRetries() {
@@ -182,101 +196,64 @@ var AsyncConnection;
         resetEmptyResponseRetries();
 
 
-        var NoopDelay = object(function(method) {
-            method(runOnce, function(self) {
-                return self;
-            });
-            method(stop, noop);
-        });
-        var pendingTimeoutThunks = [];
-        var timeoutThunks = [
-            function() {
-                warn(logger, 'failed to connect, first retry...');
-                broadcast(connectionTroubleListeners);
-                connect();
-            },
-            function() {
-                warn(logger, 'failed to connect, second retry...');
-                broadcast(connectionTroubleListeners);
-                connect();
-            },
-            function() {
-                warn(logger, 'failed to connect, 3 retry...');
-                broadcast(connectionTroubleListeners);
-                connect();
-            },
-            function() {
-                warn(logger, 'failed to connect, 4 retry...');
-                broadcast(connectionTroubleListeners);
-                connect();
-            },
-            function() {
-                warn(logger, 'failed to connect, 5 retry...');
-                broadcast(connectionTroubleListeners);
-                connect();
-            },
-            function() {
-                warn(logger, 'failed to connect, 6 retry...');
-                broadcast(connectionTroubleListeners);
-                connect();
-            },
-            function() {
-                warn(logger, 'failed to connect, 7 retry...');
-                broadcast(connectionTroubleListeners);
-                connect();
-            },
-            function() {
-                warn(logger, 'failed to connect, 8 retry...');
-                broadcast(connectionTroubleListeners);
-                connect();
-            },
-            function() {
-                warn(logger, 'failed to connect, 9 retry...');
-                broadcast(connectionTroubleListeners);
-                connect();
-            },
-            function() {
-                warn(logger, 'failed to connect, 10 retry...');
-                broadcast(connectionTroubleListeners);
-                connect();
-            },
-            function() {
-                broadcast(connectionDownListeners);
-            }
-        ];
+        var initialRetryIndex = function () {
+            return 0;
+        };
+        var pendingRetryIndex = initialRetryIndex;
         var stopTimeoutBombs = noop;
 
-        function chainTimeoutBombs(thunks, interval) {
+        function chainTimeoutBombs(timeoutAction, abortAction, intervals, remainingBombsIndex) {
+            var index = remainingBombsIndex();
             stopTimeoutBombs();
-            var remainingThunks = copy(thunks);
-            function startTimeoutBombs() {
+            function sparkTimeoutBomb() {
                 var run = true;
-                var timeoutBomb = runOnce(inject(reverse(thunks), NoopDelay, function(result, thunk) {
-                    return Delay(function() {
-                        if (run) {
-                            remainingThunks.length = remainingThunks.length - 1;
-                            thunk();
-                            timeoutBomb = runOnce(result);
+                var timeoutBomb = runOnce(Delay(function() {
+                    if (run) {
+                        var retryCount = intervals.length;
+                        if (index < retryCount) {
+                            timeoutAction(++index, retryCount);
+                            //schedule next timeout bomb
+                            stopTimeoutBombs = sparkTimeoutBomb();
+                        } else {
+                            abortAction();
                         }
-                    }, interval);
-                }));
+                    }
+                }, intervals[index]));
 
                 return function() {
-                    stop(timeoutBomb);
                     run = false;
+                    stop(timeoutBomb);
                 }
             }
-            stopTimeoutBombs = startTimeoutBombs();
+            stopTimeoutBombs = sparkTimeoutBomb();
 
-            return remainingThunks;
+            return function() {
+                return index;
+            }
+        }
+
+        function recalculateRetryIntervals() {
+            return asArray(collect(networkErrorRetryTimeouts, function (factor) {
+                return factor * heartbeatTimeout + NetworkDelay;
+            }));
+        }
+
+        function networkErrorRetry(i, retries) {
+            warn(logger, 'failed to connect ' + i + ' time' + (i > 1 ? 's' : '') + (i < retries ? ', retrying ...' : ''));
+            broadcast(connectionTroubleListeners);
+            connect();
+        }
+
+        function networkFailure() {
+            broadcast(connectionDownListeners);
         }
 
         function resetTimeoutBomb() {
-            pendingTimeoutThunks = chainTimeoutBombs(timeoutThunks, heartbeatTimeout);
+            pendingRetryIndex = chainTimeoutBombs(networkErrorRetry, networkFailure, recalculateRetryIntervals(), initialRetryIndex);
         }
 
-        function adjustTimeoutInterval() {
-            pendingTimeoutThunks = chainTimeoutBombs(pendingTimeoutThunks, heartbeatTimeout);
+        function adjustTimeoutBombIntervals() {
+            pendingRetryIndex = chainTimeoutBombs(networkErrorRetry, networkFailure, recalculateRetryIntervals(), pendingRetryIndex);
         }
 
         function initializeConnection() {
@@ -476,9 +453,16 @@ var AsyncConnection;
             });
 
             method(changeHeartbeatInterval, function(self, interval) {
-                heartbeatTimeout = interval + NetworkDelay;
-                //reset bomb to adjust the timeout delay
-                adjustTimeoutInterval();
+                setupNetworkErrorRetries();
+                heartbeatTimeout = interval;
+                info(logger, 'heartbeat timeout changed to ' + interval + ' ms');
+                adjustTimeoutBombIntervals();
+            });
+
+            method(reconfigure, function(self) {
+                setupNetworkErrorRetries();
+                adjustTimeoutBombIntervals();
+                setupServerErrorRetries();
             });
 
             method(shutdown, function(self) {

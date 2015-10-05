@@ -28,6 +28,7 @@ import org.icepush.util.Slot;
 public class ConfigurationServer implements PushServer {
     private static final Logger log = Logger.getLogger(ConfigurationServer.class.getName());
     private static final String defaultServerErrorRetries = "1000 2000 4000";
+    private static final String defaultNetworkErrorRetries = "1 1 1 2 2 3";
     private static final int defaultEmptyResponseRetries = 3;
     public static final int DefaultHeartbeatTimeout = 15000;
     private Slot heartbeatInterval;
@@ -38,6 +39,7 @@ public class ConfigurationServer implements PushServer {
     private boolean redirect;
     private final String contextPath;
     private final String serverErrorRetries;
+    private final String networkErrorRetries;
     private final int emptyResponseRetries;
 
     public ConfigurationServer(Slot heartbeatInterval, final ServletContext servletContext, final Configuration configuration, final PushServer server) {
@@ -47,6 +49,7 @@ public class ConfigurationServer implements PushServer {
         contextPath = normalizeContextPath(this.configuration.getAttribute("contextPath", (String)servletContext.getAttribute("contextPath")));
         //PUSH-218: temporarily disabling modification of the context parameter
         serverErrorRetries = this.configuration.getAttribute("serverErrorRetryTimeouts", defaultServerErrorRetries);
+        networkErrorRetries = this.configuration.getAttribute("networkErrorRetryTimeouts", defaultNetworkErrorRetries);
         emptyResponseRetries = this.configuration.getAttributeAsInteger("emptyResponseRetries", defaultEmptyResponseRetries);
 
         //always redirect if the request comes to this context path
@@ -54,6 +57,7 @@ public class ConfigurationServer implements PushServer {
         nonDefaultConfiguration =
                 emptyResponseRetries != defaultEmptyResponseRetries ||
                 !serverErrorRetries.equals(defaultServerErrorRetries) ||
+                !networkErrorRetries.equals(defaultNetworkErrorRetries) ||
                 contextPath != null;
 
     }
@@ -76,6 +80,8 @@ public class ConfigurationServer implements PushServer {
                             " emptyResponseRetries=\"" + emptyResponseRetries + "\"" : "") +
                     (!serverErrorRetries.equals(defaultServerErrorRetries) ?
                             " serverErrorRetryTimeouts=\"" + serverErrorRetries + "\"" : "") +
+                    (!networkErrorRetries.equals(defaultNetworkErrorRetries) ?
+                            " networkErrorRetryTimeouts=\"" + networkErrorRetries + "\"" : "") +
                     (contextPath != null ?
                             " blockingConnectionURI=\"" + contextPath + "/listen.icepush\"" : "") +
                     (contextPath != null ?

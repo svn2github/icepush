@@ -399,7 +399,7 @@ if (!window.ice.icepush) {
                 //update public values
                 publicConfiguration.contextPath = attributeAsString(configuration, 'contextPath', publicConfiguration.contextPath);
                 publicConfiguration.blockingConnectionURI = attributeAsString(configuration, 'blockingConnectionURI', publicConfiguration.blockingConnectionURI || 'listen.icepush');
-                changeHeartbeatInterval(asyncConnection, attributeAsNumber(configuration, 'heartbeatTimeout', 15000));
+                reconfigure(asyncConnection);
             });
             register(commandDispatcher, 'back-off', function(message) {
                 debug(logger, 'received back-off');
