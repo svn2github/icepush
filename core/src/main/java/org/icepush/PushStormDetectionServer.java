@@ -27,8 +27,9 @@ public class PushStormDetectionServer
 implements PushServer {
     private static final Logger LOGGER = Logger.getLogger(PushStormDetectionServer.class.getName());
 
-    private static final long DefaultLoopInterval = 275;
-    private static final long DefaultMaxTightLoopRequests = 25;
+    public static final long DefaultLoopInterval = 275;
+    public static final long DefaultMaxTightLoopRequests = 25;
+    public static final long DefaultBackoffInterval = -1;
 
     private final PushServer pushServer;
 
@@ -46,7 +47,7 @@ implements PushServer {
         try {
             backOffInterval = configuration.getAttributeAsLong("notificationStormBackOffInterval");
         } catch (ConfigurationException e) {
-            backOffInterval = -1;
+            backOffInterval = DefaultBackoffInterval;
         }
     }
 

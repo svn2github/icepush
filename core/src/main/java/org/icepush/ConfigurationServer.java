@@ -20,6 +20,7 @@ import java.io.Writer;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
+import static org.icepush.LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT;
 
 import org.icepush.http.*;
 import org.icepush.http.standard.FixedXMLContentHandler;
@@ -51,7 +52,26 @@ public class ConfigurationServer implements PushServer {
         serverErrorRetries = this.configuration.getAttribute("serverErrorRetryTimeouts", defaultServerErrorRetries);
         networkErrorRetries = this.configuration.getAttribute("networkErrorRetryTimeouts", defaultNetworkErrorRetries);
         emptyResponseRetries = this.configuration.getAttributeAsInteger("emptyResponseRetries", defaultEmptyResponseRetries);
-
+    
+        //Log ICEpush Configuration
+        StringBuilder info = new StringBuilder();
+				configuration.logLong("cloudPushIdTimeout", configuration.getAttributeAsLong("cloudPushIdTimeout", LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT, info);
+        configuration.logString("contextPath", contextPath, null, info);
+        configuration.logBoolean("disableRemoteHostLookup", configuration.getAttributeAsBoolean("disableRemoteHostLookup", false), false, info);
+        configuration.logLong("emptyResponseRetries", emptyResponseRetries, defaultEmptyResponseRetries, info);
+        configuration.logLong("groupTimeout", configuration.getAttributeAsLong("groupTimeout", LocalPushGroupManager.DEFAULT_GROUP_TIMEOUT), LocalPushGroupManager.DEFAULT_GROUP_TIMEOUT, info);
+        configuration.logString("networkErrorRetryTimeouts", networkErrorRetries, defaultNetworkErrorRetries, info);
+        configuration.logLong("heartbeatTimeout", configuration.getAttributeAsLong("heartbeatTimeout", 15000), 15000, info);
+        configuration.logLong("notificationQueueSize", configuration.getAttributeAsLong("notificationQueueSize", LocalPushGroupManager.DEFAULT_NOTIFICATIONQUEUE_SIZE), LocalPushGroupManager.DEFAULT_NOTIFICATIONQUEUE_SIZE, info);
+				configuration.logLong("notificationStormLoopInterval", configuration.getAttributeAsLong("notificationStormLoopInterval", PushStormDetectionServer.DefaultLoopInterval), PushStormDetectionServer.DefaultLoopInterval, info);
+				configuration.logLong("notificationStormMaximumRequests", configuration.getAttributeAsLong("notificationStormMaximumRequests", PushStormDetectionServer.DefaultMaxTightLoopRequests), PushStormDetectionServer.DefaultMaxTightLoopRequests, info);
+				configuration.logLong("notificationStormBackOffInterval", configuration.getAttributeAsLong("notificationStormBackOffInterval", PushStormDetectionServer.DefaultBackoffInterval), PushStormDetectionServer.DefaultBackoffInterval, info);
+        configuration.logLong("pushIdTimeout", configuration.getAttributeAsLong("pushIdTimeout", LocalPushGroupManager.DEFAULT_PUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_PUSHID_TIMEOUT, info);
+        configuration.logString("serverErrorRetryTimeouts", serverErrorRetries, defaultServerErrorRetries, info);
+        final boolean isARPEnabled = isAsyncARPAvailable();
+				configuration.logBoolean("useAsyncContext", configuration.getAttributeAsBoolean("useAsyncContext", isARPEnabled), isARPEnabled, info);
+        log.info("ICEpush Configuration: \n" + info);     
+               
         //always redirect if the request comes to this context path
         redirect = contextPath != null && !servletContext.getContextPath().equals(contextPath);
         nonDefaultConfiguration =
@@ -70,6 +90,16 @@ public class ConfigurationServer implements PushServer {
         }
     }
 
+    private boolean isAsyncARPAvailable() {
+        try {
+            this.getClass().getClassLoader().loadClass("javax.servlet.AsyncContext");
+            return true;
+        } catch (ClassNotFoundException exception) {
+            return false;
+        }
+    }
+
+    
     public void service(PushRequest request) throws Exception {
         if ((redirect || request.containsParameter("ice.sendConfiguration")) &&
                 (nonDefaultConfiguration || heartbeatInterval.getLongValue() != DefaultHeartbeatTimeout)) {
@@ -87,7 +117,6 @@ public class ConfigurationServer implements PushServer {
                     (contextPath != null ?
                             " contextPath=\"" + contextPath + "\"" : "") +
                     "/>";
-
 
             request.respondWith((PushResponseHandler) new ConfigureBridge(configurationMessage));
         } else {

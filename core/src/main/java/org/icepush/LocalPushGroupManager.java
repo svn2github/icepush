@@ -45,6 +45,11 @@ public class LocalPushGroupManager
 extends AbstractPushGroupManager
 implements InternalPushGroupManager, PushGroupManager {
     private static final Logger LOGGER = Logger.getLogger(LocalPushGroupManager.class.getName());
+    static final int DEFAULT_NOTIFICATIONQUEUE_SIZE = 1000;
+    static final int DEFAULT_MIN_CLOUDPUSH_INTERVAL = 10 * 1000;
+    static final int DEFAULT_CLOUDPUSHID_TIMEOUT = 30 * 60 * 1000;
+    static final int DEFAULT_PUSHID_TIMEOUT = 2 * 60 * 1000;
+    static final int DEFAULT_GROUP_TIMEOUT = 2 * 60 * 1000;
     private static final String[] STRINGS = new String[0];
     private static final int GROUP_SCANNING_TIME_RESOLUTION = 3000; // ms
     private static final OutOfBandNotifier NOOPOutOfBandNotifier = new OutOfBandNotifier() {
@@ -104,16 +109,16 @@ implements InternalPushGroupManager, PushGroupManager {
     public LocalPushGroupManager(final ServletContext servletContext) {
         this.context = servletContext;
         Configuration configuration = new ServletContextConfiguration("org.icepush", servletContext);
-        this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", 2 * 60 * 1000);
-        this.pushIDTimeout = configuration.getAttributeAsLong("pushIdTimeout", 2 * 60 * 1000);
-        this.cloudPushIDTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", 30 * 60 * 1000);
-        this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", 10 * 1000);
-        int notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", 1000);
+        this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", DEFAULT_GROUP_TIMEOUT);
+        this.pushIDTimeout = configuration.getAttributeAsLong("pushIdTimeout", DEFAULT_PUSHID_TIMEOUT);
+        this.cloudPushIDTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", DEFAULT_CLOUDPUSHID_TIMEOUT);
+        this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", DEFAULT_MIN_CLOUDPUSH_INTERVAL);
+        int notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", DEFAULT_NOTIFICATIONQUEUE_SIZE);
         this.notificationQueue = new LinkedBlockingQueue<Notification>(notificationQueueSize);
         this.queueConsumer = new QueueConsumerTask();
         this.timer.schedule(queueConsumer, 0);
     }
-
+    
     public void addBlockingConnectionServer(final String browserID, final BlockingConnectionServer server) {
         blockingConnectionServerMap.put(browserID, server);
     }
