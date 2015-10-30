@@ -13,6 +13,7 @@
  * express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
+
 package org.icepush;
 
 public abstract class Configuration {
@@ -162,30 +163,28 @@ public abstract class Configuration {
             return defaultValue;
         }
     }
-
-    private static final String CONFIG_PARAM_PACKAGE = "org.icepush.";
-
+    
     public void logBoolean(String name, boolean currValue, boolean defaultValue, StringBuilder info) {
         if (currValue == defaultValue) {
-            info.append(CONFIG_PARAM_PACKAGE).append(name).append(": ").append(defaultValue).append(" [default]\n");
+            info.append(name).append(": ").append(defaultValue).append(" [default]\n");
         } else {
-            info.append(CONFIG_PARAM_PACKAGE).append(name).append(": ").append(currValue).append("\n");
+            info.append(name).append(": ").append(currValue).append("\n");
         }
     }
     
     public void logString(String name, String currValue, String defaultValue, StringBuilder info) {
         if (currValue == defaultValue) {
-            info.append(CONFIG_PARAM_PACKAGE).append(name).append(": ").append(defaultValue).append(" [default]\n");
+            info.append(name).append(": ").append(defaultValue).append(" [default]\n");
         } else {
-            info.append(CONFIG_PARAM_PACKAGE).append(name).append(": ").append(currValue).append("\n");
+            info.append(name).append(": ").append(currValue).append("\n");
         }
     }
     
     public void logLong(String name, long currValue, long defaultValue, StringBuilder info) {
         if (currValue == defaultValue) {
-            info.append(CONFIG_PARAM_PACKAGE).append(name).append(" = ").append(defaultValue).append(" [default]\n");
+            info.append(name).append(" = ").append(defaultValue).append(" [default]\n");
         } else {
-            info.append(CONFIG_PARAM_PACKAGE).append(name).append(" = ").append(currValue).append("\n");
+            info.append(name).append(" = ").append(currValue).append("\n");
 
         }
     }

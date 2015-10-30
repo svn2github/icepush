@@ -55,21 +55,21 @@ public class ConfigurationServer implements PushServer {
     
         //Log ICEpush Configuration
         StringBuilder info = new StringBuilder();
-				configuration.logLong("cloudPushIdTimeout", configuration.getAttributeAsLong("cloudPushIdTimeout", LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT, info);
-        configuration.logString("contextPath", contextPath, null, info);
-        configuration.logBoolean("disableRemoteHostLookup", configuration.getAttributeAsBoolean("disableRemoteHostLookup", false), false, info);
-        configuration.logLong("emptyResponseRetries", emptyResponseRetries, defaultEmptyResponseRetries, info);
-        configuration.logLong("groupTimeout", configuration.getAttributeAsLong("groupTimeout", LocalPushGroupManager.DEFAULT_GROUP_TIMEOUT), LocalPushGroupManager.DEFAULT_GROUP_TIMEOUT, info);
-        configuration.logString("networkErrorRetryTimeouts", networkErrorRetries, defaultNetworkErrorRetries, info);
-        configuration.logLong("heartbeatTimeout", configuration.getAttributeAsLong("heartbeatTimeout", 15000), 15000, info);
-        configuration.logLong("notificationQueueSize", configuration.getAttributeAsLong("notificationQueueSize", LocalPushGroupManager.DEFAULT_NOTIFICATIONQUEUE_SIZE), LocalPushGroupManager.DEFAULT_NOTIFICATIONQUEUE_SIZE, info);
-				configuration.logLong("notificationStormLoopInterval", configuration.getAttributeAsLong("notificationStormLoopInterval", PushStormDetectionServer.DefaultLoopInterval), PushStormDetectionServer.DefaultLoopInterval, info);
-				configuration.logLong("notificationStormMaximumRequests", configuration.getAttributeAsLong("notificationStormMaximumRequests", PushStormDetectionServer.DefaultMaxTightLoopRequests), PushStormDetectionServer.DefaultMaxTightLoopRequests, info);
-				configuration.logLong("notificationStormBackOffInterval", configuration.getAttributeAsLong("notificationStormBackOffInterval", PushStormDetectionServer.DefaultBackoffInterval), PushStormDetectionServer.DefaultBackoffInterval, info);
-        configuration.logLong("pushIdTimeout", configuration.getAttributeAsLong("pushIdTimeout", LocalPushGroupManager.DEFAULT_PUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_PUSHID_TIMEOUT, info);
-        configuration.logString("serverErrorRetryTimeouts", serverErrorRetries, defaultServerErrorRetries, info);
+	configuration.logLong("org.icepush.cloudPushIdTimeout", configuration.getAttributeAsLong("cloudPushIdTimeout", LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT, info);
+        configuration.logString("org.icepush.contextPath", contextPath, null, info);
+        configuration.logBoolean("org.icepush.disableRemoteHostLookup", configuration.getAttributeAsBoolean("disableRemoteHostLookup", false), false, info);
+        configuration.logLong("org.icepush.emptyResponseRetries", emptyResponseRetries, defaultEmptyResponseRetries, info);
+        configuration.logLong("org.icepush.groupTimeout", configuration.getAttributeAsLong("groupTimeout", LocalPushGroupManager.DEFAULT_GROUP_TIMEOUT), LocalPushGroupManager.DEFAULT_GROUP_TIMEOUT, info);
+        configuration.logString("org.icepush.networkErrorRetryTimeouts", networkErrorRetries, defaultNetworkErrorRetries, info);
+        configuration.logLong("org.icepush.heartbeatTimeout", configuration.getAttributeAsLong("heartbeatTimeout", 15000), 15000, info);
+        configuration.logLong("org.icepush.notificationQueueSize", configuration.getAttributeAsLong("notificationQueueSize", LocalPushGroupManager.DEFAULT_NOTIFICATIONQUEUE_SIZE), LocalPushGroupManager.DEFAULT_NOTIFICATIONQUEUE_SIZE, info);
+	configuration.logLong("org.icepush.notificationStormLoopInterval", configuration.getAttributeAsLong("notificationStormLoopInterval", PushStormDetectionServer.DefaultLoopInterval), PushStormDetectionServer.DefaultLoopInterval, info);
+	configuration.logLong("org.icepush.notificationStormMaximumRequests", configuration.getAttributeAsLong("notificationStormMaximumRequests", PushStormDetectionServer.DefaultMaxTightLoopRequests), PushStormDetectionServer.DefaultMaxTightLoopRequests, info);
+	configuration.logLong("org.icepush.notificationStormBackOffInterval", configuration.getAttributeAsLong("notificationStormBackOffInterval", PushStormDetectionServer.DefaultBackoffInterval), PushStormDetectionServer.DefaultBackoffInterval, info);
+        configuration.logLong("org.icepush.pushIdTimeout", configuration.getAttributeAsLong("pushIdTimeout", LocalPushGroupManager.DEFAULT_PUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_PUSHID_TIMEOUT, info);
+        configuration.logString("org.icepush.serverErrorRetryTimeouts", serverErrorRetries, defaultServerErrorRetries, info);
         final boolean isARPEnabled = isAsyncARPAvailable();
-				configuration.logBoolean("useAsyncContext", configuration.getAttributeAsBoolean("useAsyncContext", isARPEnabled), isARPEnabled, info);
+				configuration.logBoolean("org.icepush.useAsyncContext", configuration.getAttributeAsBoolean("useAsyncContext", isARPEnabled), isARPEnabled, info);
         log.info("ICEpush Configuration: \n" + info);     
                
         //always redirect if the request comes to this context path
