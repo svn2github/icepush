@@ -1802,11 +1802,13 @@ return join(["[",join(_249,"."),"] [",_24b,"] ",_24a],"");
 };
 function _24c(_24d){
 var _24e=false;
+if(window.addEventListener){
 window.addEventListener("storage",function(e){
 if(e.key=="ice.localStorageLogHandler.enabled"){
 _24e=e.newValue=="yes";
 }
 },false);
+}
 function _24f(_250,_251,_252){
 var _253=localStorage["ice.localStorageLogHandler.store"]||"";
 var _254="["+_250+"] ["+ice.windowID+"] "+_251;
