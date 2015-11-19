@@ -92,7 +92,6 @@ if (!window.ice.icepush) {
         var AccessToken = "ice.push.access_token";
         var NotifiedPushIDs = 'ice.notified.pushids';
         var HeartbeatTimestamp = 'ice.push.heartbeatTimestamp';
-        var SequenceNumber = 'ice.push.sequence';
 
         var handler = LocalStorageLogHandler(window.console ? ConsoleLogHandler(debug) : WindowLogHandler(debug, window.location.href));
         namespace.windowID = namespace.windowID || substring(Math.random().toString(16), 2, 7);
@@ -383,7 +382,6 @@ if (!window.ice.icepush) {
         function Bridge() {
             var windowID = namespace.windowID;
             var logger = childLogger(namespace.logger, windowID);
-            var sequenceNo = 0;
             var heartbeatTimestamp;
 
             var publicConfiguration = namespace.push.configuration;
@@ -470,10 +468,6 @@ if (!window.ice.icepush) {
             onUnload(window, dispose);
 
             onSend(asyncConnection, function(query) {
-                if(sequenceNo){
-                    //send current sequence number
-                    parameter(query, SequenceNumber, sequenceNo);
-                }
                 if (heartbeatTimestamp) {
                     parameter(query, HeartbeatTimestamp, heartbeatTimestamp);
                 }
@@ -490,8 +484,6 @@ if (!window.ice.icepush) {
                     dispose();
                 }
 
-                //update sequence number incremented by the server
-                sequenceNo = Number(getHeader(response, SequenceNumber));
                 if (hasHeader(response, HeartbeatTimestamp)) {
                     heartbeatTimestamp = Number(getHeader(response, HeartbeatTimestamp));
                 }
@@ -537,7 +529,6 @@ if (!window.ice.icepush) {
                 },
 
                 resumeConnection: function() {
-                    sequenceNo++;
                     resumeConnection(asyncConnection);
                 },
 

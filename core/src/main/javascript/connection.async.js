@@ -33,6 +33,7 @@ var AsyncConnection;
 
 (function() {
     var HeartbeatInterval = 'ice.push.heartbeat';
+    var SequenceNumber = 'ice.push.sequence';
     var ConnectionRunning = 'ice.connection.running';
     var ConnectionLease = 'ice.connection.lease';
     var ConnectionContextPath = 'ice.connection.contextpath';
@@ -63,6 +64,7 @@ var AsyncConnection;
         var connectionTroubleListeners = [];
         var connectionStoppedListeners = [];
         var connectionReEstablished = [];
+        var sequenceNo = Slot(SequenceNumber);
 
         var listener = object(function(method) {
             method(close, noop);
@@ -121,11 +123,17 @@ var AsyncConnection;
                         parameter(q, Realm, ice.push.configuration.realm);
                         parameter(q, AccessToken, ice.push.configuration.access_token);
                         parameter(q, HeartbeatInterval, heartbeatTimeout - NetworkDelay);
+                        parameter(q, SequenceNumber, getValue(sequenceNo));
                         each(lastSentPushIds, curry(parameter, q, PushID));
                         broadcast(onSendListeners, [q]);
                         askForConfiguration(q);
                     }, FormPost, $witch(function (condition) {
                         condition(OK, function(response) {
+                            var sequenceNoValue = Number(getHeader(response, SequenceNumber));
+                            if (sequenceNoValue) {
+                                //update sequence number incremented by the server
+                                setValue(sequenceNo, sequenceNoValue);
+                            }
                             var reconnect = getHeader(response, 'X-Connection') != 'close';
                             var nonEmptyResponse = notEmpty(contentAsText(response));
 
@@ -259,6 +267,7 @@ var AsyncConnection;
         function initializeConnection() {
             info(logger, 'initialize connection within window ' + namespace.windowID);
             resetTimeoutBomb();
+            setValue(sequenceNo, Number(getValue(sequenceNo)) + 1);
             connect();
         }
 
