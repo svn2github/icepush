@@ -243,7 +243,7 @@ if (!window.ice.icepush) {
                             }
                             deserializeAndExecute(commandDispatcher, contentAsDOM(response).documentElement);
                             retries = retries ? retries + 1 : 1;
-                            id = namespace.push.createPushId(retries);
+                            id = namespace.push.createPushId(retries, callback);
                         } else {
                             id = contentAsText(response);
                         }
