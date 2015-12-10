@@ -226,10 +226,10 @@ if (!window.ice.icepush) {
                 return currentNotifications;
             },
 
-            createPushId: function(retries) {
+            createPushId: function(retries, callback) {
                 var id;
                 var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
-                postSynchronously(apiChannel, uri, function (query) {
+                postAsynchronously(apiChannel, uri, function (query) {
                     parameter(query, BrowserIDName, lookupCookieValue(BrowserIDName));
                     parameter(query, Account, ice.push.configuration.account);
                     parameter(query, Realm, ice.push.configuration.realm);
@@ -247,10 +247,10 @@ if (!window.ice.icepush) {
                         } else {
                             id = contentAsText(response);
                         }
+                        callback(id);
                     });
                     condition(ServerInternalError, throwServerError);
                 }));
-                return id;
             },
 
             notify: function(group, options) {
