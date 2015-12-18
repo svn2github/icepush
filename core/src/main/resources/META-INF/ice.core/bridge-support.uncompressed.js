@@ -1460,7 +1460,7 @@ ice.lib.event = ice.module(function(exportAs) {
     var yes = any;
     var no = none;
     function isIEEvent(event) {
-        return event.srcElement;
+        return event.srcElement && !event.target;
     }
     function Event(event, capturingElement) {
         return object(function (method) {

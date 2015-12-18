@@ -1503,7 +1503,7 @@ var type=operator();
 var yes=any;
 var no=none;
 function _1ec(_1ed){
-return _1ed.srcElement;
+return _1ed.srcElement&&!_1ed.target;
 };
 function _1ee(_1ef,_1f0){
 return object(function(_1f1){
