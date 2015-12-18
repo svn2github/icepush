@@ -34,7 +34,6 @@ import org.icepush.servlet.ServletContextConfiguration;
 import org.icepush.util.ExtensionRegistry;
 
 public class EmailNotificationProvider
-extends AbstractNotificationProvider
 implements NotificationProvider {
     private static final Logger LOGGER = Logger.getLogger(EmailNotificationProvider.class.getName());
     private static final String SECURITY_NONE = "NONE";
@@ -153,7 +152,6 @@ implements NotificationProvider {
                 Transport transport = session.getTransport(protocol);
                 transport.connect(host, port, user, password);
                 transport.sendMessage(mimeMessage, new InternetAddress[]{address});
-                notificationSent(groupName, "CLOUD_PUSH", "EMAIL", pushNotification, EmailNotificationProvider.this);
             } catch (MessagingException ex) {
                 LOGGER.log(Level.WARNING, "Failed to send email message.", ex);
             }

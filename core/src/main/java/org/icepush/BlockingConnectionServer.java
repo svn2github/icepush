@@ -23,7 +23,6 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -69,10 +68,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
     private final long maxHeartbeatInterval;
     private final long minHeartbeatInterval;
 
-    private final Set<NotificationListener>listenerSet = new CopyOnWriteArraySet<NotificationListener>();
-
-    private NotificationEventFactory notificationEventFactory = new DefaultNotificationEventFactory();
-
     private String browserID;
     private long responseTimeoutTime;
     private PushServer activeServer;
@@ -104,10 +99,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
         this.activeServer = new RunningServer(terminateBlockingConnectionOnShutdown);
     }
 
-    public void addNotificationListener(final NotificationListener listener) {
-        listenerSet.add(listener);
-    }
-
     public synchronized void backOff(final long delay)
     throws IllegalStateException {
         checkSetUp();
@@ -119,10 +110,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
 
     public String getBrowserID() {
         return browserID;
-    }
-
-    public NotificationEventFactory getNotificationEventFactory() {
-        return notificationEventFactory;
     }
 
     public boolean isInterested(final Set<NotificationEntry> notificationEntrySet) {
@@ -140,10 +127,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
     throws IllegalStateException {
         checkSetUp();
         sendNotifications(notificationSet);
-    }
-
-    public void removeNotificationListener(final NotificationListener listener) {
-        listenerSet.remove(listener);
     }
 
     public void run()
@@ -165,10 +148,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
     throws Exception, IllegalStateException {
         checkSetUp();
         activeServer.service(pushRequest);
-    }
-
-    public void setNotificationEventFactory(final NotificationEventFactory notificationEventFactory) {
-        this.notificationEventFactory = notificationEventFactory;
     }
 
     public void setUp() {
@@ -206,18 +185,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
 
     protected Browser newBrowser(final String browserID, final long minCloudPushInterval) {
         return new Browser(browserID, minCloudPushInterval);
-    }
-
-    protected void notificationSent(
-        final String groupName, final String pushType, final String notificationProvider,
-        final PushConfiguration pushConfiguration, final Object source) {
-
-        NotificationEvent notificationEvent =
-            getNotificationEventFactory().
-                createNotificationEvent(groupName, pushType, notificationProvider, pushConfiguration, source);
-        for (final NotificationListener listener : listenerSet) {
-            listener.notificationSent(notificationEvent);
-        }
     }
 
     private void adjustConnectionRecreationTimeout(final PushRequest pushRequest) {
@@ -334,17 +301,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
                             removeNotifiedPushIDs(
                                 pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet()
                             );
-                        Set<String> groupNameSet = new HashSet<String>();
-                        for (final NotificationEntry notificationEntry :
-                                pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet()) {
-
-                            String groupName = notificationEntry.getGroupName();
-                            if (groupNameSet.add(groupName)) {
-                                notificationSent(
-                                    groupName, "PUSH", null, notificationEntry.getPushConfiguration(), this
-                                );
-                            }
-                        }
                     }
                 });
         }
