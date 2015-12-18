@@ -32,6 +32,7 @@ public class ConfigurationServer implements PushServer {
     private static final String defaultNetworkErrorRetries = "1 1 1 2 2 3";
     private static final int defaultEmptyResponseRetries = 3;
     public static final int DefaultHeartbeatTimeout = 15000;
+    private static boolean pushConfigLogged = false;
     private Slot heartbeatInterval;
     private Configuration configuration;
     private PushServer server;
@@ -54,24 +55,27 @@ public class ConfigurationServer implements PushServer {
         emptyResponseRetries = this.configuration.getAttributeAsInteger("emptyResponseRetries", defaultEmptyResponseRetries);
     
         //Log ICEpush Configuration
-        StringBuilder info = new StringBuilder();
-	configuration.logLong("org.icepush.cloudPushIdTimeout", configuration.getAttributeAsLong("cloudPushIdTimeout", LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT, info);
-        configuration.logString("org.icepush.contextPath", contextPath, null, info);
-        configuration.logBoolean("org.icepush.disableRemoteHostLookup", configuration.getAttributeAsBoolean("disableRemoteHostLookup", false), false, info);
-        configuration.logLong("org.icepush.emptyResponseRetries", emptyResponseRetries, defaultEmptyResponseRetries, info);
-        configuration.logLong("org.icepush.groupTimeout", configuration.getAttributeAsLong("groupTimeout", LocalPushGroupManager.DEFAULT_GROUP_TIMEOUT), LocalPushGroupManager.DEFAULT_GROUP_TIMEOUT, info);
-        configuration.logString("org.icepush.networkErrorRetryTimeouts", networkErrorRetries, defaultNetworkErrorRetries, info);
-        configuration.logLong("org.icepush.heartbeatTimeout", configuration.getAttributeAsLong("heartbeatTimeout", 15000), 15000, info);
-        configuration.logLong("org.icepush.notificationQueueSize", configuration.getAttributeAsLong("notificationQueueSize", LocalPushGroupManager.DEFAULT_NOTIFICATIONQUEUE_SIZE), LocalPushGroupManager.DEFAULT_NOTIFICATIONQUEUE_SIZE, info);
-	configuration.logLong("org.icepush.notificationStormLoopInterval", configuration.getAttributeAsLong("notificationStormLoopInterval", PushStormDetectionServer.DefaultLoopInterval), PushStormDetectionServer.DefaultLoopInterval, info);
-	configuration.logLong("org.icepush.notificationStormMaximumRequests", configuration.getAttributeAsLong("notificationStormMaximumRequests", PushStormDetectionServer.DefaultMaxTightLoopRequests), PushStormDetectionServer.DefaultMaxTightLoopRequests, info);
-	configuration.logLong("org.icepush.notificationStormBackOffInterval", configuration.getAttributeAsLong("notificationStormBackOffInterval", PushStormDetectionServer.DefaultBackoffInterval), PushStormDetectionServer.DefaultBackoffInterval, info);
-        configuration.logLong("org.icepush.pushIdTimeout", configuration.getAttributeAsLong("pushIdTimeout", LocalPushGroupManager.DEFAULT_PUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_PUSHID_TIMEOUT, info);
-        configuration.logString("org.icepush.serverErrorRetryTimeouts", serverErrorRetries, defaultServerErrorRetries, info);
-        final boolean isARPEnabled = isAsyncARPAvailable();
-				configuration.logBoolean("org.icepush.useAsyncContext", configuration.getAttributeAsBoolean("useAsyncContext", isARPEnabled), isARPEnabled, info);
-        log.info("ICEpush Configuration: \n" + info);     
-               
+        if (!pushConfigLogged) {
+				StringBuilder info = new StringBuilder();
+			configuration.logLong("org.icepush.cloudPushIdTimeout", configuration.getAttributeAsLong("cloudPushIdTimeout", LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT, info);
+				configuration.logString("org.icepush.contextPath", contextPath, null, info);
+				configuration.logBoolean("org.icepush.disableRemoteHostLookup", configuration.getAttributeAsBoolean("disableRemoteHostLookup", false), false, info);
+				configuration.logLong("org.icepush.emptyResponseRetries", emptyResponseRetries, defaultEmptyResponseRetries, info);
+				configuration.logLong("org.icepush.groupTimeout", configuration.getAttributeAsLong("groupTimeout", LocalPushGroupManager.DEFAULT_GROUP_TIMEOUT), LocalPushGroupManager.DEFAULT_GROUP_TIMEOUT, info);
+				configuration.logString("org.icepush.networkErrorRetryTimeouts", networkErrorRetries, defaultNetworkErrorRetries, info);
+				configuration.logLong("org.icepush.heartbeatTimeout", configuration.getAttributeAsLong("heartbeatTimeout", 15000), 15000, info);
+				configuration.logLong("org.icepush.notificationQueueSize", configuration.getAttributeAsLong("notificationQueueSize", LocalPushGroupManager.DEFAULT_NOTIFICATIONQUEUE_SIZE), LocalPushGroupManager.DEFAULT_NOTIFICATIONQUEUE_SIZE, info);
+			configuration.logLong("org.icepush.notificationStormLoopInterval", configuration.getAttributeAsLong("notificationStormLoopInterval", PushStormDetectionServer.DefaultLoopInterval), PushStormDetectionServer.DefaultLoopInterval, info);
+			configuration.logLong("org.icepush.notificationStormMaximumRequests", configuration.getAttributeAsLong("notificationStormMaximumRequests", PushStormDetectionServer.DefaultMaxTightLoopRequests), PushStormDetectionServer.DefaultMaxTightLoopRequests, info);
+			configuration.logLong("org.icepush.notificationStormBackOffInterval", configuration.getAttributeAsLong("notificationStormBackOffInterval", PushStormDetectionServer.DefaultBackoffInterval), PushStormDetectionServer.DefaultBackoffInterval, info);
+				configuration.logLong("org.icepush.pushIdTimeout", configuration.getAttributeAsLong("pushIdTimeout", LocalPushGroupManager.DEFAULT_PUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_PUSHID_TIMEOUT, info);
+				configuration.logString("org.icepush.serverErrorRetryTimeouts", serverErrorRetries, defaultServerErrorRetries, info);
+				final boolean isARPEnabled = isAsyncARPAvailable();
+						configuration.logBoolean("org.icepush.useAsyncContext", configuration.getAttributeAsBoolean("useAsyncContext", isARPEnabled), isARPEnabled, info);
+				log.info("ICEpush Configuration: \n" + info); 
+				pushConfigLogged = true;
+		}
+	
         //always redirect if the request comes to this context path
         redirect = contextPath != null && !servletContext.getContextPath().equals(contextPath);
         nonDefaultConfiguration =
