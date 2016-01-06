@@ -50,7 +50,6 @@ implements InternalPushGroupManager, PushGroupManager {
     static final int DEFAULT_CLOUDPUSHID_TIMEOUT = 30 * 60 * 1000;
     static final int DEFAULT_PUSHID_TIMEOUT = 2 * 60 * 1000;
     static final int DEFAULT_GROUP_TIMEOUT = 2 * 60 * 1000;
-    private static final String[] STRINGS = new String[0];
     private static final int GROUP_SCANNING_TIME_RESOLUTION = 3000; // ms
     private static final OutOfBandNotifier NOOPOutOfBandNotifier = new OutOfBandNotifier() {
         public void broadcast(final PushNotification notification, final String[] browserIDs, final String groupName) {
@@ -70,10 +69,11 @@ implements InternalPushGroupManager, PushGroupManager {
             return (int) (a.getPushConfiguration().getScheduledAt() - b.getPushConfiguration().getScheduledAt());
         }
     };
-    private final Notification NOOP = new Notification("---") {
-        public void run() {
-        }
-    };
+    private final Notification NOOP =
+        new Notification("---", null) {
+            public void run() {
+            }
+        };
     private final Map<String, BlockingConnectionServer> blockingConnectionServerMap =
         new ConcurrentHashMap<String, BlockingConnectionServer>();
     private final ConcurrentMap<String, Browser> browserMap = new ConcurrentHashMap<String, Browser>();
@@ -287,10 +287,24 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public void push(final String groupName) {
+        push(groupName, (String)null);
+    }
+
+    public void push(final String groupName, final String payload) {
         if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(Level.FINE, "Push Notification request for Group '" + groupName + "'.");
+            if (payload != null && payload.trim().length() != 0) {
+                LOGGER.log(
+                    Level.FINE,
+                    "Request for a Push Notification with Payload '" + payload + "' for Group '" + groupName + "'."
+                );
+            } else {
+                LOGGER.log(
+                    Level.FINE,
+                    "Request for a Push Notification for Group '" + groupName + "'."
+                );
+            }
         }
-        Notification _notification = newNotification(groupName);
+        Notification _notification = newNotification(groupName, payload);
         getNotificationQueueLock().lock();
         try {
             if (!getNotificationQueue().contains(_notification)) {
@@ -301,15 +315,18 @@ implements InternalPushGroupManager, PushGroupManager {
                     if (LOGGER.isLoggable(Level.INFO)) {
                         LOGGER.log(
                             Level.INFO,
-                            "Push Notification request for Group '" + groupName + "' was dropped, " +
-                                "queue maximum size reached.");
+                            "Request for a Push Notification for Group '" + groupName + "' was dropped, " +
+                                "maximum size queue reached."
+                        );
                     }
                 }
             } else {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
-                        "Push Notification request for Push Group '" + groupName + "' was ignored, duplication.");
+                        "Request for a Push Notification for Push Group '" + groupName + "' was ignored, " +
+                            "duplicate detected."
+                    );
                 }
             }
         } finally {
@@ -318,17 +335,30 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public void push(final String groupName, final PushConfiguration pushConfiguration) {
+        push(groupName, (String)null, pushConfiguration);
+    }
+
+    public void push(final String groupName, final String payload, final PushConfiguration pushConfiguration) {
         if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(
-                Level.FINE,
-                "Push Notification request for Group '" + groupName + "' " +
-                    "(Push Configuration: '" + pushConfiguration + "').");
+            if (payload != null && payload.trim().length() != 0) {
+                LOGGER.log(
+                    Level.FINE,
+                    "Request for a Push Notification with Payload '" + payload + "' for Group '" + groupName + "'.  " +
+                        "(Push Configuration: '" + pushConfiguration + "')"
+                );
+            } else {
+                LOGGER.log(
+                    Level.FINE,
+                    "Request for a Push Notification for Group '" + groupName + "'.  " +
+                        "(Push Configuration: '" + pushConfiguration + "')"
+                );
+            }
         }
         Notification _notification;
         if (isOutOfBandNotification(pushConfiguration)) {
-            _notification = newOutOfBandNotification(groupName, pushConfiguration);
+            _notification = newOutOfBandNotification(groupName, payload, pushConfiguration);
         } else {
-            _notification = newNotification(groupName, pushConfiguration);
+            _notification = newNotification(groupName, payload, pushConfiguration);
         }
         getNotificationQueueLock().lock();
         try {
@@ -340,7 +370,9 @@ implements InternalPushGroupManager, PushGroupManager {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
-                        "Push Notification request for Push Group '" + groupName + "' was ignored, duplication.");
+                        "Request for a Push Notification for Push Group '" + groupName + "' was ignored, " +
+                            "duplicate detected."
+                    );
                 }
             }
         } finally {
@@ -725,21 +757,21 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected Notification newNotification(
-        final String groupName) {
+        final String groupName, final String payload) {
 
-        return new Notification(groupName);
+        return new Notification(groupName, payload);
     }
 
     protected Notification newNotification(
-        final String groupName, final PushConfiguration pushConfiguration) {
+        final String groupName, final String payload, final PushConfiguration pushConfiguration) {
 
-        return new Notification(groupName, pushConfiguration);
+        return new Notification(groupName, payload, pushConfiguration);
     }
 
     protected OutOfBandNotification newOutOfBandNotification(
-        final String groupName, final PushConfiguration pushConfiguration) {
+        final String groupName, final String payload, final PushConfiguration pushConfiguration) {
 
-        return new OutOfBandNotification(groupName, pushConfiguration);
+        return new OutOfBandNotification(groupName, payload, pushConfiguration);
     }
 
     protected PushID newPushID(final String id) {
@@ -826,16 +858,23 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected class Notification
     implements Runnable {
-        protected final String groupName;
         protected final Set<String> exemptPushIDSet = new HashSet<String>();
-        protected PushConfiguration pushConfiguration;
 
-        protected Notification(String groupName) {
-            this(groupName, new PushConfiguration());
+        protected final String groupName;
+        protected final String payload;
+        protected final PushConfiguration pushConfiguration;
+
+        protected Notification(
+            final String groupName, final String payload) {
+
+            this(groupName, payload, new PushConfiguration());
         }
 
-        protected Notification(final String groupName, final PushConfiguration pushConfiguration) {
+        protected Notification(
+            final String groupName, final String payload, final PushConfiguration pushConfiguration) {
+
             this.groupName = groupName;
+            this.payload = payload;
             this.pushConfiguration = pushConfiguration;
             Set<String> pushIDSet = (Set<String>)this.pushConfiguration.getAttributes().get("pushIDSet");
             if (pushIDSet != null) {
@@ -857,6 +896,13 @@ implements InternalPushGroupManager, PushGroupManager {
                     ((Notification)object).getExemptPushIDSet().containsAll(getExemptPushIDSet()) &&
                     ((Notification)object).getExemptPushIDSet().size() == getExemptPushIDSet().size() &&
                     ((Notification)object).getGroupName().equals(getGroupName()) &&
+                    (
+                        (((Notification)object).getPayload() == null && getPayload() == null) ||
+                        (
+                            ((Notification)object).getPayload() != null &&
+                            ((Notification)object).getPayload().equals(getPayload())
+                        )
+                    ) &&
                     ((Notification)object).getPushConfiguration().equals(getPushConfiguration());
         }
 
@@ -885,7 +931,9 @@ implements InternalPushGroupManager, PushGroupManager {
                     }
                     Set<NotificationEntry> notificationEntrySet = new HashSet<NotificationEntry>();
                     for (final String pushID : pushIDSet) {
-                        notificationEntrySet.add(newNotificationEntry(pushID, getGroupName(), getPushConfiguration()));
+                        notificationEntrySet.add(
+                            newNotificationEntry(pushID, getGroupName(), getPayload(), getPushConfiguration())
+                        );
                     }
                     filterNotificationEntrySet(notificationEntrySet);
                     if (LOGGER.isLoggable(Level.FINE)) {
@@ -929,22 +977,29 @@ implements InternalPushGroupManager, PushGroupManager {
             return groupName;
         }
 
+        protected String getPayload() {
+            return payload;
+        }
+
         protected PushConfiguration getPushConfiguration() {
             return pushConfiguration;
         }
 
         protected NotificationEntry newNotificationEntry(
-            final String pushID, final String groupName, final PushConfiguration pushConfiguration) {
+            final String pushID, final String groupName, final String payload,
+            final PushConfiguration pushConfiguration) {
 
-            return new NotificationEntry(pushID, groupName, pushConfiguration);
+            return new NotificationEntry(pushID, groupName, payload, pushConfiguration);
         }
     }
 
     protected class OutOfBandNotification
     extends Notification
     implements Runnable {
-        protected OutOfBandNotification(final String groupName, final PushConfiguration pushConfiguration) {
-            super(groupName, pushConfiguration);
+        protected OutOfBandNotification(
+            final String groupName, final String payload, final PushConfiguration pushConfiguration) {
+
+            super(groupName, payload, pushConfiguration);
         }
 
         @Override

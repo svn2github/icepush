@@ -31,6 +31,7 @@ import org.icepush.http.PushRequest;
 import org.icepush.http.PushResponse;
 import org.icepush.http.PushResponseHandler;
 import org.icepush.http.PushServer;
+import org.icepush.http.ResponseHandler;
 import org.icepush.http.standard.PushResponseHandlerServer;
 import org.icepush.util.Slot;
 
@@ -187,6 +188,10 @@ implements NotificationBroadcaster.Receiver, PushServer {
         return new Browser(browserID, minCloudPushInterval);
     }
 
+    protected org.icepush.NotifiedPushIDs newNotifiedPushIDs(final Set<NotificationEntry> notificationEntrySet) {
+        return new NotifiedPushIDs(notificationEntrySet, getBrowserID());
+    }
+
     private void adjustConnectionRecreationTimeout(final PushRequest pushRequest) {
         Browser browser = pushGroupManager.getBrowser(getBrowserID());
         for (final String pushIDString : browser.getPushIDSet()) {
@@ -282,27 +287,8 @@ implements NotificationBroadcaster.Receiver, PushServer {
             pushGroupManager.getBrowser(getBrowserID()).
                 setLastNotifiedPushIDSet(pushGroupManager.getBrowser(getBrowserID()).getNotifiedPushIDSet());
             respondIfPendingRequest(
-                new NotifiedPushIDs(pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet()) {
-                    @Override
-                    public void writeTo(final Writer writer)
-                    throws IOException {
-                        if (LOGGER.isLoggable(Level.FINE)) {
-                            LOGGER.log(
-                                Level.FINE,
-                                "Send Notifications for Browser-ID '" + getBrowserID() + "' " +
-                                    "with Push-IDs '" + getPushIDSet() + "'.");
-                        }
-                        super.writeTo(writer);
-                        pushGroupManager.
-                            clearPendingNotifications(
-                                pushGroupManager.getBrowser(getBrowserID()).getPushIDSet()
-                            );
-                        pushGroupManager.getBrowser(getBrowserID()).
-                            removeNotifiedPushIDs(
-                                pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet()
-                            );
-                    }
-                });
+                newNotifiedPushIDs(pushGroupManager.getBrowser(getBrowserID()).getLastNotifiedPushIDSet())
+            );
         }
     }
 
@@ -373,6 +359,42 @@ implements NotificationBroadcaster.Receiver, PushServer {
         if (notifyBack != null && notifyBack.trim().length() != 0) {
             pushGroupManager.getBrowser(getBrowserID()).
                 setNotifyBackURI(pushGroupManager.newNotifyBackURI(notifyBack), true);
+        }
+    }
+
+    protected static class NotifiedPushIDs
+    extends org.icepush.NotifiedPushIDs
+    implements PushResponseHandler, ResponseHandler {
+        private static final Logger LOGGER = Logger.getLogger(NotifiedPushIDs.class.getName());
+
+        private final PushGroupManager pushGroupManager =
+            (PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
+
+        protected NotifiedPushIDs(final Set<NotificationEntry> notificationEntrySet, final String browserID) {
+            super(notificationEntrySet, browserID);
+        }
+
+        @Override
+        public void writeTo(final Writer writer)
+        throws IOException {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(
+                    Level.FINE,
+                    "Send Notifications to Browser-ID '" + getBrowserID() + "'.");
+            }
+            super.writeTo(writer);
+            getPushGroupManager().
+                clearPendingNotifications(
+                    getPushGroupManager().getBrowser(getBrowserID()).getPushIDSet()
+                );
+            getPushGroupManager().getBrowser(getBrowserID()).
+                removeNotifiedPushIDs(
+                    getPushGroupManager().getBrowser(getBrowserID()).getLastNotifiedPushIDSet()
+                );
+        }
+
+        protected PushGroupManager getPushGroupManager() {
+            return pushGroupManager;
         }
     }
 

@@ -55,7 +55,11 @@ public interface PushGroupManager {
 
     void push(String groupName);
 
+    void push(String groupName, String payload);
+
     void push(String groupName, PushConfiguration pushConfiguration);
+
+    void push(String groupName, String payload, PushConfiguration pushConfiguration);
 
     void pruneParkedIDs(NotifyBackURI notifyBackURI, Set<String> listenedPushIDSet);
 

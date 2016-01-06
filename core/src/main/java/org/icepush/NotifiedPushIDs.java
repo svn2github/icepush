@@ -18,8 +18,9 @@ package org.icepush;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -33,14 +34,23 @@ extends FixedXMLContentHandler
 implements PushResponseHandler {
     private static final Logger LOGGER = Logger.getLogger(NotifiedPushIDs.class.getName());
 
-    private final Set<String> pushIDSet;
+    private final Map<String, Set<String>> payloadPushIDSetMap = new HashMap<String, Set<String>>();
 
-    public NotifiedPushIDs(final Set<NotificationEntry> notificationEntrySet) {
-        Set<String> _pushIDSet = new HashSet<String>();
+    private final String browserID;
+
+    public NotifiedPushIDs(final Set<NotificationEntry> notificationEntrySet, final String browserID) {
         for (final NotificationEntry _notificationEntry : notificationEntrySet) {
+            String _payload = _notificationEntry.getPayload();
+            Set<String> _pushIDSet;
+            if (getPayloadPushIDSetMap().containsKey(_payload)) {
+                _pushIDSet = getPayloadPushIDSetMap().get(_payload);
+            } else {
+                _pushIDSet = new HashSet<String>();
+                getPayloadPushIDSetMap().put(_payload, _pushIDSet);
+            }
             _pushIDSet.add(_notificationEntry.getPushID());
         }
-        pushIDSet = Collections.unmodifiableSet(_pushIDSet);
+        this.browserID = browserID;
     }
 
     public void respond(final PushResponse pushResponse)
@@ -51,22 +61,56 @@ implements PushResponseHandler {
     @Override
     public void writeTo(final Writer writer)
     throws IOException {
-        writer.write("<notified-pushids>");
-        boolean first = true;
-        for (final String pushID : pushIDSet) {
-            if (!first) {
-                writer.write(' ');
+        StringBuilder _notificationServicePayload = new StringBuilder();
+        _notificationServicePayload.
+            append("<notifications>");
+        for (final String _payload : getPayloadPushIDSetMap().keySet()) {
+            _notificationServicePayload.append("<notification push-ids=\"");
+            Set<String> _pushIDSet = getPayloadPushIDSetMap().get(_payload);
+            boolean _first = true;
+            for (final String _pushID : _pushIDSet) {
+                if (!_first) {
+                    _notificationServicePayload.append(" ");
+                } else {
+                    _first = false;
+                }
+                _notificationServicePayload.append(_pushID);
             }
-            writer.write(pushID);
-            first = false;
+            _notificationServicePayload.append("\"");
+            if (_payload == null || _payload.trim().length() == 0) {
+                _notificationServicePayload.append(" /");
+            }
+            _notificationServicePayload.append(">");
+            if (_payload != null && _payload.trim().length() != 0) {
+                _notificationServicePayload.
+                    append(_payload).append("</notification>");
+            }
+            if (LOGGER.isLoggable(Level.FINE)) {
+                if (_payload != null && _payload.trim().length() != 0) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Sending Notification with Payload '" + _payload + "' to " +
+                            "Browser '" + getBrowserID() + "' with Push-IDs '" + _pushIDSet + "'."
+                    );
+                } else {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Sending Notification to " +
+                            "Browser '" + getBrowserID() + "' with Push-IDs '" + _pushIDSet + "'."
+                    );
+                }
+            }
         }
-        writer.write("</notified-pushids>");
-        if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(Level.FINE, "Sending Notified PushIDs '" + pushIDSet + "'.");
-        }
+        _notificationServicePayload.
+            append("</notifications>");
+        writer.write(_notificationServicePayload.toString());
     }
 
-    protected Set<String> getPushIDSet() {
-        return pushIDSet;
+    protected String getBrowserID() {
+        return browserID;
+    }
+
+    protected Map<String, Set<String>> getPayloadPushIDSetMap() {
+        return payloadPushIDSetMap;
     }
 }

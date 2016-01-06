@@ -92,6 +92,7 @@ if (!window.ice.icepush) {
         var AccessToken = "ice.push.access_token";
         var NotifiedPushIDs = 'ice.notified.pushids';
         var HeartbeatTimestamp = 'ice.push.heartbeatTimestamp';
+        var PayloadSeparator = '%%%';
 
         var handler = LocalStorageLogHandler(window.console ? ConsoleLogHandler(debug) : WindowLogHandler(debug, window.location.href));
         namespace.windowID = namespace.windowID || substring(Math.random().toString(16), 2, 7);
@@ -205,11 +206,11 @@ if (!window.ice.icepush) {
             register: function(pushIds, callback) {
                 if ((typeof callback) == 'function') {
                     enlistPushIDsWithWindow(pushIds);
-                    namespace.onNotification(function(ids) {
+                    namespace.onNotification(function(ids, payload) {
                         currentNotifications = asArray(intersect(ids, pushIds));
                         if (notEmpty(currentNotifications)) {
                             try {
-                                callback(currentNotifications);
+                                callback(currentNotifications, payload);
                             } catch (e) {
                                 error(namespace.logger, 'error thrown by push notification callback', e);
                             }
@@ -253,7 +254,7 @@ if (!window.ice.icepush) {
                 }));
             },
 
-            notify: function(group, options) {
+            notify: function(group, payload, options) {
                 var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
                     parameter(q, BrowserIDName, lookupCookieValue(BrowserIDName));
@@ -261,6 +262,9 @@ if (!window.ice.icepush) {
                     parameter(q, Realm, ice.push.configuration.realm);
                     parameter(q, AccessToken, ice.push.configuration.access_token);
                     parameter(q, 'group', group);
+                    if (payload) {
+                        parameter(q, 'payload', payload);
+                    }
                     if (options) {
                         //provide default values if missing
                         if (!options.duration) {
@@ -418,12 +422,19 @@ if (!window.ice.icepush) {
                 return intersect(ids, registeredIDs);
             }
 
-            function selectWindowNotifications(ids) {
+            function selectWindowNotifications(idsAndPayload) {
                 try {
+                    var tuple = split(idsAndPayload, PayloadSeparator);
+                    var ids = split(tuple[0], ' ');
+                    var payload = tuple[1];
                     var windowPushIDs = asArray(intersect(ids, pushIdentifiers));
                     if (notEmpty(windowPushIDs)) {
-                        broadcast(notificationListeners, [ windowPushIDs ]);
-                        debug(logger, 'picked up notifications for this window: ' + windowPushIDs);
+                        broadcast(notificationListeners, [ windowPushIDs, payload ]);
+                        if (payload) {
+                            debug(logger, "picked up notifications with payload '" + payload + "' for this window: " + windowPushIDs);
+                        } else {
+                            debug(logger, "picked up notifications for this window: " + windowPushIDs);
+                        }
                         return windowPushIDs;
                     } else {
                         return [];
@@ -440,15 +451,36 @@ if (!window.ice.icepush) {
 
             //register command that handles the noop message
             register(commandDispatcher, 'noop', noop);
-            //register command that handles the notified-pushids message
-            register(commandDispatcher, 'notified-pushids', function(message) {
-                var text = message.firstChild;
-                if (text && !blank(text.data)) {
-                    var receivedPushIDs = split(text.data, ' ');
-                    debug(logger, 'received notifications: ' + receivedPushIDs);
-                    notifyWindows(notificationBroadcaster, purgeNonRegisteredPushIDs(asSet(receivedPushIDs)));
+            //register command that handles the notifications message
+            register(commandDispatcher, 'notifications', function(message) {
+                if (message.nodeName == "notifications") {
+                    var notifications = message;
+                    for (var i = 0; i < notifications.childNodes.length; i++) {
+                        if (notifications.childNodes[i].nodeName == "notification") {
+                            var notification = notifications.childNodes[i];
+                            if (notification.getAttribute("push-ids")) {
+                                var pushIDs = split(notification.getAttribute("push-ids"), ' ');
+                                var payload;
+                                if (notification.firstChild) {
+                                    payload = notification.firstChild.data;
+                                } else {
+                                    payload = '';
+                                }
+                                if (payload) {
+                                    debug(logger, "received notification with payload '" + payload + "' for the push IDs: " + pushIDs);
+                                } else {
+                                    debug(logger, "received notification for the push IDs: " + pushIDs);
+                                }
+                                notifyWindows(notificationBroadcaster, join(purgeNonRegisteredPushIDs(asSet(pushIDs)), ' ') + PayloadSeparator + payload);
+                            } else {
+                                warn(logger, "attribute push-ids not found in <notification>");
+                            }
+                        } else {
+                            warn(logger, "unknown child node of <notifications>: <" + notifications.childNodes[i].nodeName + ">");
+                        }
+                    }
                 } else {
-                    warn(logger, "No notification was received.");
+                    warn(logger, "Unknown root node: <" + message.nodeName + ">");
                 }
             });
 

@@ -28,7 +28,7 @@ function LocalStorageNotificationBroadcaster(name, callback) {
         var newValue = e.newValue;
         if (e.key == name && newValue) {
             var ids = split(newValue, Separator)[0];
-            callback(split(ids, ' '));
+            callback(ids);
         }
     }
 
@@ -40,8 +40,8 @@ function LocalStorageNotificationBroadcaster(name, callback) {
 
     return object(function(method) {
         method(notifyWindows, function(self, newValue) {
-            //the random number is required to force locaStorage event notification when stored value has not changed
-            window.localStorage.setItem(name, join(newValue, ' ') + Separator + Math.random());
+            //the random number is required to force localStorage event notification when stored value has not changed
+            window.localStorage.setItem(name, newValue + Separator + Math.random());
             //notify the current window as well, when not running in IE
             var agent = navigator.userAgent;
             if (!/MSIE/.test(agent) && !/Trident/.test(agent)) {
@@ -73,7 +73,7 @@ function CookieBasedNotificationBroadcaster(name, callback) {
     }, 300));
 
     return object(function(method) {
-        method(notifyWindows, function(self, receivedPushIDs) {
+        method(notifyWindows, function(self, receivedPushIDs, payload) {
             var ids = split(value(notifiedPushIDs), ' ');
             update(notifiedPushIDs, join(asSet(concatenate(ids, receivedPushIDs)), ' '));
         });

@@ -16,8 +16,7 @@
 package org.icepush;
 
 public interface NotificationProvider {
-
-    void send(String browserID, String groupName, PushNotification notification);
+    void send(String browserID, String groupName, PushNotification pushNotification);
 
     void registerWith(OutOfBandNotifier outOfBandNotifier);
 }

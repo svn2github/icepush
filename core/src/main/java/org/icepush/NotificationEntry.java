@@ -26,24 +26,39 @@ implements Serializable {
 
     private final String pushID;
     private final String groupName;
+    private final String payload;
     private final PushConfiguration pushConfiguration;
 
-    public NotificationEntry(final String pushID, final String groupName, final PushConfiguration pushConfiguration) {
+    public NotificationEntry(
+        final String pushID, final String groupName, final String payload, final PushConfiguration pushConfiguration) {
+
         this.pushID = pushID;
         this.groupName = groupName;
+        this.payload = payload;
         this.pushConfiguration = pushConfiguration;
     }
 
     @Override
     public boolean equals(final Object object) {
         return
-             object instanceof NotificationEntry &&
-             ((NotificationEntry)object).pushID.equals(pushID) &&
-             ((NotificationEntry)object).groupName.equals(groupName);
+            object instanceof NotificationEntry &&
+                ((NotificationEntry)object).getPushID().equals(getPushID()) &&
+                ((NotificationEntry)object).getGroupName().equals(getGroupName()) &&
+                (
+                    (((NotificationEntry)object).getPayload() == null && getPayload() == null) ||
+                    (
+                        ((NotificationEntry)object).getPayload() != null &&
+                        ((NotificationEntry)object).getPayload().equals(getPayload())
+                    )
+                );
     }
 
     public String getGroupName() {
         return groupName;
+    }
+
+    public String getPayload() {
+        return payload;
     }
 
     public PushConfiguration getPushConfiguration() {
@@ -56,9 +71,10 @@ implements Serializable {
 
     @Override
     public int hashCode() {
-        int _result = getPushID() != null ? getPushID().hashCode() : 0;
-        _result = 31 * _result + (getGroupName() != null ? getGroupName().hashCode() : 0);
-        return _result;
+        int _hashCode = getPushID() != null ? getPushID().hashCode() : 0;
+        _hashCode = 31 * _hashCode + (getGroupName() != null ? getGroupName().hashCode() : 0);
+        _hashCode = 31 * _hashCode + (getPayload() != null ? getPayload().hashCode() : 0);
+        return _hashCode;
     }
 
     @Override

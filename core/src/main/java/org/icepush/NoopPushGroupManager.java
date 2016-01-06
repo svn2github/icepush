@@ -93,7 +93,13 @@ implements PushGroupManager {
     public void push(final String groupName) {
     }
 
+    public void push(final String groupName, final String payload) {
+    }
+
     public void push(final String groupName, final PushConfiguration config) {
+    }
+
+    public void push(final String groupName, final String payload, final PushConfiguration config) {
     }
 
     public void park(final String pushId, final NotifyBackURI notifyBackURI) {

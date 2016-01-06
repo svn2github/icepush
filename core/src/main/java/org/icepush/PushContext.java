@@ -123,6 +123,23 @@ public class PushContext {
 
     /**
      * <p>
+     *     Initiate a Server Push to the members of the group specified by the <code>groupName</code> with the specified
+     *     <code>payload</code>.
+     * </p>
+     *
+     * @param      groupName
+     *                 The group name of the group.
+     * @param      payload
+     *                 The payload to be send to the members of the group.
+     * @see        #push(String, String, org.icepush.PushConfiguration)
+     */
+    public void push(final String groupName, final String payload) {
+        ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+            push(groupName, payload);
+    }
+
+    /**
+     * <p>
      *     Initiate a Server Push to the members of the group specified by the <code>groupName</code>.
      * </p>
      *
@@ -135,6 +152,25 @@ public class PushContext {
     public void push(final String groupName, PushConfiguration pushConfiguration) {
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
             push(groupName, pushConfiguration);
+    }
+
+    /**
+     * <p>
+     *     Initiate a Server Push to the members of the group specified by the <code>groupName</code> with the specified
+     *     <code>payload</code>.
+     * </p>
+     *
+     * @param      groupName
+     *                 The group name of the group.
+     * @param      payload
+     *                 The payload to be send to the members of the group.
+     * @param      pushConfiguration
+     *                 The Push configuration.
+     * @see        #push(String, String, org.icepush.PushConfiguration)
+     */
+    public void push(final String groupName, final String payload, final PushConfiguration pushConfiguration) {
+        ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
+            push(groupName, payload, pushConfiguration);
     }
 
     /**
