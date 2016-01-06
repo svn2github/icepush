@@ -45,6 +45,20 @@ if (!window.ice.icepush) {
             return window.localStorage && firefoxGreaterThan3point6 && !ie;
         }
 
+        function detectByReference(ref) {
+            return function(o) {
+                return o == ref;
+            };
+        }
+
+        function removeCallbackCallback(callbackList, detector) {
+            return function removeCallback() {
+                var temp = reject(callbackList, detector);
+                empty(callbackList);
+                each(temp, curry(append, callbackList));
+            }
+        }
+
         //include configuration.js
         //include command.js
         //include slot.js
@@ -55,31 +69,37 @@ if (!window.ice.icepush) {
         var notificationListeners = [];
         namespace.onNotification = function(callback) {
             append(notificationListeners, callback);
+            return removeCallbackCallback(notificationListeners, detectByReference(callback));
         };
 
         var receiveListeners = [];
         namespace.onBlockingConnectionReceive = function(callback) {
             append(receiveListeners, callback);
+            return removeCallbackCallback(receiveListeners, detectByReference(callback));
         };
 
         var serverErrorListeners = [];
         namespace.onBlockingConnectionServerError = function(callback) {
             append(serverErrorListeners, callback);
+            return removeCallbackCallback(serverErrorListeners, detectByReference(callback));
         };
 
         var blockingConnectionUnstableListeners = [];
         namespace.onBlockingConnectionUnstable = function(callback) {
             append(blockingConnectionUnstableListeners, callback);
+            return removeCallbackCallback(blockingConnectionUnstableListeners, detectByReference(callback));
         };
 
         var blockingConnectionLostListeners = [];
         namespace.onBlockingConnectionLost = function(callback) {
             append(blockingConnectionLostListeners, callback);
+            return removeCallbackCallback(blockingConnectionLostListeners, detectByReference(callback));
         };
 
         var blockingConnectionReEstablishedListeners = [];
         namespace.onBlockingConnectionReEstablished = function(callback) {
             append(blockingConnectionReEstablishedListeners, callback);
+            return removeCallbackCallback(blockingConnectionReEstablishedListeners, detectByReference(callback));
         };
 
         //constants
