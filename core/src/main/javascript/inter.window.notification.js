@@ -18,7 +18,8 @@ var notifyWindows = operator();
 var disposeBroadcast = operator();
 
 function LocalStorageNotificationBroadcaster(name, callback) {
-    var Separator = ':::';
+    var RandomSeparator = ':::';
+    var PayloadSeparator = '%%%';
 
     if (!window.localStorage.getItem(name)) {
         window.localStorage.setItem(name, '');
@@ -27,8 +28,11 @@ function LocalStorageNotificationBroadcaster(name, callback) {
     function storageListener(e) {
         var newValue = e.newValue;
         if (e.key == name && newValue) {
-            var ids = split(newValue, Separator)[0];
-            callback(ids);
+            var idsAndPayload = split(newValue, RandomSeparator)[0];
+            var tuple = split(idsAndPayload, PayloadSeparator);
+            var ids = split(tuple[0], ' ');
+            var payload = tuple[1];
+            callback(ids, payload);
         }
     }
 
@@ -39,9 +43,10 @@ function LocalStorageNotificationBroadcaster(name, callback) {
     }
 
     return object(function(method) {
-        method(notifyWindows, function(self, newValue) {
+        method(notifyWindows, function(self, ids, payload) {
+            var newValue = join(ids, ' ') + PayloadSeparator + payload;
             //the random number is required to force localStorage event notification when stored value has not changed
-            window.localStorage.setItem(name, newValue + Separator + Math.random());
+            window.localStorage.setItem(name, newValue + RandomSeparator + Math.random());
             //notify the current window as well, when not running in IE
             var agent = navigator.userAgent;
             if (!/MSIE/.test(agent) && !/Trident/.test(agent)) {
@@ -54,19 +59,34 @@ function LocalStorageNotificationBroadcaster(name, callback) {
 }
 
 function CookieBasedNotificationBroadcaster(name, callback) {
+    var NotificationSeparator = ':::';
+    var PayloadSeparator = '%%%';
+
     //read/create cookie that contains the notified pushID
-    var notifiedPushIDs = lookupCookie(name, function() {
+    var notificationsBucket = lookupCookie(name, function() {
         return Cookie(name, '');
     });
 
     //monitor & pick updates for this window
     var notificationMonitor = run(Delay(function() {
         try {
-            var ids = split(value(notifiedPushIDs), ' ');
-            if (notEmpty(ids)) {
-                var notifiedIDs = callback(ids);
-                update(notifiedPushIDs, join(complement(ids, notifiedIDs), ' '));
-            }
+            var notifications = split(value(notificationsBucket), NotificationSeparator);
+            var remainingNotifications = join(inject(notifications, [], function(result, notification) {
+                var tuple = split(notification, PayloadSeparator);
+                var ids = split(tuple[0], ' ');
+                var payload = tuple[1] || '';
+                if (notEmpty(ids)) {
+                    var notifiedIDs = callback(ids, payload);
+                    var remainingIDs = complement(ids, notifiedIDs);
+                    if (notEmpty(remainingIDs)) {
+                        append(result, join(notifiedIDs, ' ') + PayloadSeparator + payload);
+                    }
+                }
+
+                return result;
+            }), NotificationSeparator);
+
+            update(notificationsBucket, remainingNotifications);
         } catch (e) {
             warn(namespace.logger, 'failed to listen for updates', e);
         }
@@ -74,8 +94,15 @@ function CookieBasedNotificationBroadcaster(name, callback) {
 
     return object(function(method) {
         method(notifyWindows, function(self, receivedPushIDs, payload) {
-            var ids = split(value(notifiedPushIDs), ' ');
-            update(notifiedPushIDs, join(asSet(concatenate(ids, receivedPushIDs)), ' '));
+            var notifications = asArray(split(value(notificationsBucket), NotificationSeparator));
+            var newNotification = join(receivedPushIDs, ' ') + PayloadSeparator + (payload || '');
+            append(notifications, newNotification);
+            var newNotifications = join(notifications, NotificationSeparator);
+            update(notificationsBucket, newNotifications);
+
+            if (size(value(notificationsBucket)) != size(newNotifications)) {
+                warn(namespace.logger, 'notifications were dropped because of the cookie size limitation');
+            }
         });
 
         method(disposeBroadcast, function(self) {

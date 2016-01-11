@@ -112,7 +112,6 @@ if (!window.ice.icepush) {
         var AccessToken = "ice.push.access_token";
         var NotifiedPushIDs = 'ice.notified.pushids';
         var HeartbeatTimestamp = 'ice.push.heartbeatTimestamp';
-        var PayloadSeparator = '%%%';
 
         var handler = LocalStorageLogHandler(window.console ? ConsoleLogHandler(debug) : WindowLogHandler(debug, window.location.href));
         namespace.windowID = namespace.windowID || substring(Math.random().toString(16), 2, 7);
@@ -442,11 +441,8 @@ if (!window.ice.icepush) {
                 return intersect(ids, registeredIDs);
             }
 
-            function selectWindowNotifications(idsAndPayload) {
+            function selectWindowNotifications(ids, payload) {
                 try {
-                    var tuple = split(idsAndPayload, PayloadSeparator);
-                    var ids = split(tuple[0], ' ');
-                    var payload = tuple[1];
                     var windowPushIDs = asArray(intersect(ids, pushIdentifiers));
                     if (notEmpty(windowPushIDs)) {
                         broadcast(notificationListeners, [ windowPushIDs, payload ]);
@@ -491,7 +487,7 @@ if (!window.ice.icepush) {
                                 } else {
                                     debug(logger, "received notification for the push IDs: " + pushIDs);
                                 }
-                                notifyWindows(notificationBroadcaster, join(purgeNonRegisteredPushIDs(asSet(pushIDs)), ' ') + PayloadSeparator + payload);
+                                notifyWindows(notificationBroadcaster, purgeNonRegisteredPushIDs(asSet(pushIDs)), payload);
                             } else {
                                 warn(logger, "attribute push-ids not found in <notification>");
                             }
