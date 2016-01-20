@@ -50,7 +50,7 @@ function LocalStorageNotificationBroadcaster(name, callback) {
             //notify the current window as well, when not running in IE
             var agent = navigator.userAgent;
             if (!/MSIE/.test(agent) && !/Trident/.test(agent)) {
-                callback(newValue);
+                callback(ids, payload);
             }
         });
 
