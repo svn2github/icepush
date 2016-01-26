@@ -26,6 +26,8 @@
 	</target>
 			
 	<target name="build-all" depends="checkIfEEBundle" if="isOSBundle">
+                <ant dir="./util" />
+                <ant dir="./cloud" />
 		<ant dir="./core" />
 		<ant dir="./samples/basic" />
 		<ant dir="./samples/jsp" />
@@ -35,11 +37,12 @@
 	
 	<target name="clean-all">
 		<clean/>
-		<ant dir="./core" target="clean"/>
-
-		<ant target="clean" dir="./samples/basic"/>
-		<ant target="clean" dir="./samples/jsp"/>
-		<ant target="clean" dir="./samples/pushservice"/>
+		<ant dir="./core" target="clean" />
+                <ant dir="./cloud" target="clean" />
+                <ant dir="./util" target="clean" />
+		<ant target="clean" dir="./samples/basic" />
+		<ant target="clean" dir="./samples/jsp" />
+		<ant target="clean" dir="./samples/pushservice" />
 				
 	</target>
 	
