@@ -16,9 +16,13 @@
 
 package org.icepush;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.TimerTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.icesoft.notify.cloud.core.CloudNotificationService;
 
 public class ConfirmationTimeout
 extends TimerTask {
@@ -61,14 +65,23 @@ extends TimerTask {
                         LOGGER.log(Level.FINE, "Cloud Push dispatched for Browser '" + getBrowserID() + "'.");
                     }
                     _notifyBackURI.touch();
-                    localPushGroupManager.getOutOfBandNotifier().
-                        broadcast(
-                            new PushNotification(
-                                _browser.getPushConfiguration().getAttributes()),
-                            new String[] {
-                                getBrowserID()
-                            },
-                            groupName);
+                    CloudNotificationService _cloudNotificationService =
+                        localPushGroupManager.getCloudNotificationService();
+                    if (_cloudNotificationService != null) {
+                        Map<String, String> _properties = new HashMap<String, String>();
+                        for (final Map.Entry<String, Object> _attributeEntry :
+                                _browser.getPushConfiguration().getAttributes().entrySet()) {
+
+                            if (_attributeEntry.getValue() instanceof String) {
+                                _properties.put(_attributeEntry.getKey(), (String)_attributeEntry.getValue());
+                            }
+                        }
+                        _cloudNotificationService.pushToNotifyBackURI(_notifyBackURI.getURI(), _properties);
+                    } else {
+                        if (LOGGER.isLoggable(Level.FINE)) {
+                            LOGGER.log(Level.FINE, "Cloud Notification Service not found.");
+                        }
+                    }
                     localPushGroupManager.
                         clearPendingNotifications(_browser.getPushIDSet());
                     _browser.removeNotifiedPushIDs(_browser.getLastNotifiedPushIDSet());

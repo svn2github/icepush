@@ -18,8 +18,6 @@ package org.icepush.servlet;
 import static org.icepush.util.RequestUtilities.Patterns.NOTIFY_REQUEST;
 
 import java.net.SocketException;
-import java.net.URI;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Timer;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -33,10 +31,19 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.icepush.*;
+import org.icepush.CheckBrowserIDServlet;
+import org.icepush.CodeServer;
+import org.icepush.Configuration;
+import org.icepush.ProductInfo;
+import org.icepush.PushContext;
+import org.icepush.PushGroupManager;
+import org.icepush.PushGroupManagerFactory;
+import org.icepush.PushInternalContext;
+import org.icepush.RemoveParameterPrefix;
 import org.icepush.http.standard.CacheControlledServer;
 import org.icepush.http.standard.CompressingServer;
 import org.icepush.util.ExtensionRegistry;
+import org.icesoft.notify.cloud.core.CloudNotificationService;
 
 public class MainServlet implements PseudoServlet {
     private static final Logger log = Logger.getLogger(MainServlet.class.getName());
@@ -100,7 +107,7 @@ public class MainServlet implements PseudoServlet {
                 PushGroupManager.class.getName(),
                 PushGroupManagerFactory.newPushGroupManager(this.servletContext, executor, configuration));
         dispatcher = new PathDispatcher();
-        createOutOfBandNotifier(servletContext);
+        createNotificationService(servletContext);
         addDispatches();
     }
 
@@ -217,8 +224,10 @@ public class MainServlet implements PseudoServlet {
             );
     }
 
-    protected void createOutOfBandNotifier(final ServletContext servletContext) {
-        new DefaultOutOfBandNotifier(servletContext);
+    protected void createNotificationService(final ServletContext servletContext) {
+        servletContext.setAttribute(
+            CloudNotificationService.class.getName(), new CloudNotificationService(servletContext)
+        );
     }
 
     protected String[] getCodeResources() {
@@ -246,54 +255,6 @@ public class MainServlet implements PseudoServlet {
         }
 
         public void contextDestroyed(final ServletContextEvent servletContextEvent) {
-        }
-    }
-
-    private static class DefaultOutOfBandNotifier implements OutOfBandNotifier {
-        private static final Logger LOGGER = Logger.getLogger(OutOfBandNotifier.class.getName());
-        private final HashMap providers = new HashMap();
-        private final PushGroupManager pushGroupManager =
-            (PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
-
-        private DefaultOutOfBandNotifier(ServletContext context) {
-            context.setAttribute(OutOfBandNotifier.class.getName(), this);
-            Object[] extensions = ExtensionRegistry.getExtensions(context, NotificationProvider.class.getName());
-            if (extensions == null) {
-                LOGGER.fine("Could not find any out of band notification providers.");
-            } else {
-                for (int i = 0; i < extensions.length; i++) {
-                    NotificationProvider provider = (NotificationProvider) extensions[i];
-                    provider.registerWith(this);
-                }
-            }
-        }
-
-        public void broadcast(final PushNotification pushNotification, final String[] browserIDs, final String groupName) {
-            for (final String browserID : browserIDs) {
-                String notifyBackURI = pushGroupManager.getBrowser(browserID).getNotifyBackURI().getURI();
-                URI uri = URI.create(notifyBackURI);
-                String protocol = uri.getScheme();
-                NotificationProvider provider = (NotificationProvider)providers.get(protocol);
-                if (provider == null) {
-                    LOGGER.warning("No notification providers for '" + uri + "' URI registered");
-                } else {
-                    try {
-                        provider.send(browserID, groupName, pushNotification);
-                    } catch (Throwable t) {
-                        LOGGER.log(Level.WARNING, "Exception sending message to " + browserID + ", " + t);
-                    }
-                }
-            }
-
-        }
-
-        public void registerProvider(String protocol,
-                                     NotificationProvider provider) {
-            providers.put(protocol, provider);
-        }
-        
-        public void trace(String message)  {
-            MainServlet.trace(message);
         }
     }
 }

@@ -40,6 +40,7 @@ import java.util.logging.Logger;
 import javax.servlet.ServletContext;
 
 import org.icepush.servlet.ServletContextConfiguration;
+import org.icesoft.notify.cloud.core.CloudNotificationService;
 
 public class LocalPushGroupManager
 extends AbstractPushGroupManager
@@ -51,19 +52,6 @@ implements InternalPushGroupManager, PushGroupManager {
     static final int DEFAULT_PUSHID_TIMEOUT = 2 * 60 * 1000;
     static final int DEFAULT_GROUP_TIMEOUT = 2 * 60 * 1000;
     private static final int GROUP_SCANNING_TIME_RESOLUTION = 3000; // ms
-    private static final OutOfBandNotifier NOOPOutOfBandNotifier = new OutOfBandNotifier() {
-        public void broadcast(final PushNotification notification, final String[] browserIDs, final String groupName) {
-            System.out.println("Message send " + notification + " to " + Arrays.asList(browserIDs) + " for " + groupName);
-        }
-
-        public void registerProvider(String protocol, NotificationProvider provider) {
-        }
-        public void trace(String message)  {
-            if (LOGGER.isLoggable(Level.WARNING)) {
-                LOGGER.log(Level.WARNING, "NOOPOutOfBandNotifier discarding notification " + message);
-            }
-        }
-    };
     private static final Comparator<Notification> ScheduledAtComparator = new Comparator<Notification>() {
         public int compare(Notification a, Notification b) {
             return (int) (a.getPushConfiguration().getScheduledAt() - b.getPushConfiguration().getScheduledAt());
@@ -222,9 +210,8 @@ implements InternalPushGroupManager, PushGroupManager {
         return getGroupPushIDsMap(getModifiableGroupMap());
     }
 
-    public OutOfBandNotifier getOutOfBandNotifier() {
-        Object attribute = context.getAttribute(OutOfBandNotifier.class.getName());
-        return attribute == null ? NOOPOutOfBandNotifier : (OutOfBandNotifier) attribute;
+    public CloudNotificationService getCloudNotificationService() {
+        return (CloudNotificationService)context.getAttribute(CloudNotificationService.class.getName());
     }
 
     public Set<NotificationEntry> getPendingNotificationSet() {

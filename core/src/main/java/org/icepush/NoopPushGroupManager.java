@@ -21,6 +21,8 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.icesoft.notify.cloud.core.CloudNotificationService;
+
 public class NoopPushGroupManager
 implements PushGroupManager {
     private static final Logger LOGGER = Logger.getLogger(NoopPushGroupManager.class.getName());
@@ -74,7 +76,7 @@ implements PushGroupManager {
         return Collections.EMPTY_MAP;
     }
 
-    public OutOfBandNotifier getOutOfBandNotifier() {
+    public CloudNotificationService getCloudNotificationService() {
         return null;
     }
 

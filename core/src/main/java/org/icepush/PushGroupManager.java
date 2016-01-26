@@ -18,6 +18,8 @@ package org.icepush;
 import java.util.Map;
 import java.util.Set;
 
+import org.icesoft.notify.cloud.core.CloudNotificationService;
+
 public interface PushGroupManager {
     void addBlockingConnectionServer(String browserID, BlockingConnectionServer server);
 
@@ -43,9 +45,9 @@ public interface PushGroupManager {
 
     Browser getBrowser(String browserID);
 
-    Map<String, String[]> getGroupPushIDsMap();
+    CloudNotificationService getCloudNotificationService();
 
-    OutOfBandNotifier getOutOfBandNotifier();
+    Map<String, String[]> getGroupPushIDsMap();
 
     Set<NotificationEntry> getPendingNotificationSet();
 
