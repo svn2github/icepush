@@ -34,6 +34,8 @@
     <description>${icepush.product.name} Library</description>
 
     <modules>
+        <module>util</module>
+        <module>cloud</module>
         <module>core</module>
         <!--<module>samples</module>-->
     </modules>
