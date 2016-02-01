@@ -1044,6 +1044,8 @@ implements InternalPushGroupManager, PushGroupManager {
                                 }
                                 _scheduledNotification.run();
                             }
+                        } catch (NoClassDefFoundError e) {
+                            //ignore the application WAR was removed from the file system
                         } finally {
                             getNotificationQueueLock().unlock();
                         }
