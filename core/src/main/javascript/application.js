@@ -135,7 +135,9 @@ if (!window.ice.icepush) {
         function enlistPushIDsWithBrowser(ids) {
             var registeredIDs = split(getValue(pushIDsSlot), ' ');
             //make sure browser ID is set before registering the push ID
-            if (!lookupCookieValue(BrowserIDName)) {
+            try {
+                lookupCookieValue(BrowserIDName)
+            } catch (ex) {
                 try {
                     var id = ids[0].split(':')[0];
                     Cookie(BrowserIDName, id);
