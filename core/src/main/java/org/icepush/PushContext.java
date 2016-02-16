@@ -15,6 +15,9 @@
  */
 package org.icepush;
 
+import static org.icesoft.util.PreCondition.checkArgument;
+import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,13 +48,47 @@ public class PushContext {
      *                 The name of the group the specified <code>pushID</code> needs to be added to.
      * @param      pushID
      *                 The Push ID that needs to be added.
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>groupName</code> and/or the specified <code>pushID</code> is
+     *                 <code>null</code> or empty.
      */
     public void addGroupMember(final String groupName, final String pushID) {
+        checkArgument(
+            isNotNullAndIsNotEmpty(groupName),
+            "Illegal argument groupName: '" + groupName + "'.  Argument groupName cannot be null or empty."
+        );
+        checkArgument(
+            isNotNullAndIsNotEmpty(pushID),
+            "Illegal argument pushID: '" + pushID + "'.  Argument pushID cannot be null or empty."
+        );
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
             addMember(groupName, pushID);
     }
 
+    /**
+     * <p>
+     *     Adds the specified <code>pushID</code> to the group with the specified <code>groupName</code>.
+     * </p>
+     *
+     * @param      groupName
+     *                 The name of the group the specified <code>pushID</code> needs to be added to.
+     * @param      pushID
+     *                 The Push ID that needs to be added.
+     * @param      pushConfiguration
+     *
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>groupName</code> and/or the specified <code>pushID</code> is
+     *                 <code>null</code> or empty.
+     */
     public void addGroupMember(final String groupName, final String pushID, final PushConfiguration pushConfiguration) {
+        checkArgument(
+            isNotNullAndIsNotEmpty(groupName),
+            "Illegal argument groupName: '" + groupName + "'.  Argument groupName cannot be null or empty."
+        );
+        checkArgument(
+            isNotNullAndIsNotEmpty(pushID),
+            "Illegal argument pushID: '" + pushID + "'.  Argument pushID cannot be null or empty."
+        );
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
             addMember(groupName, pushID, pushConfiguration);
     }
@@ -65,8 +102,19 @@ public class PushContext {
      *                 The ICEpush browser ID as stored in the ice.push.browser cookie.
      * @param      delay
      *                 The delay in milliseconds the browser needs to back off.
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>browserID</code> is <code>null</code> or empty and/or the specified
+     *                 <code>delay</code> is less than <code>0</code>.
      */
     public void backOff(final String browserID, final long delay) {
+        checkArgument(
+            isNotNullAndIsNotEmpty(browserID),
+            "Illegal argument browserID: '" + browserID + "'.  Argument browserID cannot be null or empty."
+        );
+        checkArgument(
+            delay >= 0,
+            "Illegal argument delay: " + delay + ".  Argument delay cannot be less than 0."
+        );
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
             backOff(browserID, delay);
     }
@@ -83,9 +131,19 @@ public class PushContext {
      * @param      response
      *                 The HTTP Servlet response.
      * @return     The created Push ID.
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>request</code> and/or <code>response</code> is <code>null</code>.
      */
 
-    public synchronized String createPushId(HttpServletRequest request, HttpServletResponse response) {
+    public synchronized String createPushId(final HttpServletRequest request, final HttpServletResponse response) {
+        checkArgument(
+            request != null,
+            "Illegal argument request: '" + request + "'.  Argument request cannot be null."
+        );
+        checkArgument(
+            response != null,
+            "Illegal argument response: '" + response + "'.  Argument response cannot be null."
+        );
         String browserID = Browser.getBrowserID(request);
         if (browserID == null) {
             String currentBrowserID = (String)request.getAttribute(Browser.BROWSER_ID_NAME);
@@ -115,8 +173,14 @@ public class PushContext {
      * @param      groupName
      *                 The group name of the group.
      * @see        #push(String, PushConfiguration)
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>groupName</code> is <code>null</code> or empty.
      */
     public void push(final String groupName) {
+        checkArgument(
+            isNotNullAndIsNotEmpty(groupName),
+            "Illegal argument groupName: '" + groupName + "'.  Argument groupName cannot be null or empty."
+        );
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
             push(groupName);
     }
@@ -132,8 +196,14 @@ public class PushContext {
      * @param      payload
      *                 The payload to be send to the members of the group.
      * @see        #push(String, String, org.icepush.PushConfiguration)
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>groupName</code> is <code>null</code> or empty.
      */
     public void push(final String groupName, final String payload) {
+        checkArgument(
+            isNotNullAndIsNotEmpty(groupName),
+            "Illegal argument groupName: '" + groupName + "'.  Argument groupName cannot be null or empty."
+        );
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
             push(groupName, payload);
     }
@@ -148,8 +218,14 @@ public class PushContext {
      * @param      pushConfiguration
      *                 The Push configuration.
      * @see        #push(String)
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>groupName</code> is <code>null</code> or empty.
      */
     public void push(final String groupName, PushConfiguration pushConfiguration) {
+        checkArgument(
+            isNotNullAndIsNotEmpty(groupName),
+            "Illegal argument groupName: '" + groupName + "'.  Argument groupName cannot be null or empty."
+        );
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
             push(groupName, pushConfiguration);
     }
@@ -167,8 +243,14 @@ public class PushContext {
      * @param      pushConfiguration
      *                 The Push configuration.
      * @see        #push(String, String, org.icepush.PushConfiguration)
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>groupName</code> is <code>null</code> or empty.
      */
     public void push(final String groupName, final String payload, final PushConfiguration pushConfiguration) {
+        checkArgument(
+            isNotNullAndIsNotEmpty(groupName),
+            "Illegal argument groupName: '" + groupName + "'.  Argument groupName cannot be null or empty."
+        );
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
             push(groupName, payload, pushConfiguration);
     }
@@ -180,12 +262,23 @@ public class PushContext {
      *
      * @param      groupName
      *                 The name of the group the specified <code>pushId</code> needs to be removed from.
-     * @param      pushId
+     * @param      pushID
      *                 The Push ID that needs to be removed.
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>groupName</code> and/or the specified <code>pushID</code> is
+     *                 <code>null</code> or empty.
      */
-    public void removeGroupMember(final String groupName, final String pushId) {
+    public void removeGroupMember(final String groupName, final String pushID) {
+        checkArgument(
+            isNotNullAndIsNotEmpty(groupName),
+            "Illegal argument groupName: '" + groupName + "'.  Argument groupName cannot be null or empty."
+        );
+        checkArgument(
+            isNotNullAndIsNotEmpty(pushID),
+            "Illegal argument pushID: '" + pushID + "'.  Argument pushID cannot be null or empty."
+        );
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
-            removeMember(groupName, pushId);
+            removeMember(groupName, pushID);
     }
 
     /**
@@ -196,8 +289,14 @@ public class PushContext {
      * @param      servletContext
      *                 The ServletContext from which to get the PushContext.
      * @return     The PushContext.
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>servletContext</code> is <code>null</code>.
      */
     public static synchronized PushContext getInstance(final ServletContext servletContext) {
+        checkArgument(
+            servletContext != null,
+            "Illegal argument servletContext: '" + servletContext + "'.  Argument servletContext cannot be null."
+        );
         PushContext pushContext = (PushContext)servletContext.getAttribute(PushContext.class.getName());
         if (pushContext == null) {
             servletContext.setAttribute(PushContext.class.getName(), pushContext = new PushContext());
