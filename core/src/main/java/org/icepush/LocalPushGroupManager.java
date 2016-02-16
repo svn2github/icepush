@@ -1005,11 +1005,16 @@ implements InternalPushGroupManager, PushGroupManager {
                 while (running) {
                     try {
                         long _currentTime = System.currentTimeMillis();
-                        //block until notifications are available
+                        Notification _scheduledNotification;
                         getNotificationQueueLock().lock();
                         try {
                             if (getNotificationQueue().isEmpty()) {
-                                getNotificationAvailableCondition().await();
+                                try {
+                                    // Await until signalled when notifications are available.
+                                    getNotificationAvailableCondition().await();
+                                } catch (final InterruptedException exception) {
+                                    LOGGER.log(Level.FINE, "Notification queue draining interrupted.");
+                                }
                             }
 //                            Notification notification = getNotificationQueue().poll();
 //                            //put back notification, need to extract the next scheduled notification
@@ -1018,7 +1023,7 @@ implements InternalPushGroupManager, PushGroupManager {
                             TreeSet<Notification> _notificationTreeSet =
                                 new TreeSet<Notification>(ScheduledAtComparator);
                             _notificationTreeSet.addAll(getNotificationQueue());
-                            Notification _scheduledNotification = _notificationTreeSet.first();
+                            _scheduledNotification = _notificationTreeSet.first();
                             long _scheduledAt = _scheduledNotification.getPushConfiguration().getScheduledAt();
                             if (_scheduledAt < _currentTime) {
                                 //ready to send
@@ -1042,15 +1047,15 @@ implements InternalPushGroupManager, PushGroupManager {
                                         break;
                                     }
                                 }
-                                _scheduledNotification.run();
                             }
-                        } catch (NoClassDefFoundError e) {
-                            //ignore the application WAR was removed from the file system
                         } finally {
                             getNotificationQueueLock().unlock();
                         }
-                    } catch (Throwable t)  {
-                        LOGGER.log(Level.WARNING, "Notification queue encountered ", t);
+                        _scheduledNotification.run();
+                    } catch (final NoClassDefFoundError error) {
+                        //ignore the application WAR was removed from the file system
+                    } catch (final Throwable throwable)  {
+                        LOGGER.log(Level.WARNING, "Notification queue encountered ", throwable);
                     }
                 }
             } catch (Exception exception) {
