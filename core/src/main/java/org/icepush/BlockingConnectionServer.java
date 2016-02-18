@@ -509,7 +509,7 @@ implements NotificationBroadcaster.Receiver, PushServer {
                         // No response has been sent to the request.
                         if (!resend || !resendLastNotificationsTo(pushRequest)) {
                             // No response has been sent to the request.
-                            if (respondToIfNotificationsAvailable(pushRequest)) {
+                            if (!respondToIfNotificationsAvailable(pushRequest)) {
                                 // No response has been sent to the request.
                                 getPendingPushRequestQueue().put(pushRequest);
                             }
