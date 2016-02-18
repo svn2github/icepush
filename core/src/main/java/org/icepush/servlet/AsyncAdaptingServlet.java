@@ -23,7 +23,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.icepush.Configuration;
-import org.icepush.ConfigurationServer;
 import org.icepush.http.PushResponseHandler;
 import org.icepush.http.PushServer;
 import org.icepush.util.Slot;
@@ -35,42 +34,58 @@ implements PseudoServlet {
     private static final AtomicBoolean LOGGING_ADAPTED = new AtomicBoolean(false);
 
     private final Configuration configuration;
-    private final Slot heartbeatInterval;
+    private final Slot heartbeatIntervalSlot;
     private final PushServer pushServer;
 
     public AsyncAdaptingServlet(
-        final PushServer pushServer, final Slot heartbeatInterval, final Configuration configuration) {
+        final PushServer pushServer, final Slot heartbeatIntervalSlot, final Configuration configuration) {
 
         this.pushServer = pushServer;
-        this.heartbeatInterval = heartbeatInterval;
+        this.heartbeatIntervalSlot = heartbeatIntervalSlot;
         this.configuration = configuration;
         if (!LOGGING_ADAPTED.getAndSet(true)) {
             LOGGER.info("Using Servlet 3.0 AsyncContext");
         }
     }
 
-    public void service(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
+    public void service(final HttpServletRequest request, final HttpServletResponse response)
+    throws Exception {
         if (!request.isAsyncSupported()) {
             throw new EnvironmentAdaptingException();
         }
-        AsyncRequestResponse requestResponse = new AsyncRequestResponse(request, response, configuration);
-        pushServer.service(requestResponse);
+        getPushServer().service(new AsyncRequestResponse(request, response, getConfiguration()));
     }
 
     public void shutdown() {
-        pushServer.shutdown();
+        getPushServer().shutdown();
+    }
+
+    protected Configuration getConfiguration() {
+        return configuration;
+    }
+
+    protected Slot getHeartbeatIntervalSlot() {
+        return heartbeatIntervalSlot;
+    }
+
+    protected PushServer getPushServer() {
+        return pushServer;
     }
 
     private class AsyncRequestResponse
     extends ServletPushRequestResponse {
-        private AsyncContext asyncContext;
+        private final AsyncContext asyncContext;
 
-        public AsyncRequestResponse(final HttpServletRequest request, final HttpServletResponse response, final Configuration configuration) throws Exception {
+        public AsyncRequestResponse(
+            final HttpServletRequest request, final HttpServletResponse response, final Configuration configuration)
+        throws Exception {
             super(request, response, configuration);
-            asyncContext = request.isAsyncStarted() ? request.getAsyncContext() : request.startAsync();
-
-            long _timeout = heartbeatInterval.getLongValue() * 3;
-            asyncContext.setTimeout(_timeout);
+            if (request.isAsyncStarted()) {
+                asyncContext = request.getAsyncContext();
+            } else {
+                asyncContext = request.startAsync();
+            }
+            getAsyncContext().setTimeout(getHeartbeatIntervalSlot().getLongValue() * 3);
         }
 
         public void respondWith(final PushResponseHandler handler)
@@ -78,8 +93,12 @@ implements PseudoServlet {
             try {
                 super.respondWith(handler);
             } finally {
-                asyncContext.complete();
+                getAsyncContext().complete();
             }
+        }
+
+        protected AsyncContext getAsyncContext() {
+            return asyncContext;
         }
     }
 }

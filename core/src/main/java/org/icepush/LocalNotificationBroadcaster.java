@@ -23,24 +23,25 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class LocalNotificationBroadcaster implements NotificationBroadcaster {
+public class LocalNotificationBroadcaster
+implements NotificationBroadcaster {
     private static final Logger LOGGER = Logger.getLogger(LocalNotificationBroadcaster.class.getName());
 
-    private Set<Receiver> receivers = new CopyOnWriteArraySet<Receiver>();
+    private Set<Receiver> receiverSet = new CopyOnWriteArraySet<Receiver>();
     private Timer timer = new Timer(true);
 
     public void addReceiver(final Receiver receiver) {
-        receivers.add(receiver);
+        getReceiverSet().add(receiver);
     }
 
-    public void broadcast(final Set<NotificationEntry> notificationSet, long duration) {
+    public void broadcast(final Set<NotificationEntry> notificationSet, final long duration) {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(Level.FINE, "Local Notification Broadcaster broadcasting " + notificationSet);
         }
 
         //collect interested receivers
         ArrayList<Receiver> interestedReceivers = new ArrayList<Receiver>();
-        for (final Receiver receiver : receivers) {
+        for (final Receiver receiver : getReceiverSet()) {
             if (receiver.isInterested(notificationSet)) {
                 interestedReceivers.add(receiver);
             }
@@ -50,37 +51,55 @@ public class LocalNotificationBroadcaster implements NotificationBroadcaster {
             long spreadInterval = duration / interestedReceivers.size();
             int index = 0;
             for (final Receiver receiver : interestedReceivers) {
-                timer.schedule(new BroadcastTask(receiver, notificationSet), index * spreadInterval);
+                getTimer().schedule(new BroadcastTask(receiver, notificationSet), index * spreadInterval);
                 index++;
             }
         }
     }
 
-    public void deleteReceiver(final Receiver observer) {
-        receivers.remove(observer);
+    public void removeReceiver(final Receiver observer) {
+        getReceiverSet().remove(observer);
     }
 
     public void shutdown() {
         timer.cancel();
     }
 
-    private static class BroadcastTask extends TimerTask {
+    protected Set<Receiver> getReceiverSet() {
+        return receiverSet;
+    }
+
+    protected Timer getTimer() {
+        return timer;
+    }
+
+    private static class BroadcastTask
+    extends TimerTask
+    implements Runnable {
         private final Receiver receiver;
         private final Set<NotificationEntry> notificationSet;
 
-        public BroadcastTask(Receiver receiver, Set<NotificationEntry> notificationSet) {
+        public BroadcastTask(final Receiver receiver, final Set<NotificationEntry> notificationSet) {
             this.receiver = receiver;
             this.notificationSet = notificationSet;
         }
 
         public void run() {
             try {
-                receiver.receive(notificationSet);
-            } catch (Exception exception) {
+                getReceiver().receive(getNotificationSet());
+            } catch (final Exception exception) {
                 if (LOGGER.isLoggable(Level.WARNING)) {
                     LOGGER.log(Level.WARNING, "Exception caught on broadcast task.", exception);
                 }
             }
+        }
+
+        protected Receiver getReceiver() {
+            return receiver;
+        }
+
+        protected Set<NotificationEntry> getNotificationSet() {
+            return notificationSet;
         }
     }
 }

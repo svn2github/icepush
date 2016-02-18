@@ -183,8 +183,8 @@ implements InternalPushGroupManager, PushGroupManager {
         }
     }
 
-    public void deleteNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
-        outboundNotifier.deleteReceiver(observer);
+    public void removeNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
+        outboundNotifier.removeReceiver(observer);
     }
 
     public Browser getBrowser(final String browserID) {
@@ -950,6 +950,16 @@ implements InternalPushGroupManager, PushGroupManager {
             }
         }
 
+        @Override
+        public String toString() {
+            return
+                new StringBuilder().
+                    append("Notification[").
+                        append(membersAsString()).
+                    append("]").
+                        toString();
+        }
+
         protected void beforeBroadcast(final Set<NotificationEntry> notificationEntrySet) {
         }
 
@@ -972,6 +982,16 @@ implements InternalPushGroupManager, PushGroupManager {
             return pushConfiguration;
         }
 
+        protected String membersAsString() {
+            return
+                new StringBuilder().
+                    append("exemptPushIDSet: '").append(getExemptPushIDSet()).append("', ").
+                    append("groupName: '").append(getGroupName()).append("', ").
+                    append("payload: '").append(getPayload()).append("', ").
+                    append("pushConfiguration: '").append(getPushConfiguration()).append("'").
+                        toString();
+        }
+
         protected NotificationEntry newNotificationEntry(
             final String pushID, final String groupName, final String payload,
             final PushConfiguration pushConfiguration) {
@@ -987,6 +1007,23 @@ implements InternalPushGroupManager, PushGroupManager {
             final String groupName, final String payload, final PushConfiguration pushConfiguration) {
 
             super(groupName, payload, pushConfiguration);
+        }
+
+        @Override
+        public boolean equals(final Object object) {
+            return
+                object instanceof Notification &&
+                    super.equals(object);
+        }
+
+        @Override
+        public String toString() {
+            return
+                new StringBuilder().
+                    append("OutOfBandNotification[").
+                        append(membersAsString()).
+                    append("]").
+                        toString();
         }
 
         @Override

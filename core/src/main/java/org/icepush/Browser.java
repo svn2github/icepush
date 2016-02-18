@@ -20,9 +20,12 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -39,8 +42,9 @@ implements Serializable {
 
     private final String id;
     private final long minCloudPushInterval;
-    private final ConcurrentLinkedQueue<NotificationEntry> notifiedPushIDQueue =
-        new ConcurrentLinkedQueue<NotificationEntry>();
+    private final Lock notifiedPushIDQueueLock = new ReentrantLock();
+    private final Queue<NotificationEntry> notifiedPushIDQueue =
+        new LinkedList<NotificationEntry>();
 
     private Set<NotificationEntry> lastNotifiedPushIDSet = new HashSet<NotificationEntry>();
     private NotifyBackURI notifyBackURI;
@@ -62,7 +66,12 @@ implements Serializable {
     }
 
     public boolean addNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
-        return this.notifiedPushIDQueue.addAll(notifiedPushIDCollection);
+        lockNotifiedPushIDQueue();
+        try {
+            return getModifiableNotifiedPushIDQueue().addAll(notifiedPushIDCollection);
+        } finally {
+            unlockNotifiedPushIDQueue();
+        }
     }
 
     public boolean cancelConfirmationTimeout() {
@@ -98,7 +107,12 @@ implements Serializable {
     }
 
     public Set<NotificationEntry> getNotifiedPushIDSet() {
-        return Collections.unmodifiableSet(new HashSet<NotificationEntry>(notifiedPushIDQueue));
+        lockNotifiedPushIDQueue();
+        try {
+            return Collections.unmodifiableSet(new HashSet<NotificationEntry>(getModifiableNotifiedPushIDQueue()));
+        } finally {
+            unlockNotifiedPushIDQueue();
+        }
     }
 
     public NotifyBackURI getNotifyBackURI() {
@@ -122,7 +136,12 @@ implements Serializable {
     }
 
     public boolean hasNotifiedPushIDs() {
-        return !notifiedPushIDQueue.isEmpty();
+        lockNotifiedPushIDQueue();
+        try {
+            return !getModifiableNotifiedPushIDQueue().isEmpty();
+        } finally {
+            unlockNotifiedPushIDQueue();
+        }
     }
 
     public boolean isCloudPushEnabled() {
@@ -139,11 +158,21 @@ implements Serializable {
     }
 
     public boolean removeNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
-        return this.notifiedPushIDQueue.removeAll(notifiedPushIDCollection);
+        lockNotifiedPushIDQueue();
+        try {
+            return getModifiableNotifiedPushIDQueue().removeAll(notifiedPushIDCollection);
+        } finally {
+            unlockNotifiedPushIDQueue();
+        }
     }
 
     public boolean retainNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
-        return this.notifiedPushIDQueue.retainAll(notifiedPushIDCollection);
+        lockNotifiedPushIDQueue();
+        try {
+            return getModifiableNotifiedPushIDQueue().retainAll(notifiedPushIDCollection);
+        } finally {
+            unlockNotifiedPushIDQueue();
+        }
     }
 
     public boolean setLastNotifiedPushIDSet(final Set<NotificationEntry> lastNotifiedPushIDSet) {
@@ -223,6 +252,18 @@ implements Serializable {
                     toString();
     }
 
+    protected Queue<NotificationEntry> getModifiableNotifiedPushIDQueue() {
+        return notifiedPushIDQueue;
+    }
+
+    protected Lock getNotifiedPushIDQueueLock() {
+        return notifiedPushIDQueueLock;
+    }
+
+    protected void lockNotifiedPushIDQueue() {
+        getNotifiedPushIDQueueLock().lock();
+    }
+
     protected String membersAsString() {
         return
             new StringBuilder().
@@ -243,6 +284,10 @@ implements Serializable {
 
     protected void setStatus(final Status status) {
         this.status = status;
+    }
+
+    protected void unlockNotifiedPushIDQueue() {
+        getNotifiedPushIDQueueLock().unlock();
     }
 
     private static String getBrowserIDFromCookie(final HttpServletRequest request) {

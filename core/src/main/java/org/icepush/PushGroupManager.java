@@ -25,9 +25,9 @@ public interface PushGroupManager {
 
     boolean addBrowser(Browser browser);
 
-    boolean addMember(String groupName, String pushId);
+    boolean addMember(String groupName, String pushID);
 
-    boolean addMember(String groupName, String pushId, PushConfiguration pushConfiguration);
+    boolean addMember(String groupName, String pushID, PushConfiguration pushConfiguration);
 
     void addNotificationReceiver(NotificationBroadcaster.Receiver receiver);
 
@@ -41,8 +41,6 @@ public interface PushGroupManager {
 
     void clearPendingNotifications(Set<String> pushIDSet);
 
-    void deleteNotificationReceiver(NotificationBroadcaster.Receiver observer);
-
     Browser getBrowser(String browserID);
 
     CloudNotificationService getCloudNotificationService();
@@ -53,7 +51,7 @@ public interface PushGroupManager {
 
     PushID getPushID(String pushIDString);
 
-    void park(String pushId, NotifyBackURI notifyBackURI);
+    void park(String pushID, NotifyBackURI notifyBackURI);
 
     void push(String groupName);
 
@@ -69,7 +67,9 @@ public interface PushGroupManager {
 
     boolean removeBrowser(Browser browser);
 
-    boolean removeMember(String groupName, String pushId);
+    boolean removeMember(String groupName, String pushID);
+
+    void removeNotificationReceiver(NotificationBroadcaster.Receiver observer);
 
     void removePushGroupListener(PushGroupListener listener);
 

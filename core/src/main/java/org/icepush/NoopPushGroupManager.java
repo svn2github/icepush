@@ -65,9 +65,6 @@ implements PushGroupManager {
     public void clearPendingNotifications(final Set<String> pushIDSet) {
     }
 
-    public void deleteNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
-    }
-
     public Browser getBrowser(final String browserID) {
         return null;
     }
@@ -104,7 +101,7 @@ implements PushGroupManager {
     public void push(final String groupName, final String payload, final PushConfiguration config) {
     }
 
-    public void park(final String pushId, final NotifyBackURI notifyBackURI) {
+    public void park(final String pushID, final NotifyBackURI notifyBackURI) {
     }
     
     public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final Set<String> listenedPushIDSet)  {
@@ -117,8 +114,11 @@ implements PushGroupManager {
         return false;
     }
 
-    public boolean removeMember(final String groupName, final String pushId) {
+    public boolean removeMember(final String groupName, final String pushID) {
         return false;
+    }
+
+    public void removeNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
     }
 
     public void removePushGroupListener(final PushGroupListener listener) {

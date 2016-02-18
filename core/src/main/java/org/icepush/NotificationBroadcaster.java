@@ -21,9 +21,9 @@ public interface NotificationBroadcaster {
 
     void addReceiver(Receiver receiver);
 
-    void deleteReceiver(Receiver observer);
-
     void broadcast(Set<NotificationEntry> notificationSet, long duration);
+
+    void removeReceiver(Receiver observer);
 
     public interface Receiver {
 
