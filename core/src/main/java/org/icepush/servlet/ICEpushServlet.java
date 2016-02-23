@@ -15,47 +15,53 @@
  */
 package org.icepush.servlet;
 
-import org.icepush.util.ExtensionRegistry;
+import java.io.IOException;
+import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-public class ICEpushServlet extends HttpServlet {
-    private static final Logger Log = Logger.getLogger(MainServlet.class.getName());
+import org.icepush.util.ExtensionRegistry;
+
+public class ICEpushServlet
+extends HttpServlet
+implements Serializable, Servlet, ServletConfig {
+    private static final Logger LOGGER = Logger.getLogger(MainServlet.class.getName());
+
     private PseudoServlet mainServlet;
 
-    public void init(final ServletConfig servletConfig) throws ServletException {
+    public void init(final ServletConfig servletConfig)
+    throws ServletException {
         super.init(servletConfig);
         ServletContext servletContext = servletConfig.getServletContext();
-        Class mainServletClass = (Class) ExtensionRegistry.getBestExtension(servletContext, "org.icepush.MainServlet");
+        Class mainServletClass = (Class)ExtensionRegistry.getBestExtension(servletContext, "org.icepush.MainServlet");
         try {
             Constructor mainServletGet = mainServletClass.getDeclaredConstructor(new Class[]{ServletContext.class});
-            mainServlet = (PseudoServlet) mainServletGet
-                    .newInstance(new Object[] {servletContext});
-        } catch (Exception e) {
-            Log.log(Level.SEVERE, "Cannot instantiate extension org.icepush.MainServlet.", e);
-            throw new ServletException(e);
+            mainServlet = (PseudoServlet)mainServletGet.newInstance(new Object[]{servletContext});
+        } catch (final Exception exception) {
+            LOGGER.log(Level.SEVERE, "Cannot instantiate extension org.icepush.MainServlet.", exception);
+            throw new ServletException(exception);
         }
     }
 
-    protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void service(final HttpServletRequest request, final HttpServletResponse response)
+    throws IOException, ServletException {
         try {
             mainServlet.service(request, response);
-        } catch (ServletException e) {
-            throw e;
-        } catch (IOException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (final ServletException exception) {
+            throw exception;
+        } catch (final IOException exception) {
+            throw exception;
+        } catch (final Exception exception) {
+            throw new RuntimeException(exception);
         }
     }
 
