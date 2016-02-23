@@ -174,7 +174,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
         cancel();
         getPushGroupManager().removeNotificationReceiver(this);
         getPushGroupManager().removeBlockingConnectionServer(getBrowserID());
-        getPushGroupManager().removeBrowser(pushGroupManager.getBrowser(getBrowserID()));
         activeServer.shutdown();
     }
 
@@ -340,15 +339,14 @@ implements NotificationBroadcaster.Receiver, PushServer {
     }
 
     private boolean respondToIfNotificationsAvailable(final PushRequest pushRequest) {
-        getPushGroupManager().getBrowser(getBrowserID()).lockNotifiedPushIDQueue();
+        Browser _browser = getPushGroupManager().getBrowser(getBrowserID());
+        _browser.lockNotifiedPushIDQueue();
         try {
             boolean _result = false;
-            if (getPushGroupManager().getBrowser(getBrowserID()).hasNotifiedPushIDs()) {
+            if (_browser.hasNotifiedPushIDs()) {
                 //save notifications, maybe they will need to be resent when blocking connection switches to another window
-                getPushGroupManager().getBrowser(getBrowserID()).
-                    setLastNotifiedPushIDSet(getPushGroupManager().getBrowser(getBrowserID()).getNotifiedPushIDSet());
-                org.icepush.NotifiedPushIDs _notifiedPushIDs =
-                    newNotifiedPushIDs(getPushGroupManager().getBrowser(getBrowserID()).getLastNotifiedPushIDSet());
+                _browser.setLastNotifiedPushIDSet(_browser.getNotifiedPushIDSet());
+                org.icepush.NotifiedPushIDs _notifiedPushIDs = newNotifiedPushIDs(_browser.getLastNotifiedPushIDSet());
                 if (pushRequest != null) {
                     respondTo(pushRequest, _notifiedPushIDs);
                     _result = true;
@@ -358,7 +356,7 @@ implements NotificationBroadcaster.Receiver, PushServer {
             }
             return _result;
         } finally {
-            getPushGroupManager().getBrowser(getBrowserID()).unlockNotifiedPushIDQueue();
+            _browser.unlockNotifiedPushIDQueue();
         }
     }
 
@@ -391,14 +389,13 @@ implements NotificationBroadcaster.Receiver, PushServer {
         }
         boolean anyNotifications = !matchingSet.isEmpty();
         if (anyNotifications) {
-            getPushGroupManager().getBrowser(getBrowserID()).lockNotifiedPushIDQueue();
+            Browser _browser = getPushGroupManager().getBrowser(getBrowserID());
+            _browser.lockNotifiedPushIDQueue();
             try {
-                getPushGroupManager().getBrowser(getBrowserID()).
-                    addNotifiedPushIDs(matchingSet);
-                getPushGroupManager().getBrowser(getBrowserID()).
-                    retainNotifiedPushIDs(getPushGroupManager().getPendingNotificationSet());
+                _browser.addNotifiedPushIDs(matchingSet);
+                _browser.retainNotifiedPushIDs(getPushGroupManager().getPendingNotificationSet());
             } finally {
-                getPushGroupManager().getBrowser(getBrowserID()).unlockNotifiedPushIDQueue();
+                _browser.unlockNotifiedPushIDQueue();
             }
             if (pushRequest != null) {
                 resetTimeout(pushRequest);
@@ -443,14 +440,12 @@ implements NotificationBroadcaster.Receiver, PushServer {
                 clearPendingNotifications(
                     getPushGroupManager().getBrowser(getBrowserID()).getPushIDSet()
                 );
-            getPushGroupManager().getBrowser(getBrowserID()).lockNotifiedPushIDQueue();
+            Browser _browser = getPushGroupManager().getBrowser(getBrowserID());
+            _browser.lockNotifiedPushIDQueue();
             try {
-                getPushGroupManager().getBrowser(getBrowserID()).
-                    removeNotifiedPushIDs(
-                        getPushGroupManager().getBrowser(getBrowserID()).getLastNotifiedPushIDSet()
-                    );
+                _browser.removeNotifiedPushIDs(_browser.getLastNotifiedPushIDSet());
             } finally {
-                getPushGroupManager().getBrowser(getBrowserID()).unlockNotifiedPushIDQueue();
+                _browser.unlockNotifiedPushIDQueue();
             }
         }
 
