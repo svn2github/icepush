@@ -38,9 +38,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
-import javax.servlet.ServletContextEvent;
-import javax.servlet.ServletContextListener;
-import javax.servlet.annotation.WebListener;
 
 import org.icepush.servlet.ServletContextConfiguration;
 import org.icesoft.notify.cloud.core.CloudNotificationService;
