@@ -46,7 +46,8 @@ import org.icepush.util.ExtensionRegistry;
 import org.icesoft.notify.cloud.core.CloudNotificationService;
 
 public class MainServlet implements PseudoServlet {
-    private static final Logger log = Logger.getLogger(MainServlet.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(MainServlet.class.getName());
+
     static HashSet<TraceListener> traceListeners = new HashSet<TraceListener>();
     protected PathDispatcher dispatcher;
     protected Timer monitoringScheduler;
@@ -90,7 +91,7 @@ public class MainServlet implements PseudoServlet {
         //We print the product info unless we are part of EE which will print out it's
         //own version.
         if(printProductInfo){
-            log.info(new ProductInfo().toString());
+            LOGGER.info(new ProductInfo().toString());
         }
         servletContext.setAttribute(org.icepush.servlet.MainServlet.class.getName(), this);
         PushInternalContext.getInstance().
@@ -126,10 +127,10 @@ public class MainServlet implements PseudoServlet {
         } catch (SocketException e) {
             if ("Broken pipe".equals(e.getMessage())) {
                 // client left the page
-                if (log.isLoggable(Level.FINEST)) {
-                    log.log(Level.FINE, "Connection broken by client.", e);
-                } else if (log.isLoggable(Level.FINE)) {
-                    log.log(Level.FINE, "Connection broken by client: " + e.getMessage());
+                if (LOGGER.isLoggable(Level.FINEST)) {
+                    LOGGER.log(Level.FINE, "Connection broken by client.", e);
+                } else if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(Level.FINE, "Connection broken by client: " + e.getMessage());
                 }
             } else {
                 throw new ServletException(e);
