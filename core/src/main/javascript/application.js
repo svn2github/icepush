@@ -249,10 +249,13 @@ if (!window.ice.icepush) {
             },
 
             createPushId: function(retries, callback) {
-                var id;
                 var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
                 postAsynchronously(apiChannel, uri, function (query) {
-                    parameter(query, BrowserIDName, lookupCookieValue(BrowserIDName));
+                    try {
+                        parameter(query, BrowserIDName, lookupCookieValue(BrowserIDName));
+                    } catch (e) {
+                        //skip sending browser ID when not yet defined
+                    }
                     parameter(query, Account, ice.push.configuration.account);
                     parameter(query, Realm, ice.push.configuration.realm);
                     parameter(query, AccessToken, ice.push.configuration.access_token);
@@ -265,11 +268,11 @@ if (!window.ice.icepush) {
                             }
                             deserializeAndExecute(commandDispatcher, contentAsDOM(response).documentElement);
                             retries = retries ? retries + 1 : 1;
-                            id = namespace.push.createPushId(retries, callback);
+                            namespace.push.createPushId(retries, callback);
                         } else {
-                            id = contentAsText(response);
+                            var id = contentAsText(response);
+                            callback(id);
                         }
-                        callback(id);
                     });
                     condition(ServerInternalError, throwServerError);
                 }));
