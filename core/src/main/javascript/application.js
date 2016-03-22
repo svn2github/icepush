@@ -42,7 +42,18 @@ if (!window.ice.icepush) {
         var ie = window.attachEvent || /Trident.*rv\:11\./.test(navigator.userAgent) || /MSIE/.test(navigator.userAgent);
 
         function useLocalStorage() {
-            return window.localStorage && firefoxGreaterThan3point6 && !ie;
+            var workingLocalStorage = false;
+            if (window.localStorage) {
+                var key = 'testLocalStorage';
+                var value = String(Math.random());
+                try {
+                    window.localStorage[key] = value;
+                    workingLocalStorage = window.localStorage[key] == value;
+                } finally {
+                    delete window.localStorage[key];
+                }
+            }
+            return workingLocalStorage && firefoxGreaterThan3point6 && !ie;
         }
 
         function detectByReference(ref) {
