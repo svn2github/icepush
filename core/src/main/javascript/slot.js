@@ -16,8 +16,8 @@
 
 var setValue = operator();
 var getValue = operator();
+var removeSlot = operator();
 var existsSlot;
-var removeSlot;
 var Slot;
 
 (function () {
@@ -35,15 +35,15 @@ var Slot;
             method(setValue, function (self, val) {
                 slots[name] = val;
             });
+
+            method(removeSlot, function(self) {
+                delete slots[name];
+            });
         });
     };
 
     var existsWindowSlot = function (name) {
         return slots[name] != null;
-    };
-
-    var removeWindowSlot = function (name) {
-        delete slots[name];
     };
 
     //create slot that is visible to the entire browser (all windows)
@@ -63,15 +63,15 @@ var Slot;
                 method(setValue, function (self, val) {
                     window.localStorage.setItem(name, val || '');
                 });
+
+                method(removeSlot, function(self) {
+                    window.localStorage.removeItem(name);
+                });
             });
         };
 
         existsBrowserSlot = function (name) {
             return window.localStorage.getItem(name) != null;
-        };
-
-        removeBrowserSlot = function (name) {
-            window.localStorage.removeItem(name);
         };
     } else {
         BrowserSlot = function CookieSlot(name, val) {
@@ -94,16 +94,16 @@ var Slot;
                         c = Cookie(name, val);
                     }
                 });
+
+                method(removeSlot, function(self) {
+                    if (existsCookie(name)) {
+                        remove(lookupCookie(name));
+                    }
+                });
             });
         };
 
         existsBrowserSlot = existsCookie;
-
-        removeBrowserSlot = function (name) {
-            if (existsCookie(name)) {
-                remove(lookupCookie(name));
-            }
-        };
     }
 
     function nonSharedSlot() {
@@ -142,14 +142,14 @@ var Slot;
             method(setValue, function (self, val) {
                 setValue(acquireSlot(), val);
             });
+
+            method(removeSlot, function(self) {
+                removeSlot(acquireSlot());
+            });
         });
     };
 
     existsSlot = function (name) {
         return nonSharedSlot() ? existsWindowSlot(name) : existsBrowserSlot(name);
-    };
-
-    removeSlot = function (name) {
-        return nonSharedSlot() ? removeWindowSlot(name) : removeBrowserSlot(name);
     };
 }());

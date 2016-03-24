@@ -70,25 +70,11 @@ var AsyncConnection;
             method(close, noop);
             method(abort, noop);
         });
-        var listening = object(function(method) {
-            method(remove, noop);
-        });
 
         //clear connectionDownListeners to avoid bogus connection lost messages
         onBeforeUnload(window, function() {
             connectionDownListeners = [];
         });
-
-        //remove the blocking connection marker so that everytime a new
-        //bridge instance is created the blocking connection will
-        //be re-established
-        //this strategy is mainly employed to fix the window.onunload issue
-        //in Opera -- see http://jira.icefaces.org/browse/ICE-1872
-        try {
-            removeSlot(ConnectionRunning);
-        } catch (e) {
-            //do nothing
-        }
         var lastSentPushIds = registeredPushIds();
 
         function contextPath() {
@@ -278,8 +264,8 @@ var AsyncConnection;
         var pollingPeriod = 1000;
 
         var leaseSlot = Slot(ConnectionLease, asString((new Date).getTime()));
-        var connectionSlot = listening = Slot(ConnectionRunning, '');
-        var contextPathSlot = Slot(ConnectionContextPath, contextPath());
+        var connectionSlot = Slot(ConnectionRunning);
+        var contextPathSlot;
 
         function updateLease() {
             setValue(leaseSlot, (new Date).getTime() + pollingPeriod * 3);
@@ -323,18 +309,21 @@ var AsyncConnection;
             return getValue(contextPathSlot) != contextPath();
         }
 
-        //force candidancy so that last opened window belonging to a different servlet context will own the blocking connection
-        if (nonMatchingContextPath()) {
-            offerCandidature();
-            info(logger, 'Blocking connection cannot be shared among multiple web-contexts.\nInitiating blocking connection for "' + contextPath() + '"  web-context...');
-        }
-
         var lastOwningWindow = '';
         var paused = false;
         var blockingConnectionMonitor = object(function(method) {
             method(stop, noop);
         });
         function createBlockingConnectionMonitor() {
+            //initialize slot only after the context path was setup during page load
+            contextPathSlot = Slot(ConnectionContextPath, contextPath());
+
+            //force candidancy so that last opened window belonging to a different servlet context will own the blocking connection
+            if (nonMatchingContextPath()) {
+                offerCandidature();
+                info(logger, 'Blocking connection cannot be shared among multiple web-contexts.\nInitiating blocking connection for "' + contextPath() + '"  web-context...');
+            }
+
             blockingConnectionMonitor = run(Delay(function() {
                 if (shouldEstablishBlockingConnection()) {
                     offerCandidature();
@@ -492,7 +481,7 @@ var AsyncConnection;
                     abort(listener);
                     stopTimeoutBombs();
                     stop(blockingConnectionMonitor);
-                    removeSlot(listening);
+                    removeSlot(connectionSlot);
                 }
             });
         });
