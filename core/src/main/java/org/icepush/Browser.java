@@ -459,7 +459,7 @@ implements DatabaseEntity, Serializable {
             setBackupConnectionRecreationTimeout(status.getBackupConnectionRecreationTimeout());
             setConnectionRecreationTimeout(status.getConnectionRecreationTimeout());
             setSequenceNumber(status.getSequenceNumber());
-            this.browserID = browserID;
+            this.browserID = browser.getID();
         }
 
         public void backUpConnectionRecreationTimeout() {

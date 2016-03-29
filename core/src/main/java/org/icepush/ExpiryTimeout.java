@@ -99,7 +99,6 @@ implements DatabaseEntity, Serializable {
                 PushInternalContext.getInstance().getAttribute("expiryTimeoutMap");
         if (_expiryTimeoutMap.containsKey(getKey())) {
             _expiryTimeoutMap.put(getKey(), this);
-            // TODO: Move to Level.FINE
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE,
@@ -119,8 +118,11 @@ implements DatabaseEntity, Serializable {
                         "(now: '" + new Date(System.currentTimeMillis()) + "')"
             );
         }
-        ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$expiry")).
-            schedule(getTimerTask(), new Date(scheduledTime));
+        getExpiryTimer().schedule(getTimerTask(), new Date(getScheduledTime()));
+    }
+
+    public void scheduleOrExecute() {
+        scheduleOrExecute(getInternalPushGroupManager());
     }
 
     @Override
@@ -179,6 +181,10 @@ implements DatabaseEntity, Serializable {
         }
     }
 
+    protected final Timer getExpiryTimer() {
+        return ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$expiry"));
+    }
+
     protected static InternalPushGroupManager getInternalPushGroupManager() {
         return
             (InternalPushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
@@ -198,10 +204,6 @@ implements DatabaseEntity, Serializable {
 
     protected final boolean isCloudPushID() {
         return cloudPushID;
-    }
-
-    protected void scheduleOrExecute() {
-        scheduleOrExecute(getInternalPushGroupManager());
     }
 
     protected void scheduleOrExecute(final InternalPushGroupManager pushGroupManager) {

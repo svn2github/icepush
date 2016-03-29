@@ -48,13 +48,14 @@ import org.icesoft.util.servlet.ExtensionRegistry;
 public class MainServlet implements PseudoServlet {
     private static final Logger LOGGER = Logger.getLogger(MainServlet.class.getName());
 
-    static HashSet<TraceListener> traceListeners = new HashSet<TraceListener>();
-    protected PathDispatcher dispatcher;
-    protected Timer monitoringScheduler;
-    protected PushContext pushContext;
-    protected ServletContext servletContext;
-    protected Configuration configuration;
-    protected boolean terminateConnectionOnShutdown;
+    private final static HashSet<TraceListener> TRACE_LISTENERS = new HashSet<TraceListener>();
+
+    private final PathDispatcher pathDispatcher;
+    private final Timer monitoringScheduler;
+    private final PushContext pushContext;
+    private final ServletContext servletContext;
+    private final Configuration configuration;
+    private final boolean terminateConnectionOnShutdown;
 
     public synchronized static MainServlet getInstance(final ServletContext servletContext) {
         MainServlet _mainServlet = (MainServlet)servletContext.getAttribute(MainServlet.class.getName());
@@ -100,11 +101,11 @@ public class MainServlet implements PseudoServlet {
             LOGGER.info(new ProductInfo().toString());
         }
         this.servletContext = servletContext;
-        this.servletContext.setAttribute(org.icepush.servlet.MainServlet.class.getName(), this);
-        configuration = new ServletContextConfiguration("org.icepush", this.servletContext);
+        getServletContext().setAttribute(org.icepush.servlet.MainServlet.class.getName(), this);
+        this.configuration = new ServletContextConfiguration("org.icepush", getServletContext());
         terminateConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
         monitoringScheduler = new Timer("Monitoring scheduler", true);
-        pushContext = PushContext.getInstance(this.servletContext);
+        pushContext = PushContext.getInstance(getServletContext());
         PushGroupManager _pushGroupManager;
         try {
             _pushGroupManager =
@@ -116,37 +117,37 @@ public class MainServlet implements PseudoServlet {
                 LOGGER.log(Level.WARNING, "Unable to get instance of Push Group Manager.", exception);
             }
             _pushGroupManager =
-                PushGroupManagerFactory.newPushGroupManager(this.servletContext, executor, configuration);
+                PushGroupManagerFactory.newPushGroupManager(getServletContext(), executor, getConfiguration());
         } catch (final IllegalAccessException exception) {
             if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.log(Level.WARNING, "Unable to get instance of Push Group Manager.", exception);
             }
             _pushGroupManager =
-                PushGroupManagerFactory.newPushGroupManager(this.servletContext, executor, configuration);
+                PushGroupManagerFactory.newPushGroupManager(getServletContext(), executor, getConfiguration());
         } catch (final InvocationTargetException exception) {
             if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.log(Level.WARNING, "Unable to get instance of Push Group Manager.", exception);
             }
             _pushGroupManager =
-                PushGroupManagerFactory.newPushGroupManager(this.servletContext, executor, configuration);
+                PushGroupManagerFactory.newPushGroupManager(getServletContext(), executor, getConfiguration());
         }
         PushInternalContext.getInstance().setAttribute(PushGroupManager.class.getName(), _pushGroupManager);
-        dispatcher = new PathDispatcher();
+        pathDispatcher = new PathDispatcher();
         addDispatches();
     }
 
     public static void addTraceListener(TraceListener listener)  {
-        traceListeners.add(listener);
+        TRACE_LISTENERS.add(listener);
     }
 
     public void dispatchOn(final String pattern, final PseudoServlet servlet) {
-        dispatcher.dispatchOn(pattern, servlet);
+        getPathDispatcher().dispatchOn(pattern, servlet);
     }
 
     public void service(final HttpServletRequest request, final HttpServletResponse response)
     throws Exception {
         try {
-            dispatcher.service(request, response);
+            getPathDispatcher().service(request, response);
         } catch (SocketException e) {
             if ("Broken pipe".equals(e.getMessage())) {
                 // client left the page
@@ -172,13 +173,13 @@ public class MainServlet implements PseudoServlet {
     }
 
     public void shutdown() {
-        dispatcher.shutdown();
+        getPathDispatcher().shutdown();
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).shutdown();
-        monitoringScheduler.cancel();
+        getMonitoringScheduler().cancel();
     }
 
     public static void trace(final String message)  {
-        for (TraceListener listener : traceListeners)  {
+        for (TraceListener listener : TRACE_LISTENERS)  {
             listener.handleTrace(message);
         }
     }
@@ -196,7 +197,7 @@ public class MainServlet implements PseudoServlet {
                         new CodeServer(getCompressedCodeResources())
                     )
                 ),
-                configuration
+                getConfiguration()
             )
         );
         dispatchOn(
@@ -207,7 +208,7 @@ public class MainServlet implements PseudoServlet {
                         new CodeServer(getCodeResources())
                     )
                 ),
-                configuration
+                getConfiguration()
             )
         );
         dispatchOn(
@@ -221,11 +222,11 @@ public class MainServlet implements PseudoServlet {
         BrowserBoundServlet browserBoundServlet =
             new BrowserBoundServlet(
                 browserID,
-                pushContext,
-                servletContext,
-                monitoringScheduler,
-                configuration,
-                terminateConnectionOnShutdown
+                getPushContext(),
+                getServletContext(),
+                getMonitoringScheduler(),
+                getConfiguration(),
+                getTerminateConnectionOnShutdown()
             );
         browserBoundServlet.setUp();
         return browserBoundServlet;
@@ -235,11 +236,7 @@ public class MainServlet implements PseudoServlet {
         return
             new RemoveParameterPrefix(
                 new CheckBrowserIDServlet(
-                    new BrowserDispatcher(configuration) {
-                        protected PseudoServlet newServer(final String browserID) {
-                            return createBrowserBoundServlet(browserID);
-                        }
-                    }
+                    newBrowserDispatcher()
                 )
             );
     }
@@ -252,8 +249,41 @@ public class MainServlet implements PseudoServlet {
         return new String[] {"ice.core/bridge-support.js", "ice.push/icepush.js"};
     }
 
+    protected final Configuration getConfiguration() {
+        return configuration;
+    }
+
+    protected final Timer getMonitoringScheduler() {
+        return monitoringScheduler;
+    }
+
+    protected final PathDispatcher getPathDispatcher() {
+        return pathDispatcher;
+    }
+
+    protected final PushContext getPushContext() {
+        return pushContext;
+    }
+
+    protected final ServletContext getServletContext() {
+        return servletContext;
+    }
+
+    protected final boolean getTerminateConnectionOnShutdown() {
+        return terminateConnectionOnShutdown;
+    }
+
+    protected BrowserDispatcher newBrowserDispatcher() {
+        return
+            new BrowserDispatcher(getConfiguration()) {
+                protected PseudoServlet newServer(final String browserID) {
+                    return createBrowserBoundServlet(browserID);
+                }
+            };
+    }
+
     protected PseudoServlet newNotifyPushID() {
-        return new NotifyPushID(pushContext);
+        return new NotifyPushID(getPushContext());
     }
 
     //Application can add itself as a TraceListener to receive

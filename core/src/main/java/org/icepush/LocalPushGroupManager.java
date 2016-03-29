@@ -301,6 +301,20 @@ implements InternalPushGroupManager, PushGroupManager {
         return (CloudNotificationService)getServletContext().getAttribute(CloudNotificationService.class.getName());
     }
 
+    public ConfirmationTimeout getConfirmationTimeout(final String browserID) {
+        if (browserID == null) {
+            return null;
+        }
+        return getConfirmationTimeoutMap().get(browserID);
+    }
+
+    public ExpiryTimeout getExpiryTimeout(final String pushID) {
+        if (pushID == null) {
+            return null;
+        }
+        return getExpiryTimeoutMap().get(pushID);
+    }
+
     public Group getGroup(final String groupName) {
         return getGroup(getModifiableGroupMap(), groupName);
     }

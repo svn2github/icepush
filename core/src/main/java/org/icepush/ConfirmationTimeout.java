@@ -133,8 +133,11 @@ implements DatabaseEntity, Serializable {
                     "Scheduled Time '" + getScheduledTime() + "' scheduled.  " +
                         "(now: '" + new Date(System.currentTimeMillis()) + "')");
         }
-        ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")).
-            schedule(getTimerTask(), new Date(scheduledTime));
+        getConfirmationTimer().schedule(getTimerTask(), new Date(getScheduledTime()));
+    }
+
+    public void scheduleExecuteOrCancel() {
+        scheduleExecuteOrCancel(getInternalPushGroupManager());
     }
 
     @Override
@@ -224,6 +227,10 @@ implements DatabaseEntity, Serializable {
         return browserID;
     }
 
+    protected final Timer getConfirmationTimer() {
+        return ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation"));
+    }
+
     protected final String getGroupName() {
         return groupName;
     }
@@ -251,10 +258,6 @@ implements DatabaseEntity, Serializable {
 
     protected final TimerTask getTimerTask() {
         return timerTask;
-    }
-
-    protected void scheduleExecuteOrCancel() {
-        scheduleExecuteOrCancel(getInternalPushGroupManager());
     }
 
     protected void scheduleExecuteOrCancel(final InternalPushGroupManager internalPushGroupManager) {

@@ -31,6 +31,10 @@ extends PushGroupManager {
 
     Map<String, Browser> getBrowserMap();
 
+    ConfirmationTimeout getConfirmationTimeout(String browserID);
+
+    ExpiryTimeout getExpiryTimeout(String pushID);
+
     Group getGroup(String groupName);
 
     Map<String, Group> getGroupMap();
