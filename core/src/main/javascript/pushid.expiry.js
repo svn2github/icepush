@@ -28,14 +28,12 @@ var PushIDExpiryMonitor;
                 var ids = registeredWindowPushIds();
                 var confirmedIds = intersect(verifiedIds, ids);
                 if (notEmpty(confirmedIds)) {
-                    debug(logger, 'send confirmation: ' + ids);
                     notifyWindows(confirmLivelinessBroadcaster, ids);
                 }
             });
 
             var confirmationChannel = "ice.push.confirm";
             var confirmLivelinessBroadcaster = LocalStorageNotificationBroadcaster(confirmationChannel, function (confirmedIDs) {
-                debug(logger, 'received confirmation: ' + confirmedIDs);
                 each(confirmedIDs, function (id) {
                     delete notificationResponsivness[id];
                 });
@@ -66,7 +64,6 @@ var PushIDExpiryMonitor;
                 });
 
                 if (notEmpty(ids)) {
-                    info(logger, 'request confirmation: ' + ids);
                     notifyWindows(testLivelinessBroadcaster, ids);
                 }
                 return notificationResponsivness;
@@ -83,7 +80,7 @@ var PushIDExpiryMonitor;
                 }
                 //remove unused pushIDs
                 if (notEmpty(ids)) {
-                    info(logger, 'expirying pushIDs: ' + ids);
+                    info(logger, 'expirying unused pushIDs: ' + ids);
                     delistPushIDsWithBrowser(ids);
                 }
             }

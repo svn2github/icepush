@@ -481,7 +481,9 @@ var AsyncConnection;
                     abort(listener);
                     stopTimeoutBombs();
                     stop(blockingConnectionMonitor);
-                    removeSlot(connectionSlot);
+                    if (isOwner()) {
+                        removeSlot(connectionSlot);
+                    }
                 }
             });
         });
