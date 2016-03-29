@@ -70,7 +70,8 @@ function CookieBasedNotificationBroadcaster(name, callback) {
     //monitor & pick updates for this window
     var notificationMonitor = run(Delay(function() {
         try {
-            var notifications = split(value(notificationsBucket), NotificationSeparator);
+            var unparsedPushIDs = value(notificationsBucket) || '';
+            var notifications = split(unparsedPushIDs, NotificationSeparator);
             var remainingNotifications = join(inject(notifications, [], function(result, notification) {
                 var tuple = split(notification, PayloadSeparator);
                 var ids = split(tuple[0], ' ');
