@@ -50,7 +50,7 @@ if (!window.ice.icepush) {
                     window.localStorage[key] = value;
                     workingLocalStorage = window.localStorage[key] == value;
                 } finally {
-                    delete window.localStorage[key];
+                    window.localStorage.removeItem(key);
                 }
             }
             return workingLocalStorage && firefoxGreaterThan3point6 && !ie;
