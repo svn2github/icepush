@@ -19,20 +19,35 @@ package org.icepush;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.icepush.util.DatabaseEntity;
+
+import org.mongodb.morphia.Datastore;
+import org.mongodb.morphia.annotations.Entity;
+import org.mongodb.morphia.annotations.Id;
+
+@Entity(value = "groups")
 public class Group
-implements Serializable {
+implements DatabaseEntity, Serializable {
     private static final long serialVersionUID = -2793842028376415034L;
 
     private static final Logger LOGGER = Logger.getLogger(Group.class.getName());
 
-    private final long groupTimeout;
-    private final String name;
-    private final Set<String> pushIDSet = new HashSet<String>();
+    @Id
+    private String databaseID;
+
+    private long groupTimeout;
+    private String name;
+    private Set<String> pushIDSet = new HashSet<String>();
 
     private long lastAccess = System.currentTimeMillis();
+
+    public Group() {
+        // Do nothing.
+    }
 
     protected Group(final Group group) {
         this(group.getName(), group.getGroupTimeout());
@@ -40,16 +55,34 @@ implements Serializable {
         lastAccess = group.getLastAccess();
     }
 
-    protected Group(final String name, final long groupTimeout) {
+    public Group(final String name, final long groupTimeout) {
         this.name = name;
         this.groupTimeout = groupTimeout;
+        this.databaseID = getName();
         if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(Level.FINE, "Push Group '" + getName() + "' created.");
+            LOGGER.log(Level.FINE, "Group '" + getName() + "' created.");
         }
     }
 
     public boolean addPushID(final String pushID) {
-        return getPushIDSet().add(pushID);
+        boolean _modified = getPushIDSet().add(pushID);
+        if (_modified) {
+            save();
+        }
+        return _modified;
+    }
+
+    @Override
+    public boolean equals(final Object object) {
+        return super.equals(object);
+    }
+
+    public String getDatabaseID() {
+        return databaseID;
+    }
+
+    public String getKey() {
+        return getName();
     }
 
     public String getName() {
@@ -57,17 +90,23 @@ implements Serializable {
     }
 
     public boolean removePushID(final String pushID) {
-        boolean _modified = getPushIDSet().remove(pushID);
-        if (getPushIDSet().isEmpty()) {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE, "Disposed Push Group '" + getName() + "' since it no longer contains any PushIDs.");
+        return removePushID(pushID, getInternalPushGroupManager());
+    }
+
+    public void save() {
+        if (PushInternalContext.getInstance().getAttribute(Datastore.class.getName()) != null) {
+            ConcurrentMap<String, Group> _groupMap =
+                (ConcurrentMap<String, Group>)PushInternalContext.getInstance().getAttribute("groupMap");
+            if (_groupMap.containsKey(getKey())) {
+                _groupMap.put(getKey(), this);
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Saved Group '" + this + "' to Database."
+                    );
+                }
             }
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-            ).removeGroup(getName());
         }
-        return _modified;
     }
 
     @Override
@@ -75,13 +114,27 @@ implements Serializable {
         return
             new StringBuilder().
                 append("Group[").
-                    append(membersAsString()).
+                    append(classMembersToString()).
                 append("]").
+                    toString();
+    }
+
+    protected String classMembersToString() {
+        return
+            new StringBuilder().
+                append("name: '").append(getName()).append("', ").
+                append("pushIDSet: '").append(getPushIDSet()).append("', ").
+                append("lastAccess: '").append(getLastAccess()).append("'").
                     toString();
     }
 
     protected long getGroupTimeout() {
         return groupTimeout;
+    }
+
+    protected static InternalPushGroupManager getInternalPushGroupManager() {
+        return
+            (InternalPushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
     }
 
     protected long getLastAccess() {
@@ -96,13 +149,21 @@ implements Serializable {
         return pushIDSet;
     }
 
-    protected String membersAsString() {
-        return
-            new StringBuilder().
-                append("name: '").append(getName()).append("', ").
-                append("pushIDSet: '").append(getPushIDSet()).append("', ").
-                append("lastAccess: '").append(getLastAccess()).append("'").
-                    toString();
+    protected boolean removePushID(final String pushID, final InternalPushGroupManager internalPushGroupManager) {
+        boolean _modified = getPushIDSet().remove(pushID);
+        if (_modified) {
+            if (!getPushIDSet().isEmpty()) {
+                save();
+            }
+        }
+        if (getPushIDSet().isEmpty()) {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(
+                    Level.FINE, "Disposed Group '" + getName() + "' since it no longer contains any Push-IDs.");
+            }
+            internalPushGroupManager.removeGroup(getName());
+        }
+        return _modified;
     }
 
     protected void touch() {
@@ -111,15 +172,14 @@ implements Serializable {
 
     protected void touch(final long timestamp) {
         lastAccess = timestamp;
+        save();
     }
 
     protected void touchIfMatching(final Set<String> pushIDSet) {
         for (final String _pushID : pushIDSet) {
             if (getPushIDSet().contains(_pushID)) {
                 touch();
-                ((InternalPushGroupManager)
-                    PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-                ).groupTouched(getName(), getLastAccess());
+                getInternalPushGroupManager().groupTouched(getName(), getLastAccess());
                 //no need to touchIfMatching again
                 //return right away without checking the expiration
                 return;
@@ -131,19 +191,12 @@ implements Serializable {
         //expire group
         if (getLastAccess() + getGroupTimeout() < System.currentTimeMillis()) {
             if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "Push Group '" + getName() + "' expired.");
+                LOGGER.log(Level.FINE, "Group '" + getName() + "' expired.");
             }
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-            ).removeGroup(getName());
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-            ).removePendingNotifications(getPushIDSet());
+            getInternalPushGroupManager().removeGroup(getName());
+            getInternalPushGroupManager().removePendingNotifications(getPushIDSet());
             for (final String _pushIDString : getPushIDSet()) {
-                PushID _pushID =
-                    ((InternalPushGroupManager)
-                        PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-                    ).getPushID(_pushIDString);
+                PushID _pushID = getInternalPushGroupManager().getPushID(_pushIDString);
                 if (_pushID != null) {
                     _pushID.removeFromGroup(getName());
                 }

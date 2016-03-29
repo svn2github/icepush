@@ -17,6 +17,7 @@ package org.icepush.servlet;
 
 import static org.icepush.util.RequestUtilities.Patterns.NOTIFY_REQUEST;
 
+import java.lang.reflect.InvocationTargetException;
 import java.net.SocketException;
 import java.util.HashSet;
 import java.util.Timer;
@@ -42,8 +43,7 @@ import org.icepush.PushInternalContext;
 import org.icepush.RemoveParameterPrefix;
 import org.icepush.http.standard.CacheControlledServer;
 import org.icepush.http.standard.CompressingServer;
-import org.icepush.util.ExtensionRegistry;
-import org.icesoft.notify.cloud.core.CloudNotificationService;
+import org.icesoft.util.servlet.ExtensionRegistry;
 
 public class MainServlet implements PseudoServlet {
     private static final Logger LOGGER = Logger.getLogger(MainServlet.class.getName());
@@ -56,59 +56,82 @@ public class MainServlet implements PseudoServlet {
     protected Configuration configuration;
     protected boolean terminateConnectionOnShutdown;
 
-    public synchronized static MainServlet getInstance(ServletContext context)  {
-        MainServlet mainServlet = (MainServlet) context
-                .getAttribute(MainServlet.class.getName());
-        if (null == mainServlet)  {
-            mainServlet = new MainServlet(context);
-            context.setAttribute(MainServlet.class.getName(), mainServlet);
+    public synchronized static MainServlet getInstance(final ServletContext servletContext) {
+        MainServlet _mainServlet = (MainServlet)servletContext.getAttribute(MainServlet.class.getName());
+        if (_mainServlet == null)  {
+            _mainServlet = new MainServlet(servletContext);
+            servletContext.setAttribute(MainServlet.class.getName(), _mainServlet);
         }
-        return mainServlet;
+        return _mainServlet;
     }
 
-    public MainServlet(final ServletContext context) {
-        this(context, true);
+    public MainServlet(
+        final ServletContext context) {
+
+        this(
+            context, true
+        );
     }
 
-    public MainServlet(final ServletContext servletContext,
-                       final boolean terminateBlockingConnectionOnShutdown) {
+    public MainServlet(
+        final ServletContext servletContext, final boolean terminateBlockingConnectionOnShutdown) {
 
-        this(servletContext,terminateBlockingConnectionOnShutdown,true);
+        this(
+            servletContext,terminateBlockingConnectionOnShutdown,true
+        );
     }
 
-    public MainServlet(final ServletContext servletContext,
-                       final boolean terminateBlockingConnectionOnShutdown,
-                       final boolean printProductInfo) {
+    public MainServlet(
+        final ServletContext servletContext, final boolean terminateBlockingConnectionOnShutdown,
+        final boolean printProductInfo) {
 
-        this(servletContext, terminateBlockingConnectionOnShutdown, printProductInfo, null);
+        this(
+            servletContext, terminateBlockingConnectionOnShutdown, printProductInfo, (ScheduledThreadPoolExecutor)null
+        );
     }
 
-    public MainServlet(final ServletContext servletContext,
-                       final boolean terminateBlockingConnectionOnShutdown,
-                       final boolean printProductInfo,
-                       final ScheduledThreadPoolExecutor executor) {
+    public MainServlet(
+        final ServletContext servletContext, final boolean terminateBlockingConnectionOnShutdown,
+        final boolean printProductInfo, final ScheduledThreadPoolExecutor executor) {
 
         //We print the product info unless we are part of EE which will print out it's
         //own version.
         if(printProductInfo){
             LOGGER.info(new ProductInfo().toString());
         }
-        servletContext.setAttribute(org.icepush.servlet.MainServlet.class.getName(), this);
-        PushInternalContext.getInstance().
-            setAttribute(Timer.class.getName() + "$expiry", new Timer("Expiry Timeout timer", true));
-        PushInternalContext.getInstance().
-            setAttribute(Timer.class.getName() + "$confirmation", new Timer("Confirmation Timeout timer", true));
         this.servletContext = servletContext;
+        this.servletContext.setAttribute(org.icepush.servlet.MainServlet.class.getName(), this);
+        configuration = new ServletContextConfiguration("org.icepush", this.servletContext);
         terminateConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
         monitoringScheduler = new Timer("Monitoring scheduler", true);
-        configuration = new ServletContextConfiguration("org.icepush", this.servletContext);
         pushContext = PushContext.getInstance(this.servletContext);
-        PushInternalContext.getInstance().
-            setAttribute(
-                PushGroupManager.class.getName(),
-                PushGroupManagerFactory.newPushGroupManager(this.servletContext, executor, configuration));
+        PushGroupManager _pushGroupManager;
+        try {
+            _pushGroupManager =
+                (PushGroupManager)
+                    ((Class)ExtensionRegistry.getBestExtension(PushGroupManager.class.getName(), servletContext)).
+                        getMethod("getInstance", new Class[]{ServletContext.class}).invoke(null, servletContext);
+        } catch (final NoSuchMethodException exception) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(Level.WARNING, "Unable to get instance of Push Group Manager.", exception);
+            }
+            _pushGroupManager =
+                PushGroupManagerFactory.newPushGroupManager(this.servletContext, executor, configuration);
+        } catch (final IllegalAccessException exception) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(Level.WARNING, "Unable to get instance of Push Group Manager.", exception);
+            }
+            _pushGroupManager =
+                PushGroupManagerFactory.newPushGroupManager(this.servletContext, executor, configuration);
+        } catch (final InvocationTargetException exception) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(Level.WARNING, "Unable to get instance of Push Group Manager.", exception);
+            }
+            _pushGroupManager =
+                PushGroupManagerFactory.newPushGroupManager(this.servletContext, executor, configuration);
+        }
+        PushInternalContext.getInstance().setAttribute(PushGroupManager.class.getName(), _pushGroupManager);
         dispatcher = new PathDispatcher();
-        createNotificationService(servletContext);
         addDispatches();
     }
 
@@ -152,10 +175,6 @@ public class MainServlet implements PseudoServlet {
         dispatcher.shutdown();
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).shutdown();
         monitoringScheduler.cancel();
-        ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")).cancel();
-        PushInternalContext.getInstance().removeAttribute(Timer.class.getName() + "$confirmation");
-        ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$expiry")).cancel();
-        PushInternalContext.getInstance().removeAttribute(Timer.class.getName() + "$expiry");
     }
 
     public static void trace(final String message)  {
@@ -225,12 +244,6 @@ public class MainServlet implements PseudoServlet {
             );
     }
 
-    protected void createNotificationService(final ServletContext servletContext) {
-        servletContext.setAttribute(
-            CloudNotificationService.class.getName(), new CloudNotificationService(servletContext)
-        );
-    }
-
     protected String[] getCodeResources() {
         return new String[] {"ice.core/bridge-support.uncompressed.js", "ice.push/icepush.uncompressed.js"};
     }
@@ -252,7 +265,9 @@ public class MainServlet implements PseudoServlet {
     public static class ExtensionRegistration
     implements ServletContextListener {
         public void contextInitialized(final ServletContextEvent servletContextEvent) {
-            ExtensionRegistry.addExtension(servletContextEvent.getServletContext(), 1, "org.icepush.MainServlet", MainServlet.class);
+            org.icepush.util.ExtensionRegistry.addExtension(
+                servletContextEvent.getServletContext(), 1, "org.icepush.MainServlet", MainServlet.class
+            );
         }
 
         public void contextDestroyed(final ServletContextEvent servletContextEvent) {

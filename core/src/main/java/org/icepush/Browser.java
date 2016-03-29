@@ -19,10 +19,11 @@ package org.icepush;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -32,53 +33,107 @@ import java.util.logging.Logger;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 
+import org.icepush.util.DatabaseEntity;
+
+import org.mongodb.morphia.Datastore;
+import org.mongodb.morphia.annotations.Entity;
+import org.mongodb.morphia.annotations.Id;
+//import org.mongodb.morphia.annotations.Reference;
+import org.mongodb.morphia.annotations.Transient;
+
+@Entity(value = "browsers")
 public class Browser
-implements Serializable {
+implements DatabaseEntity, Serializable {
+    private static final long serialVersionUID = 733124798366750761L;
+
     private static final Logger LOGGER = Logger.getLogger(Browser.class.getName());
 
     public static final String BROWSER_ID_NAME = "ice.push.browser";
 
     private static AtomicInteger browserCounter = new AtomicInteger(0);
 
-    private final String id;
-    private final long minCloudPushInterval;
-    private final Lock notifiedPushIDQueueLock = new ReentrantLock();
-    private final Queue<NotificationEntry> notifiedPushIDQueue =
-        new LinkedList<NotificationEntry>();
+    @Id
+    private String databaseID;
 
+    private String id;
+    private long minCloudPushInterval;
+
+    private long lastAccessTimestamp;
+
+    @Transient
+    private final Lock notifiedPushIDSetLock = new ReentrantLock();
+
+//    @Reference(concreteClass = HashSet.class)
+    @Transient
+    private Set<NotificationEntry> notifiedPushIDSet = new HashSet<NotificationEntry>();
+
+    @Transient
+    private final Lock lastNotifiedPushIDSetLock = new ReentrantLock();
+
+//    @Reference(concreteClass = HashSet.class)
+    @Transient
     private Set<NotificationEntry> lastNotifiedPushIDSet = new HashSet<NotificationEntry>();
-    private NotifyBackURI notifyBackURI;
-    private PushConfiguration pushConfiguration;
+
     private Set<String> pushIDSet = Collections.emptySet();
+
+    private String notifyBackURI;
     private Status status;
+
+    public Browser() {
+        // Do nothing.
+    }
 
     public Browser(final Browser browser) {
         this(browser.getID(), browser.getMinCloudPushInterval());
         setNotifyBackURI(browser.getNotifyBackURI(), false);
+        setLastAccessTimestamp(browser.getLastAccessTimestamp());
         setPushIDSet(browser.getPushIDSet());
-        status = new Status(browser.getStatus());
+        status = new Status(browser.getStatus(), this);
     }
 
     public Browser(final String id, final long minCloudPushInterval) {
         this.id = id;
         this.minCloudPushInterval = minCloudPushInterval;
         this.status = newStatus();
+        this.databaseID = getID();
     }
 
     public boolean addNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
-        lockNotifiedPushIDQueue();
+        lockNotifiedPushIDSet();
         try {
-            return getModifiableNotifiedPushIDQueue().addAll(notifiedPushIDCollection);
+            boolean _modified = getModifiableNotifiedPushIDSet().addAll(notifiedPushIDCollection);
+            if (_modified) {
+                save();
+            }
+            return _modified;
         } finally {
-            unlockNotifiedPushIDQueue();
+            unlockNotifiedPushIDSet();
         }
     }
 
     public boolean cancelConfirmationTimeout() {
-        return
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
-                    cancelConfirmationTimeout(getID());
+        return cancelConfirmationTimeout(getInternalPushGroupManager());
+    }
+
+    public boolean cancelConfirmationTimeout(final InternalPushGroupManager pushGroupManager) {
+        return pushGroupManager.cancelConfirmationTimeout(getID());
+    }
+
+    public boolean clearLastNotifiedPushIDSet() {
+        lockLastNotifiedPushIDSet();
+        try {
+            boolean _modified;
+            if (hasLastNotifiedPushIDs()) {
+                getModifiableLastNotifiedPushIDSet().clear();
+                _modified = true;
+                save();
+            } else {
+                _modified = false;
+            }
+            return _modified;
+        } finally {
+            unlockLastNotifiedPushIDSet();
+        }
     }
 
     public static String generateBrowserID() {
@@ -94,12 +149,29 @@ implements Serializable {
         }
     }
 
+    public String getDatabaseID() {
+        return databaseID;
+    }
+
     public String getID() {
         return id;
     }
 
+    public String getKey() {
+        return getID();
+    }
+
+    public long getLastAccessTimestamp() {
+        return lastAccessTimestamp;
+    }
+
     public Set<NotificationEntry> getLastNotifiedPushIDSet() {
-        return Collections.unmodifiableSet(lastNotifiedPushIDSet);
+        lockLastNotifiedPushIDSet();
+        try {
+            return Collections.unmodifiableSet(getModifiableLastNotifiedPushIDSet());
+        } finally {
+            unlockLastNotifiedPushIDSet();
+        }
     }
 
     public long getMinCloudPushInterval() {
@@ -107,20 +179,16 @@ implements Serializable {
     }
 
     public Set<NotificationEntry> getNotifiedPushIDSet() {
-        lockNotifiedPushIDQueue();
+        lockNotifiedPushIDSet();
         try {
-            return Collections.unmodifiableSet(new HashSet<NotificationEntry>(getModifiableNotifiedPushIDQueue()));
+            return Collections.unmodifiableSet(new HashSet<NotificationEntry>(getModifiableNotifiedPushIDSet()));
         } finally {
-            unlockNotifiedPushIDQueue();
+            unlockNotifiedPushIDSet();
         }
     }
 
-    public NotifyBackURI getNotifyBackURI() {
+    public String getNotifyBackURI() {
         return notifyBackURI;
-    }
-
-    public PushConfiguration getPushConfiguration() {
-        return pushConfiguration;
     }
 
     public Set<String> getPushIDSet() {
@@ -135,21 +203,28 @@ implements Serializable {
         return status;
     }
 
-    public boolean hasNotifiedPushIDs() {
-        lockNotifiedPushIDQueue();
+    public boolean hasLastNotifiedPushIDs() {
+        lockLastNotifiedPushIDSet();
         try {
-            return !getModifiableNotifiedPushIDQueue().isEmpty();
+            return getLastNotifiedPushIDSet().isEmpty();
         } finally {
-            unlockNotifiedPushIDQueue();
+            unlockLastNotifiedPushIDSet();
+        }
+    }
+
+    public boolean hasNotifiedPushIDs() {
+        lockNotifiedPushIDSet();
+        try {
+            return !getNotifiedPushIDSet().isEmpty();
+        } finally {
+            unlockNotifiedPushIDSet();
         }
     }
 
     public boolean isCloudPushEnabled() {
-        InternalPushGroupManager _pushGroupManager =
-            (InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
+        InternalPushGroupManager _internalPushGroupManager = getInternalPushGroupManager();
         for (final String _pushIDString : pushIDSet) {
-            PushID _pushID = _pushGroupManager.getPushID(_pushIDString);
+            PushID _pushID = _internalPushGroupManager.getPushID(_pushIDString);
             if (_pushID != null && _pushID.isCloudPushEnabled()) {
                 return true;
             }
@@ -158,88 +233,120 @@ implements Serializable {
     }
 
     public boolean removeNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
-        lockNotifiedPushIDQueue();
+        lockNotifiedPushIDSet();
         try {
-            return getModifiableNotifiedPushIDQueue().removeAll(notifiedPushIDCollection);
+            boolean _modified = getModifiableNotifiedPushIDSet().removeAll(notifiedPushIDCollection);
+            if (_modified) {
+                save();
+            }
+            return _modified;
         } finally {
-            unlockNotifiedPushIDQueue();
+            unlockNotifiedPushIDSet();
         }
     }
 
     public boolean retainNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
-        lockNotifiedPushIDQueue();
+        lockNotifiedPushIDSet();
         try {
-            return getModifiableNotifiedPushIDQueue().retainAll(notifiedPushIDCollection);
+            boolean _modified = getModifiableNotifiedPushIDSet().retainAll(notifiedPushIDCollection);
+            if (_modified) {
+                save();
+            }
+            return _modified;
         } finally {
-            unlockNotifiedPushIDQueue();
+            unlockNotifiedPushIDSet();
         }
+    }
+
+    public void save() {
+        if (PushInternalContext.getInstance().getAttribute(Datastore.class.getName()) != null) {
+            ConcurrentMap<String, Browser> _browserMap =
+                (ConcurrentMap<String, Browser>)PushInternalContext.getInstance().getAttribute("browserMap");
+            if (_browserMap.containsKey(getKey())) {
+                _browserMap.put(getKey(), this);
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Saved Browser '" + this + "' to Database."
+                    );
+                }
+            }
+        }
+    }
+
+    public boolean setLastAccessTimestamp(final long lastAccessTimestamp) {
+        boolean _modified;
+        if (this.lastAccessTimestamp != lastAccessTimestamp) {
+            this.lastAccessTimestamp = lastAccessTimestamp;
+            _modified = true;
+            save();
+        } else {
+            _modified = false;
+        }
+        return _modified;
     }
 
     public boolean setLastNotifiedPushIDSet(final Set<NotificationEntry> lastNotifiedPushIDSet) {
-        boolean _modified = false;
-        if (!this.lastNotifiedPushIDSet.equals(lastNotifiedPushIDSet)) {
-            this.lastNotifiedPushIDSet = new HashSet<NotificationEntry>(lastNotifiedPushIDSet);
-            _modified = true;
+        lockLastNotifiedPushIDSet();
+        try {
+            boolean _modified;
+            if (!this.lastNotifiedPushIDSet.equals(lastNotifiedPushIDSet)) {
+                this.lastNotifiedPushIDSet = new HashSet<NotificationEntry>(lastNotifiedPushIDSet);
+                _modified = true;
+                save();
+            } else {
+                _modified = false;
+            }
+            return _modified;
+        } finally {
+            unlockLastNotifiedPushIDSet();
         }
-        return _modified;
     }
 
-    public boolean setNotifyBackURI(final NotifyBackURI notifyBackURI, final boolean broadcastIfIsNew) {
-        boolean _modified = false;
-        if (this.notifyBackURI == null || !this.notifyBackURI.getURI().equals(notifyBackURI.getURI())) {
+    public boolean setNotifyBackURI(final String notifyBackURI, final boolean broadcastIfIsNew) {
+        boolean _modified;
+        if ((this.notifyBackURI == null && notifyBackURI != null) ||
+            (this.notifyBackURI != null && !this.notifyBackURI.equals(notifyBackURI))) {
+
             this.notifyBackURI = notifyBackURI;
             _modified = true;
+            if (this.notifyBackURI != null) {
+                getInternalPushGroupManager().getNotifyBackURI(this.notifyBackURI).setBrowserID(getID());
+            }
+            save();
         } else {
-            this.notifyBackURI.touch();
-        }
-        return _modified;
-    }
-
-    public boolean setPushConfiguration(final PushConfiguration pushConfiguration) {
-        boolean _modified = false;
-        if ((this.pushConfiguration == null && pushConfiguration != null) ||
-            (this.pushConfiguration != null && !this.pushConfiguration.equals(pushConfiguration))) {
-
-            this.pushConfiguration = pushConfiguration;
-            _modified = true;
+            if (this.notifyBackURI != null) {
+                getInternalPushGroupManager().getNotifyBackURI(this.notifyBackURI).touch();
+            }
+            _modified = false;
         }
         return _modified;
     }
 
     public boolean setPushIDSet(final Set<String> pushIDSet) {
-        boolean _modified = false;
+        boolean _modified;
         if ((this.pushIDSet == null && pushIDSet != null) ||
             (this.pushIDSet != null && !this.pushIDSet.equals(pushIDSet))) {
 
             this.pushIDSet = new HashSet<String>(pushIDSet);
             _modified = true;
+            save();
+        } else {
+            _modified = false;
         }
         return _modified;
     }
 
     public boolean setSequenceNumber(final long sequenceNumber) {
-        return status.setSequenceNumber(sequenceNumber);
+        boolean _modified = status.setSequenceNumber(sequenceNumber);
+        if (_modified) {
+            save();
+        }
+        return _modified;
     }
 
-    public boolean startConfirmationTimeout(final String groupName) {
-        return
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
-                    startConfirmationTimeout(getID(), groupName);
-    }
-
-    public boolean startConfirmationTimeout(final String groupName, final long sequenceNumber) {
-        return
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
-                    startConfirmationTimeout(getID(), groupName, sequenceNumber);
-    }
-
-    public boolean startConfirmationTimeout(final String groupName, final long sequenceNumber, final long timeout) {
-        return
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
-                    startConfirmationTimeout(getID(), groupName, sequenceNumber, timeout);
+    public boolean startConfirmationTimeout(final String groupName, final Map<String, String> propertyMap) {
+        return getInternalPushGroupManager().startConfirmationTimeout(getID(), groupName, propertyMap);
     }
 
     @Override
@@ -247,47 +354,68 @@ implements Serializable {
         return
             new StringBuilder().
                 append("Browser[").
-                    append(membersAsString()).
+                    append(classMembersToString()).
                 append("]").
                     toString();
     }
 
-    protected Queue<NotificationEntry> getModifiableNotifiedPushIDQueue() {
-        return notifiedPushIDQueue;
-    }
-
-    protected Lock getNotifiedPushIDQueueLock() {
-        return notifiedPushIDQueueLock;
-    }
-
-    protected void lockNotifiedPushIDQueue() {
-        getNotifiedPushIDQueueLock().lock();
-    }
-
-    protected String membersAsString() {
+    protected String classMembersToString() {
         return
             new StringBuilder().
                 append("id: '").append(getID()).append("', ").
+                append("lastAccessTimestamp: '").append(new Date(getLastAccessTimestamp())).append("', ").
                 append("lastNotifiedPushIDSet: '").append(getLastNotifiedPushIDSet()).append("', ").
                 append("minCloudPushInterval: '").append(getMinCloudPushInterval()).append("', ").
                 append("notifiedPushIDSet: '").append(getNotifiedPushIDSet()).append("', ").
                 append("notifyBackURI: '").append(getNotifyBackURI()).append("', ").
-                append("pushConfiguration: '").append(getPushConfiguration()).append("', ").
                 append("pushIDSet: '").append(getPushIDSet()).append("', ").
                 append("status: '").append(getStatus()).append("'").
                     toString();
     }
 
+    protected static InternalPushGroupManager getInternalPushGroupManager() {
+        return
+            (InternalPushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
+    }
+
+    protected final Lock getLastNotifiedPushIDSetLock() {
+        return lastNotifiedPushIDSetLock;
+    }
+
+    protected final Set<NotificationEntry> getModifiableLastNotifiedPushIDSet() {
+        return lastNotifiedPushIDSet;
+    }
+
+    protected final Set<NotificationEntry> getModifiableNotifiedPushIDSet() {
+        return notifiedPushIDSet;
+    }
+
+    protected final Lock getNotifiedPushIDSetLock() {
+        return notifiedPushIDSetLock;
+    }
+
+    protected final void lockLastNotifiedPushIDSet() {
+        getLastNotifiedPushIDSetLock().lock();
+    }
+
+    protected final void lockNotifiedPushIDSet() {
+        getNotifiedPushIDSetLock().lock();
+    }
+
     protected Status newStatus() {
-        return new Status();
+        return new Status(getID());
     }
 
     protected void setStatus(final Status status) {
         this.status = status;
     }
 
-    protected void unlockNotifiedPushIDQueue() {
-        getNotifiedPushIDQueueLock().unlock();
+    protected void unlockLastNotifiedPushIDSet() {
+        getLastNotifiedPushIDSetLock().unlock();
+    }
+
+    protected void unlockNotifiedPushIDSet() {
+        getNotifiedPushIDSetLock().unlock();
     }
 
     private static String getBrowserIDFromCookie(final HttpServletRequest request) {
@@ -307,22 +435,31 @@ implements Serializable {
         return request.getParameter(BROWSER_ID_NAME);
     }
 
-    public class Status
+    public static class Status
     implements Serializable {
         private static final long serialVersionUID = 2530024421926858382L;
+
+        private static final Logger LOGGER = Logger.getLogger(Status.class.getName());
+
+        private String browserID;
 
         private long backupConnectionRecreationTimeout;
         private long connectionRecreationTimeout = -1;
         private long sequenceNumber = -1;
 
-        protected Status() {
+        public Status() {
             // Do nothing.
         }
 
-        protected Status(final Status status) {
+        protected Status(final String browserID) {
+            this.browserID = browserID;
+        }
+
+        protected Status(final Status status, final Browser browser) {
             setBackupConnectionRecreationTimeout(status.getBackupConnectionRecreationTimeout());
             setConnectionRecreationTimeout(status.getConnectionRecreationTimeout());
             setSequenceNumber(status.getSequenceNumber());
+            this.browserID = browserID;
         }
 
         public void backUpConnectionRecreationTimeout() {
@@ -346,33 +483,42 @@ implements Serializable {
         }
 
         public boolean setBackupConnectionRecreationTimeout(final long backupConnectionRecreationTimeout) {
+            boolean _modified;
             if (this.backupConnectionRecreationTimeout != backupConnectionRecreationTimeout) {
                 this.backupConnectionRecreationTimeout = backupConnectionRecreationTimeout;
 
-                return true;
+                _modified = true;
+                getBrowser().save();
             } else {
-                return false;
+                _modified = false;
             }
+            return _modified;
         }
 
         public boolean setConnectionRecreationTimeout(final long connectionRecreationTimeout) {
+            boolean _modified;
             if (this.connectionRecreationTimeout != connectionRecreationTimeout) {
                 this.connectionRecreationTimeout = connectionRecreationTimeout;
 
-                return true;
+                _modified = true;
+                getBrowser().save();
             } else {
-                return false;
+                _modified = false;
             }
+            return _modified;
         }
 
         public boolean setSequenceNumber(final long sequenceNumber) {
+            boolean _modified;
             if (this.sequenceNumber != sequenceNumber) {
                 this.sequenceNumber = sequenceNumber;
 
-                return true;
+                _modified = true;
+                getBrowser().save();
             } else {
-                return false;
+                _modified = false;
             }
+            return _modified;
         }
 
         @Override
@@ -380,12 +526,12 @@ implements Serializable {
             return
                 new StringBuilder().
                     append("Browser.Status[").
-                        append(membersAsString()).
+                        append(classMembersToString()).
                     append("]").
                         toString();
         }
 
-        protected String membersAsString() {
+        protected String classMembersToString() {
             return
                 new StringBuilder().
                     append("backupConnectionRecreationTimeout: ").
@@ -395,6 +541,18 @@ implements Serializable {
                     append("sequenceNumber: ").
                         append("'").append(getSequenceNumber()).append("'").
                             toString();
+        }
+
+        protected Browser getBrowser() {
+            return
+                (
+                    (InternalPushGroupManager)
+                        PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
+                ).getBrowser(getBrowserID());
+        }
+
+        protected String getBrowserID() {
+            return browserID;
         }
     }
 }

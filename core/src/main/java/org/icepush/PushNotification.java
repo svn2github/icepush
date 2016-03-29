@@ -47,8 +47,8 @@ implements Serializable {
      * @see        #PushNotification(String, String)
      * @see        #PushNotification(Map)
      */
-    public PushNotification(String subject)  {
-        getAttributes().put(SUBJECT, subject);
+    public PushNotification(final String subject)  {
+        putAttribute(SUBJECT, subject);
     }
 
     /**
@@ -63,9 +63,9 @@ implements Serializable {
      * @see        #PushNotification(String)
      * @see        #PushNotification(Map)
      */
-    public PushNotification(String subject, String detail)  {
-        getAttributes().put(SUBJECT, (String) subject);
-        getAttributes().put(DETAIL, detail);
+    public PushNotification(final String subject, final String detail)  {
+        putAttribute(SUBJECT, subject);
+        putAttribute(DETAIL, detail);
     }
 
     /**
@@ -84,23 +84,23 @@ implements Serializable {
 
     /**
      * <p>
-     *     Gets the subject of this PushNotification.
-     * </p>
-     *
-     * @return     The subject.
-     */
-    public String getSubject() {
-        return (String) getAttributes().get(SUBJECT);
-    }
-
-    /**
-     * <p>
      *     Gets the detail of this PushNotification.
      * </p>
      *
      * @return     The detail.
      */
     public String getDetail() {
-        return (String) getAttributes().get(DETAIL);
+        return (String)getAttribute(DETAIL);
+    }
+
+    /**
+     * <p>
+     *     Gets the subject of this PushNotification.
+     * </p>
+     *
+     * @return     The subject.
+     */
+    public String getSubject() {
+        return (String)getAttribute(SUBJECT);
     }
 }

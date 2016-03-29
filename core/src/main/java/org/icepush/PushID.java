@@ -19,41 +19,73 @@ package org.icepush;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.icepush.util.DatabaseEntity;
+
+import org.mongodb.morphia.Datastore;
+import org.mongodb.morphia.annotations.Entity;
+import org.mongodb.morphia.annotations.Id;
+
+@Entity(value = "push_ids")
 public class PushID
-implements Serializable {
+implements DatabaseEntity, Serializable {
     private static final long serialVersionUID = 2845881329862716766L;
 
     private static final Logger LOGGER = Logger.getLogger(PushID.class.getName());
 
     private final Map<String, Boolean> groupMembershipMap = new HashMap<String, Boolean>();
 
-    private final String pushID;
-    private final String browserID;
-    private final String subID;
+    @Id
+    private String databaseID;
 
-    private final long cloudPushIDTimeout;
-    private final long pushIDTimeout;
+    private String id;
+    private String browserID;
+    private String subID;
 
-    protected PushID(final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
-        this.pushID = pushID;
-        this.browserID = this.pushID.substring(0, this.pushID.indexOf(':'));
-        this.subID = this.pushID.substring(this.pushID.indexOf(':') + 1);
+    private long cloudPushIDTimeout;
+    private long pushIDTimeout;
+
+    public PushID() {
+        // Do nothing.
+    }
+
+    protected PushID(
+        final String id, final long pushIDTimeout, final long cloudPushIDTimeout) {
+
+        this(
+            id,
+            id.substring(0, id.indexOf(':')),
+            id.substring(id.indexOf(':') + 1),
+            pushIDTimeout,
+            cloudPushIDTimeout
+        );
+    }
+
+    protected PushID(
+        final String id, final String browserID, final String subID, final long pushIDTimeout,
+        final long cloudPushIDTimeout) {
+
+        this.id = id;
+        this.browserID = browserID;
+        this.subID = subID;
         this.pushIDTimeout = pushIDTimeout;
         this.cloudPushIDTimeout = cloudPushIDTimeout;
+        // Let the databaseID be the pushID.
+        this.databaseID = getID();
     }
 
     public boolean addToGroup(final String groupName) {
-        return addToGroup(groupName, null);
+        return addToGroup(groupName, (PushConfiguration)null);
     }
 
     public boolean addToGroup(final String groupName, final PushConfiguration pushConfiguration) {
         boolean _modified = false;
         Boolean _currentCloudPush;
         if (pushConfiguration != null) {
-            _currentCloudPush = (Boolean)pushConfiguration.getAttributes().get("cloudPush");
+            _currentCloudPush = (Boolean)pushConfiguration.getAttribute("cloudPush");
             if (_currentCloudPush == null) {
                 _currentCloudPush = Boolean.TRUE;
             }
@@ -63,50 +95,39 @@ implements Serializable {
         Boolean _previousCloudPush = groupMembershipMap.put(groupName, _currentCloudPush);
         if (_previousCloudPush == null || !_previousCloudPush.equals(_currentCloudPush)) {
             _modified = true;
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(
+                    Level.FINE,
+                    "Push-ID '" + getID() + "' added to Group '" + groupName + "'."
+                );
+            }
+            save();
         }
         return _modified;
     }
 
     public boolean cancelExpiryTimeout() {
-        return
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-            ).cancelExpiryTimeout(getID());
+        return cancelExpiryTimeout(getInternalPushGroupManager());
     }
 
     public void discard() {
-        if (!
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-            ).isParked(getID())) {
-
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "PushID '" + getID() + "' discarded.");
-            }
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-            ).removePushID(getID());
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-            ).removePendingNotification(getID());
-            for (final String _groupName : getGroupMembershipMap().keySet()) {
-                Group _group =
-                    ((InternalPushGroupManager)
-                        PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-                    ).getGroup(_groupName);
-                if (_group != null) {
-                    _group.removePushID(getID());
-                }
-            }
-        }
+        discard(getInternalPushGroupManager());
     }
 
     public String getBrowserID() {
         return browserID;
     }
 
+    public String getDatabaseID() {
+        return databaseID;
+    }
+
     public String getID() {
-        return pushID;
+        return id;
+    }
+
+    public String getKey() {
+        return getID();
     }
 
     public String getSubID() {
@@ -127,31 +148,48 @@ implements Serializable {
     }
 
     public boolean removeFromGroup(final String groupName) {
-        boolean _modified = groupMembershipMap.remove(groupName);
+        boolean _modified = groupMembershipMap.remove(groupName) != null;
+        if (_modified) {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(
+                    Level.FINE,
+                    "Push-ID '" + getID() + "' removed from Group '" + groupName + "'."
+                );
+            }
+            save();
+        }
         if (groupMembershipMap.isEmpty()) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
-                    Level.FINE, "Disposed PushID '" + getID() + "' since it no longer belongs to any Push Group.");
+                    Level.FINE, "Disposed PushID '" + getID() + "' since it no longer belongs to any Group.");
             }
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-            ).removePushID(getID());
+            getInternalPushGroupManager().removePushID(getID());
         }
         return _modified;
     }
 
+    public void save() {
+        if (PushInternalContext.getInstance().getAttribute(Datastore.class.getName()) != null) {
+            ConcurrentMap<String, PushID> _pushIDMap =
+                (ConcurrentMap<String, PushID>)PushInternalContext.getInstance().getAttribute("pushIDMap");
+            if (_pushIDMap.containsKey(getID())) {
+                _pushIDMap.put(getID(), this);
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Saved PushID '" + this + "' to datastore."
+                    );
+                }
+            }
+        }
+    }
+
     public boolean startExpiryTimeout() {
-        return
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-            ).startExpiryTimeout(getID());
+        return getInternalPushGroupManager().startExpiryTimeout(getID());
     }
 
     public boolean startExpiryTimeout(final String browserID, final long sequenceNumber) {
-        return
-            ((InternalPushGroupManager)
-                PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())
-            ).startExpiryTimeout(getID(), browserID, sequenceNumber);
+        return getInternalPushGroupManager().startExpiryTimeout(getID(), browserID, sequenceNumber);
     }
 
     @Override
@@ -159,9 +197,43 @@ implements Serializable {
         return
             new StringBuilder().
                 append("PushID[").
-                    append(membersAsString()).
+                    append(classMembersToString()).
                 append("]").
                     toString();
+    }
+
+    protected boolean cancelExpiryTimeout(final InternalPushGroupManager internalPushGroupManager) {
+        return internalPushGroupManager.cancelExpiryTimeout(getID());
+    }
+
+    protected String classMembersToString() {
+        return
+            new StringBuilder().
+                append("browserID: '").append(getBrowserID()).append(", ").
+                append("cloudPushIDTimeout: '").append(getCloudPushIDTimeout()).append("', ").
+                append("groupMembershipMap: '").append(getGroupMembershipMap()).append("', ").
+                append("id: '").append(getID()).append("', ").
+                append("pushIDTimeout: '").append(getPushIDTimeout()).append("', ").
+                append("subID: '").append(getSubID()).append("'").
+                    toString();
+    }
+
+    protected void discard(final InternalPushGroupManager internalPushGroupManager) {
+        if (!
+            internalPushGroupManager.isParked(getID())) {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(Level.FINE, "PushID '" + getID() + "' discarded.");
+            }
+            internalPushGroupManager.removePushID(getID());
+            internalPushGroupManager.removePendingNotification(getID());
+            for (final String _groupName : getGroupMembershipMap().keySet()) {
+                Group _group =
+                    internalPushGroupManager.getGroup(_groupName);
+                if (_group != null) {
+                    _group.removePushID(getID(), internalPushGroupManager);
+                }
+            }
+        }
     }
 
     protected long getCloudPushIDTimeout() {
@@ -172,19 +244,12 @@ implements Serializable {
         return groupMembershipMap;
     }
 
-    protected long getPushIDTimeout() {
-        return pushIDTimeout;
+    protected static InternalPushGroupManager getInternalPushGroupManager() {
+        return
+            (InternalPushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
     }
 
-    protected String membersAsString() {
-        return
-            new StringBuilder().
-                append("browserID: '").append(getBrowserID()).append(", ").
-                append("cloudPushIDTimeout: '").append(getCloudPushIDTimeout()).append("', ").
-                append("groupMembershipMap: '").append(getGroupMembershipMap()).append("', ").
-                append("pushID: '").append(getID()).append("', ").
-                append("pushIDTimeout: '").append(getPushIDTimeout()).append("', ").
-                append("subID: '").append(getSubID()).append("'").
-                    toString();
+    protected long getPushIDTimeout() {
+        return pushIDTimeout;
     }
 }

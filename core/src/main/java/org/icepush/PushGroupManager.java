@@ -29,6 +29,8 @@ public interface PushGroupManager {
 
     boolean addMember(String groupName, String pushID, PushConfiguration pushConfiguration);
 
+    boolean addNotifyBackURI(NotifyBackURI notifyBackURI);
+
     void addNotificationReceiver(NotificationBroadcaster.Receiver receiver);
 
     void addPushGroupListener(PushGroupListener listener);
@@ -47,11 +49,13 @@ public interface PushGroupManager {
 
     Map<String, String[]> getGroupPushIDsMap();
 
+    NotifyBackURI getNotifyBackURI(String notifyBackURI);
+
     Set<NotificationEntry> getPendingNotificationSet();
 
     PushID getPushID(String pushIDString);
 
-    void park(String pushID, NotifyBackURI notifyBackURI);
+    void park(String pushID, String notifyBackURI);
 
     void push(String groupName);
 
@@ -61,11 +65,11 @@ public interface PushGroupManager {
 
     void push(String groupName, String payload, PushConfiguration pushConfiguration);
 
-    void pruneParkedIDs(NotifyBackURI notifyBackURI, Set<String> listenedPushIDSet);
+    void pruneParkedIDs(String notifyBackURI, Set<String> listenedPushIDSet);
 
     void removeBlockingConnectionServer(String browserID);
 
-    boolean removeBrowser(Browser browser);
+    boolean removeBrowser(String browserID);
 
     boolean removeMember(String groupName, String pushID);
 
@@ -73,7 +77,7 @@ public interface PushGroupManager {
 
     void removePushGroupListener(PushGroupListener listener);
 
-    void scan(String[] confirmedPushIDs);
+    void scan(Set<String> confirmedPushIDSet);
 
     void shutdown();
 

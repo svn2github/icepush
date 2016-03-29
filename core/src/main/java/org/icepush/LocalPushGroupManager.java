@@ -15,8 +15,11 @@
  */
 package org.icepush;
 
+import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
+
+import java.util.AbstractCollection;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -38,14 +41,30 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
+import javax.servlet.ServletContextEvent;
+import javax.servlet.ServletContextListener;
 
 import org.icepush.servlet.ServletContextConfiguration;
+import org.icepush.util.DatabaseBackedConcurrentMap;
+import org.icepush.util.DatabaseBackedQueue;
 import org.icesoft.notify.cloud.core.CloudNotificationService;
+import org.icesoft.util.servlet.ExtensionRegistry;
+
+import org.mongodb.morphia.Datastore;
 
 public class LocalPushGroupManager
 extends AbstractPushGroupManager
 implements InternalPushGroupManager, PushGroupManager {
     private static final Logger LOGGER = Logger.getLogger(LocalPushGroupManager.class.getName());
+
+    private final ConcurrentMap<String, Browser> browserMap;
+    private final ConcurrentMap<String, Group> groupMap;
+    private final ConcurrentMap<String, PushID> pushIDMap;
+    private final ConcurrentMap<String, ExpiryTimeout> expiryTimeoutMap;
+    private final ConcurrentMap<String, ConfirmationTimeout> confirmationTimeoutMap;
+    private final ConcurrentMap<String, NotifyBackURI> notifyBackURIMap;
+    private final Set<NotificationEntry> pendingNotificationEntrySet;
+
     static final int DEFAULT_NOTIFICATIONQUEUE_SIZE = 1000;
     static final int DEFAULT_MIN_CLOUDPUSH_INTERVAL = 10 * 1000;
     static final int DEFAULT_CLOUDPUSHID_TIMEOUT = 30 * 60 * 1000;
@@ -53,60 +72,136 @@ implements InternalPushGroupManager, PushGroupManager {
     static final int DEFAULT_GROUP_TIMEOUT = 2 * 60 * 1000;
     private static final int GROUP_SCANNING_TIME_RESOLUTION = 3000; // ms
     private static final Comparator<Notification> ScheduledAtComparator = new Comparator<Notification>() {
-        public int compare(Notification a, Notification b) {
-            return (int) (a.getPushConfiguration().getScheduledAt() - b.getPushConfiguration().getScheduledAt());
+        public int compare(final Notification notification1, final Notification notification2) {
+            return (int) (notification1.getScheduledAt() - notification2.getScheduledAt());
         }
     };
-    private final Notification NOOP =
-        new Notification("---", null) {
-            public void run() {
-            }
-        };
     private final Map<String, BlockingConnectionServer> blockingConnectionServerMap =
         new ConcurrentHashMap<String, BlockingConnectionServer>();
-    private final ConcurrentMap<String, Browser> browserMap = new ConcurrentHashMap<String, Browser>();
-    private final ConcurrentMap<String, Group> groupMap = new ConcurrentHashMap<String, Group>();
-    private final ConcurrentMap<String, PushID> pushIDMap = new ConcurrentHashMap<String, PushID>();
-    private final ConcurrentMap<String, ConfirmationTimeout> confirmationTimeoutMap =
-        new ConcurrentHashMap<String, ConfirmationTimeout>();
-    private final ConcurrentMap<String, ExpiryTimeout> expiryTimeoutMap =
-        new ConcurrentHashMap<String, ExpiryTimeout>();
-    private final ConcurrentMap<String, NotifyBackURI> parkedPushIDs = new ConcurrentHashMap<String, NotifyBackURI>();
+    private final ConcurrentMap<String, String> parkedPushIDs = new ConcurrentHashMap<String, String>();
+
     /*
         There is no ConcurrentSet or ConcurrentHashSet.  As of JDK 1.6 there is a static method in the Collections class
         <E> Set<E> newSetFromMap(Map<e, Boolean> map) that can be used to create a Set backed by a ConcurrentMap.  But
         ICEpush needs to be JDK 1.5 compatible.  Therefor, a ReentrantLock is used for this Set.
      */
     private final ReentrantLock pendingNotifiedPushIDSetLock = new ReentrantLock();
-    private final Set<NotificationEntry> pendingNotifiedPushIDSet = new HashSet<NotificationEntry>();
     private final LocalNotificationBroadcaster outboundNotifier = new LocalNotificationBroadcaster();
     private final Timer timer = new Timer("Notification queue consumer.", true);
     private final TimerTask queueConsumer;
     private final Lock notificationQueueLock = new ReentrantLock();
     private final Condition notificationAvailableCondition = getNotificationQueueLock().newCondition();
     private final Queue<Notification> notificationQueue;
+    private final long browserTimeout;
     private final long groupTimeout;
     private final long cloudPushIDTimeout;
     private final long pushIDTimeout;
     private final long minCloudPushInterval;
-    private final ServletContext context;
+    private final ServletContext servletContext;
 
     private long lastTouchScan = System.currentTimeMillis();
     private long lastExpiryScan = System.currentTimeMillis();
 
     public LocalPushGroupManager(final ServletContext servletContext) {
-        this.context = servletContext;
-        Configuration configuration = new ServletContextConfiguration("org.icepush", servletContext);
+        this.servletContext = servletContext;
+        getServletContext().setAttribute(
+            CloudNotificationService.class.getName(), new CloudNotificationService(getServletContext())
+        );
+        Configuration configuration = new ServletContextConfiguration("org.icepush", getServletContext());
+        this.browserTimeout = configuration.getAttributeAsLong("browserTimeout", 10 * 60 * 1000);
         this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", DEFAULT_GROUP_TIMEOUT);
         this.pushIDTimeout = configuration.getAttributeAsLong("pushIdTimeout", DEFAULT_PUSHID_TIMEOUT);
         this.cloudPushIDTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", DEFAULT_CLOUDPUSHID_TIMEOUT);
         this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", DEFAULT_MIN_CLOUDPUSH_INTERVAL);
-        int notificationQueueSize = configuration.getAttributeAsInteger("notificationQueueSize", DEFAULT_NOTIFICATIONQUEUE_SIZE);
-        this.notificationQueue = new LinkedBlockingQueue<Notification>(notificationQueueSize);
-        this.queueConsumer = new QueueConsumerTask();
+        PushInternalContext.getInstance().
+            setAttribute(Timer.class.getName() + "$expiry", new Timer("Expiry Timeout timer", true));
+        PushInternalContext.getInstance().
+            setAttribute(Timer.class.getName() + "$confirmation", new Timer("Confirmation Timeout timer", true));
+        // The Pending Notification Entry set must be initiated before the potential database-backed collections.
+        this.pendingNotificationEntrySet = new HashSet<NotificationEntry>();
+        Datastore datastore = (Datastore)PushInternalContext.getInstance().getAttribute(Datastore.class.getName());
+        if (datastore != null) {
+            this.browserMap =
+                new DatabaseBackedConcurrentMap<Browser>(Browser.class, datastore);
+            this.groupMap =
+                new DatabaseBackedConcurrentMap<Group>(Group.class, datastore);
+            this.pushIDMap =
+                new DatabaseBackedConcurrentMap<PushID>(PushID.class, datastore);
+            this.expiryTimeoutMap =
+                new DatabaseBackedConcurrentMap<ExpiryTimeout>(ExpiryTimeout.class, datastore);
+            this.confirmationTimeoutMap =
+                new DatabaseBackedConcurrentMap<ConfirmationTimeout>(ConfirmationTimeout.class, datastore);
+            this.notifyBackURIMap =
+                new DatabaseBackedConcurrentMap<NotifyBackURI>(NotifyBackURI.class, datastore);
+            this.notificationQueue =
+                new DatabaseBackedQueue<Notification>(
+                    configuration.getAttributeAsInteger("notificationQueueSize", DEFAULT_NOTIFICATIONQUEUE_SIZE),
+                    Notification.class,
+                    datastore
+                );
+//            this.pendingNotificationEntrySet =
+//                new DatabaseBackedSetCollection<NotificationEntry>(NotificationEntry.class, datastore);
+        } else {
+            this.browserMap =
+                new ConcurrentHashMap<String, Browser>();
+            this.groupMap =
+                new ConcurrentHashMap<String, Group>();
+            this.pushIDMap =
+                new ConcurrentHashMap<String, PushID>();
+            this.expiryTimeoutMap =
+                new ConcurrentHashMap<String, ExpiryTimeout>();
+            this.confirmationTimeoutMap =
+                new ConcurrentHashMap<String, ConfirmationTimeout>();
+            this.notifyBackURIMap =
+                new ConcurrentHashMap<String, NotifyBackURI>();
+            this.notificationQueue =
+                new LinkedBlockingQueue<Notification>(
+                    configuration.getAttributeAsInteger("notificationQueueSize", DEFAULT_NOTIFICATIONQUEUE_SIZE)
+                );
+//            this.pendingNotificationEntrySet =
+//                new HashSet<NotificationEntry>();
+        }
+        PushInternalContext.getInstance().setAttribute("browserMap", this.browserMap);
+        PushInternalContext.getInstance().setAttribute("groupMap", this.groupMap);
+        PushInternalContext.getInstance().setAttribute("pushIDMap", this.pushIDMap);
+        PushInternalContext.getInstance().setAttribute("expiryTimeoutMap", this.expiryTimeoutMap);
+        PushInternalContext.getInstance().setAttribute("confirmationTimeoutMap", this.confirmationTimeoutMap);
+        PushInternalContext.getInstance().setAttribute("notifyBackURIMap", this.notifyBackURIMap);
+        PushInternalContext.getInstance().setAttribute("notificationQueue", this.notificationQueue);
+        if (datastore != null) {
+            for (final String _browserID : this.browserMap.keySet()) {
+                if (this.browserMap.get(_browserID).getLastAccessTimestamp() + getBrowserTimeout() <
+                        System.currentTimeMillis()) {
+
+                    this.browserMap.remove(_browserID);
+                }
+            }
+            for (final String _pushID : this.expiryTimeoutMap.keySet()) {
+                this.expiryTimeoutMap.get(_pushID).scheduleOrExecute(this);
+            }
+            for (final String _browserID : this.confirmationTimeoutMap.keySet()) {
+                this.confirmationTimeoutMap.get(_browserID).scheduleExecuteOrCancel(this);
+            }
+            for (final Notification _notification : this.notificationQueue) {
+                if (_notification instanceof NoopNotification) {
+                    this.notificationQueue.remove(_notification);
+                }
+            }
+        }
+//        PushInternalContext.getInstance().setAttribute("pendingNotificationEntrySet", this.pendingNotificationEntrySet);
+        this.queueConsumer = newQueueConsumerTask();
         this.timer.schedule(queueConsumer, 0);
     }
     
+    public void addAllNotificationEntries(final Set<NotificationEntry> notificationEntrySet) {
+        getPendingNotifiedPushIDSetLock().lock();
+        try {
+            getModifiablePendingNotificationEntrySet().addAll(notificationEntrySet);
+        } finally {
+            getPendingNotifiedPushIDSetLock().unlock();
+        }
+    }
+
     public void addBlockingConnectionServer(final String browserID, final BlockingConnectionServer server) {
         blockingConnectionServerMap.put(browserID, server);
     }
@@ -127,6 +222,10 @@ implements InternalPushGroupManager, PushGroupManager {
         outboundNotifier.addReceiver(observer);
     }
 
+    public boolean addNotifyBackURI(final NotifyBackURI notifyBackURI) {
+        return addNotifyBackURI(getModifiableNotifyBackURIMap(), notifyBackURI);
+    }
+
     public void backOff(final String browserID, final long delay) {
         BlockingConnectionServer server = blockingConnectionServerMap.get(browserID);
         if (server != null) {
@@ -134,22 +233,26 @@ implements InternalPushGroupManager, PushGroupManager {
         }
     }
 
+    public void broadcastNotificationEntries(
+        final Set<NotificationEntry> notificationEntrySet, final long duration, final String groupName) {
+
+        outboundNotifier.broadcast(notificationEntrySet, duration);
+        pushed(groupName);
+    }
+
     public boolean cancelConfirmationTimeout(final String browserID) {
-        ConfirmationTimeout confirmationTimeout = getConfirmationTimeoutMap().remove(browserID);
-        if (confirmationTimeout != null) {
-            confirmationTimeout.cancel();
-            confirmationTimeout = null;
-            getBrowser(browserID).setPushConfiguration(null);
+        ConfirmationTimeout _confirmationTimeout = getConfirmationTimeoutMap().remove(browserID);
+        if (_confirmationTimeout != null) {
+            _confirmationTimeout.cancel(this);
             return true;
         }
         return false;
     }
 
     public boolean cancelExpiryTimeout(final String pushID) {
-        ExpiryTimeout expiryTimeout = getExpiryTimeoutMap().remove(pushID);
-        if (expiryTimeout != null) {
-            expiryTimeout.cancel();
-            expiryTimeout = null;
+        ExpiryTimeout _expiryTimeout = getExpiryTimeoutMap().remove(pushID);
+        if (_expiryTimeout != null) {
+            _expiryTimeout.cancel(this);
             return true;
         }
         return false;
@@ -165,26 +268,22 @@ implements InternalPushGroupManager, PushGroupManager {
         }
     }
 
-    public void clearPendingNotification(final String pushID) {
-        getPendingNotifiedPushIDSetLock().lock();
-        try {
-            clearPendingNotifications(getModifiablePendingNotifiedPushIDSet(), pushID);
-        } finally {
-            getPendingNotifiedPushIDSetLock().unlock();
-        }
-    }
-
     public void clearPendingNotifications(final Set<String> pushIDSet) {
         getPendingNotifiedPushIDSetLock().lock();
         try {
-            clearPendingNotifications(getModifiablePendingNotifiedPushIDSet(), pushIDSet);
+            clearPendingNotifications(getModifiablePendingNotificationEntrySet(), pushIDSet);
         } finally {
             getPendingNotifiedPushIDSetLock().unlock();
         }
     }
 
-    public void removeNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
-        outboundNotifier.removeReceiver(observer);
+    public void clearPendingNotification(final String pushID) {
+        getPendingNotifiedPushIDSetLock().lock();
+        try {
+            clearPendingNotifications(getModifiablePendingNotificationEntrySet(), pushID);
+        } finally {
+            getPendingNotifiedPushIDSetLock().unlock();
+        }
     }
 
     public Browser getBrowser(final String browserID) {
@@ -196,6 +295,10 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public Map<String, Browser> getBrowserMap() {
         return Collections.unmodifiableMap(getModifiableBrowserMap());
+    }
+
+    public CloudNotificationService getCloudNotificationService() {
+        return (CloudNotificationService)getServletContext().getAttribute(CloudNotificationService.class.getName());
     }
 
     public Group getGroup(final String groupName) {
@@ -210,8 +313,25 @@ implements InternalPushGroupManager, PushGroupManager {
         return getGroupPushIDsMap(getModifiableGroupMap());
     }
 
-    public CloudNotificationService getCloudNotificationService() {
-        return (CloudNotificationService)context.getAttribute(CloudNotificationService.class.getName());
+    public synchronized static PushGroupManager getInstance(final ServletContext servletContext) {
+        PushGroupManager _pushGroupManager =
+            (PushGroupManager)servletContext.getAttribute(PushGroupManager.class.getName());
+        if (_pushGroupManager == null)  {
+            _pushGroupManager = new LocalPushGroupManager(servletContext);
+            servletContext.setAttribute(PushGroupManager.class.getName(), _pushGroupManager);
+        }
+        return _pushGroupManager;
+    }
+
+    public NotifyBackURI getNotifyBackURI(final String notifyBackURI) {
+        if (notifyBackURI == null) {
+            return null;
+        }
+        return getNotifyBackURIMap().get(notifyBackURI);
+    }
+
+    public Map<String, NotifyBackURI> getNotifyBackURIMap() {
+        return Collections.unmodifiableMap(getModifiableNotifyBackURIMap());
     }
 
     public Set<NotificationEntry> getPendingNotificationSet() {
@@ -224,7 +344,7 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public Set<NotificationEntry> getPendingNotifiedPushIDSet() {
-        return Collections.unmodifiableSet(getModifiablePendingNotifiedPushIDSet());
+        return Collections.unmodifiableSet(getModifiablePendingNotificationEntrySet());
     }
 
     public PushID getPushID(final String pushID) {
@@ -243,7 +363,7 @@ implements InternalPushGroupManager, PushGroupManager {
         return new NotifyBackURI(uri);
     }
 
-    public void park(final String pushID, final NotifyBackURI notifyBackURI) {
+    public void park(final String pushID, final String notifyBackURI) {
         PushID _pushID = getPushID(pushID);
         if (_pushID != null) {
             if (_pushID.isCloudPushEnabled()) {
@@ -256,17 +376,17 @@ implements InternalPushGroupManager, PushGroupManager {
         }
     }
 
-    public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final Set<String> listenedPushIDSet) {
-        for (final Map.Entry<String, NotifyBackURI> parkedPushIDEntry : parkedPushIDs.entrySet()) {
+    public void pruneParkedIDs(final String notifyBackURI, final Set<String> listenedPushIDSet) {
+        for (final Map.Entry<String, String> parkedPushIDEntry : parkedPushIDs.entrySet()) {
             String parkedPushID = parkedPushIDEntry.getKey();
-            if (parkedPushIDEntry.getValue().getURI().equals(notifyBackURI.getURI()) &&
+            if (parkedPushIDEntry.getValue().equals(notifyBackURI) &&
                 !listenedPushIDSet.contains(parkedPushID)) {
 
                 parkedPushIDs.remove(parkedPushID);
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
-                        "Removed unlistened parked PushID '" + parkedPushID + "' for " +
+                        "Removed unlistened parked Push-ID '" + parkedPushID + "' for " +
                             "NotifyBackURI '" + notifyBackURI + "'.");
                 }
             }
@@ -274,51 +394,11 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public void push(final String groupName) {
-        push(groupName, (String)null);
+        push(groupName, (String) null);
     }
 
     public void push(final String groupName, final String payload) {
-        if (LOGGER.isLoggable(Level.FINE)) {
-            if (payload != null && payload.trim().length() != 0) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Request for a Push Notification with Payload '" + payload + "' for Group '" + groupName + "'."
-                );
-            } else {
-                LOGGER.log(
-                    Level.FINE,
-                    "Request for a Push Notification for Group '" + groupName + "'."
-                );
-            }
-        }
-        Notification _notification = newNotification(groupName, payload);
-        getNotificationQueueLock().lock();
-        try {
-            if (!getNotificationQueue().contains(_notification)) {
-                if (getNotificationQueue().offer(_notification)) {
-                    getNotificationAvailableCondition().signalAll();
-                } else {
-                    // Leave at INFO
-                    if (LOGGER.isLoggable(Level.INFO)) {
-                        LOGGER.log(
-                            Level.INFO,
-                            "Request for a Push Notification for Group '" + groupName + "' was dropped, " +
-                                "maximum size queue reached."
-                        );
-                    }
-                }
-            } else {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Request for a Push Notification for Push Group '" + groupName + "' was ignored, " +
-                            "duplicate detected."
-                    );
-                }
-            }
-        } finally {
-            getNotificationQueueLock().unlock();
-        }
+        push(getModifiableNotificationQueue(), groupName, payload);
     }
 
     public void push(final String groupName, final PushConfiguration pushConfiguration) {
@@ -326,53 +406,23 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public void push(final String groupName, final String payload, final PushConfiguration pushConfiguration) {
-        if (LOGGER.isLoggable(Level.FINE)) {
-            if (payload != null && payload.trim().length() != 0) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Request for a Push Notification with Payload '" + payload + "' for Group '" + groupName + "'.  " +
-                        "(Push Configuration: '" + pushConfiguration + "')"
-                );
-            } else {
-                LOGGER.log(
-                    Level.FINE,
-                    "Request for a Push Notification for Group '" + groupName + "'.  " +
-                        "(Push Configuration: '" + pushConfiguration + "')"
-                );
-            }
-        }
-        Notification _notification;
-        if (isOutOfBandNotification(pushConfiguration)) {
-            _notification = newOutOfBandNotification(groupName, payload, pushConfiguration);
-        } else {
-            _notification = newNotification(groupName, payload, pushConfiguration);
-        }
-        getNotificationQueueLock().lock();
-        try {
-            if (!getNotificationQueue().contains(_notification)) {
-                //add this notification to a blocking queue
-                getNotificationQueue().add(_notification);
-                getNotificationAvailableCondition().signalAll();
-            } else {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Request for a Push Notification for Push Group '" + groupName + "' was ignored, " +
-                            "duplicate detected."
-                    );
-                }
-            }
-        } finally {
-            getNotificationQueueLock().unlock();
-        }
+        push(getModifiableNotificationQueue(), groupName, payload, pushConfiguration);
     }
 
     public void removeBlockingConnectionServer(final String browserID) {
         blockingConnectionServerMap.remove(browserID);
     }
 
-    public boolean removeBrowser(final Browser browser) {
-        return removeBrowser(getModifiableBrowserMap(), browser);
+    public boolean removeBrowser(final String browserID) {
+        return removeBrowser(getModifiableBrowserMap(), browserID);
+    }
+
+    public boolean removeConfirmationTimeout(final ConfirmationTimeout confirmationTimeout) {
+        return removeConfirmationTimeout(getModifiableConfirmationTimeoutMap(), confirmationTimeout);
+    }
+
+    public boolean removeExpiryTimeout(final ExpiryTimeout expiryTimeout) {
+        return removeExpiryTimeout(getModifiableExpiryTimeoutMap(), expiryTimeout);
     }
 
     public boolean removeGroup(final String groupName) {
@@ -380,55 +430,75 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public boolean removeMember(final String groupName, final String pushID) {
-        return removeMember(getModifiableGroupMap(), groupName, pushID);
+        return removeMember(getModifiableGroupMap(), getModifiablePushIDMap(), groupName, pushID);
+    }
+
+    public void removeNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
+        outboundNotifier.removeReceiver(observer);
     }
 
     public void removePendingNotification(final String pushID) {
-        clearPendingNotification(pushID);
+        getPendingNotifiedPushIDSetLock().lock();
+        try {
+            clearPendingNotification(pushID);
+        } finally {
+            getPendingNotifiedPushIDSetLock().unlock();
+        }
     }
 
     public void removePendingNotifications(final Set<String> pushIDSet) {
-        clearPendingNotifications(pushIDSet);
+        getPendingNotifiedPushIDSetLock().lock();
+        try {
+            clearPendingNotifications(pushIDSet);
+        } finally {
+            getPendingNotifiedPushIDSetLock().unlock();
+        }
     }
 
     public boolean removePushID(final String pushID) {
         return removePushID(getModifiablePushIDMap(), pushID);
     }
 
-    public void scan(final String[] confirmedPushIDs) {
-        scan(getModifiableGroupMap(), confirmedPushIDs);
+    public void scan(final Set<String> confirmedPushIDSet) {
+        scan(getModifiableGroupMap(), confirmedPushIDSet);
+    }
+
+    public void scanForExpiry() {
+        scanForExpiry(getModifiableGroupMap());
     }
 
     public void shutdown() {
         outboundNotifier.shutdown();
+        ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")).cancel();
+        PushInternalContext.getInstance().removeAttribute(Timer.class.getName() + "$confirmation");
+        ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$expiry")).cancel();
+        PushInternalContext.getInstance().removeAttribute(Timer.class.getName() + "$expiry");
         queueConsumer.cancel();
         timer.cancel();
     }
 
-    public void startConfirmationTimeout(final Set<NotificationEntry> notificationSet) {
-        for (final NotificationEntry _notificationEntry : notificationSet) {
-            startConfirmationTimeout(_notificationEntry);
-        }
+    public boolean startConfirmationTimeout(
+        final String browserID, final String groupName, final Map<String, String> propertyMap) {
+
+        return
+            startConfirmationTimeout(
+                browserID, groupName, propertyMap, getBrowser(browserID).getSequenceNumber()
+            );
     }
 
     public boolean startConfirmationTimeout(
-        final String browserID, final String groupName) {
-
-        return startConfirmationTimeout(browserID, groupName, getBrowser(browserID).getSequenceNumber());
-    }
-
-    public boolean startConfirmationTimeout(
-        final String browserID, final String groupName, final long sequenceNumber) {
+        final String browserID, final String groupName, final Map<String, String> propertyMap,
+        final long sequenceNumber) {
 
         Browser browser = getBrowser(browserID);
         if (browser.isCloudPushEnabled()) {
-            NotifyBackURI notifyBackURI = browser.getNotifyBackURI();
+            NotifyBackURI notifyBackURI = getNotifyBackURI(browser.getNotifyBackURI());
             if (notifyBackURI != null) {
                 long now = System.currentTimeMillis();
                 long timeout = browser.getStatus().getConnectionRecreationTimeout() * 2;
                 LOGGER.log(Level.FINE, "Calculated confirmation timeout: '" + timeout + "'");
                 if (notifyBackURI.getTimestamp() + browser.getMinCloudPushInterval() <= now + timeout) {
-                    return startConfirmationTimeout(browserID, groupName, sequenceNumber, timeout);
+                    return startConfirmationTimeout(browserID, groupName, propertyMap, sequenceNumber, timeout);
                 } else {
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(
@@ -447,18 +517,19 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public boolean startConfirmationTimeout(
-        final String browserID, final String groupName, final long sequenceNumber, final long timeout) {
+        final String browserID, final String groupName, final Map<String, String> propertyMap,
+        final long sequenceNumber, final long timeout) {
 
         Browser browser = getBrowser(browserID);
         if (browser.isCloudPushEnabled()) {
-            NotifyBackURI notifyBackURI = browser.getNotifyBackURI();
+            NotifyBackURI notifyBackURI = getNotifyBackURI(browser.getNotifyBackURI());
             if (notifyBackURI != null &&
                 notifyBackURI.getTimestamp() + browser.getMinCloudPushInterval() <=
                     System.currentTimeMillis() + timeout &&
-                isOutOfBandNotification(browser.getPushConfiguration())) {
+                isOutOfBandNotification(propertyMap)) {
 
-                ConfirmationTimeout confirmationTimeout = getConfirmationTimeoutMap().get(browserID);
-                if (confirmationTimeout == null) {
+                ConfirmationTimeout _confirmationTimeout = getConfirmationTimeoutMap().get(browserID);
+                if (_confirmationTimeout == null) {
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(
                             Level.FINE,
@@ -469,13 +540,13 @@ implements InternalPushGroupManager, PushGroupManager {
                             ").");
                     }
                     try {
-
-                        ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")
-                        ).
-                            schedule(
-                                confirmationTimeout = newConfirmationTimeout(browserID, groupName, timeout), timeout
+                        _confirmationTimeout =
+                            newConfirmationTimeout(
+                                browserID, groupName, propertyMap, timeout,
+                                getBrowser(browserID).getMinCloudPushInterval()
                             );
-                        getConfirmationTimeoutMap().put(browserID, confirmationTimeout);
+                        _confirmationTimeout.schedule(System.currentTimeMillis() + timeout);
+                        getConfirmationTimeoutMap().put(browserID, _confirmationTimeout);
                         return true;
                     } catch (final IllegalStateException exception) {
                         // timeoutTimer was cancelled or its timer thread terminated.
@@ -493,13 +564,25 @@ implements InternalPushGroupManager, PushGroupManager {
         return false;
     }
 
+    public void startConfirmationTimeouts(final Set<NotificationEntry> notificationSet) {
+        for (final NotificationEntry _notificationEntry : notificationSet) {
+            startConfirmationTimeout(_notificationEntry);
+        }
+    }
+
     public boolean startExpiryTimeout(final String pushID) {
         PushID _pushID = getPushID(pushID);
         if (_pushID != null) {
             String _browserID = _pushID.getBrowserID();
-            return startExpiryTimeout(pushID, null, _browserID != null ? getBrowser(_browserID).getSequenceNumber() : -1);
+            return
+                startExpiryTimeout(
+                    pushID, (String)null, _browserID != null ? getBrowser(_browserID).getSequenceNumber() : -1
+                );
         } else {
-            return startExpiryTimeout(pushID, null, -1);
+            return
+                startExpiryTimeout(
+                    pushID, (String)null, -1
+                );
         }
     }
 
@@ -519,10 +602,9 @@ implements InternalPushGroupManager, PushGroupManager {
             }
             try {
                 ExpiryTimeout _expiryTimeout = newExpiryTimeout(pushID, _isCloudPushID);
-                ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$expiry")).
-                    schedule(
-                        _expiryTimeout,
-                        !_isCloudPushID ? pushIDTimeout : cloudPushIDTimeout);
+                _expiryTimeout.schedule(
+                    System.currentTimeMillis() + (!_isCloudPushID ? pushIDTimeout : cloudPushIDTimeout)
+                );
                 getExpiryTimeoutMap().put(pushID, _expiryTimeout);
                 return true;
             } catch (final IllegalStateException exception) {
@@ -547,16 +629,12 @@ implements InternalPushGroupManager, PushGroupManager {
         for (final String pushIDString : browser.getPushIDSet()) {
             PushID pushID = getPushID(pushIDString);
             if (pushID != null) {
-                try {
-                    pushID.startExpiryTimeout(browserID, browser.getSequenceNumber());
-                } catch (final NullPointerException exception) {
-                    throw exception;
-                }
+                pushID.startExpiryTimeout(browserID, browser.getSequenceNumber());
             }
         }
     }
 
-    protected boolean addBrowser(final Map<String, org.icepush.Browser> browserMap, final Browser browser) {
+    protected boolean addBrowser(final ConcurrentMap<String, Browser> browserMap, final Browser browser) {
         boolean _modified = false;
         if (!browserMap.containsKey(browser.getID())) {
             browserMap.put(browser.getID(), browser);
@@ -566,18 +644,20 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected boolean addMember(
-        final Map<String, Group> groupMap, final Map<String, PushID> pushIDMap, final String groupName,
-        final String pushID) {
+        final ConcurrentMap<String, Group> groupMap, final ConcurrentMap<String, PushID> pushIDMap,
+        final String groupName, final String pushID) {
 
-        return addMember(groupMap, pushIDMap, groupName, pushID, null);
+        return addMember(groupMap, pushIDMap, groupName, pushID, (PushConfiguration)null);
     }
 
     protected boolean addMember(
-        final Map<String, Group> groupMap, final Map<String, PushID> pushIDMap, final String groupName,
-        final String pushID, final PushConfiguration pushConfiguration) {
+        final ConcurrentMap<String, Group> groupMap, final ConcurrentMap<String, PushID> pushIDMap,
+        final String groupName, final String pushID, final PushConfiguration pushConfiguration) {
 
         boolean _modified = false;
-        if (groupMap != null && pushIDMap != null && groupName != null && pushID != null) {
+        if (groupMap != null && pushIDMap != null &&
+            isNotNullAndIsNotEmpty(groupName) && isNotNullAndIsNotEmpty(pushID)) {
+
             PushID _pushID;
             if (pushIDMap.containsKey(pushID)) {
                 _pushID = pushIDMap.get(pushID);
@@ -594,9 +674,22 @@ implements InternalPushGroupManager, PushGroupManager {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE,
-                    "Added PushID '" + pushID + "' to Push Group '" + groupName + "' with " +
+                    "Added Push-ID '" + pushID + "' to Group '" + groupName + "' with " +
                         "Push Configuration '" + pushConfiguration + "'.");
             }
+        }
+        return _modified;
+    }
+
+    protected boolean addNotifyBackURI(
+        final ConcurrentMap<String, NotifyBackURI> notifyBackURIMap, final NotifyBackURI notifyBackURI) {
+
+        boolean _modified;
+        if (!notifyBackURIMap.containsKey(notifyBackURI.getURI())) {
+            notifyBackURIMap.put(notifyBackURI.getURI(), notifyBackURI);
+            _modified = true;
+        } else {
+            _modified = false;
         }
         return _modified;
     }
@@ -608,7 +701,7 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected boolean addToGroup(
-        final Map<String, Group> groupMap, final String groupName, final String pushID) {
+        final ConcurrentMap<String, Group> groupMap, final String groupName, final String pushID) {
 
         boolean _modified = false;
         Group _group;
@@ -621,19 +714,6 @@ implements InternalPushGroupManager, PushGroupManager {
         }
         _modified |= _group.addPushID(pushID);
         return _modified;
-    }
-
-    protected void clearPendingNotifications(
-        final Set<NotificationEntry> pendingNotifiedPushIDSet, final String pushID) {
-
-        Iterator<NotificationEntry> pendingNotifiedPushIDIterator =
-            new HashSet<NotificationEntry>(pendingNotifiedPushIDSet).iterator();
-        while (pendingNotifiedPushIDIterator.hasNext()) {
-            NotificationEntry _pendingNotifiedPushID = pendingNotifiedPushIDIterator.next();
-            if (_pendingNotifiedPushID.getPushID().equals(pushID)) {
-                pendingNotifiedPushIDSet.remove(_pendingNotifiedPushID);
-            }
-        }
     }
 
     protected void clearPendingNotifications(
@@ -653,23 +733,207 @@ implements InternalPushGroupManager, PushGroupManager {
         pendingNotifiedPushIDSet.addAll(_copyPendingNotifiedPushIDSet);
     }
 
+    protected void clearPendingNotifications(
+        final Set<NotificationEntry> pendingNotifiedPushIDSet, final String pushID) {
+
+        Iterator<NotificationEntry> pendingNotifiedPushIDIterator =
+            new HashSet<NotificationEntry>(pendingNotifiedPushIDSet).iterator();
+        while (pendingNotifiedPushIDIterator.hasNext()) {
+            NotificationEntry _pendingNotifiedPushID = pendingNotifiedPushIDIterator.next();
+            if (_pendingNotifiedPushID.getPushID().equals(pushID)) {
+                pendingNotifiedPushIDSet.remove(_pendingNotifiedPushID);
+            }
+        }
+    }
+
+    protected final long getBrowserTimeout() {
+        return browserTimeout;
+    }
+
     protected long getCloudPushIDTimeout() {
         return cloudPushIDTimeout;
     }
 
     protected Map<String, ConfirmationTimeout> getConfirmationTimeoutMap() {
-        return confirmationTimeoutMap;
+        return
+            new ConcurrentMap<String, ConfirmationTimeout>() {
+                public void clear() {
+                    getModifiableConfirmationTimeoutMap().clear();
+                }
+
+                public boolean containsKey(final Object objectKey) {
+                    return getModifiableConfirmationTimeoutMap().containsKey(objectKey);
+                }
+
+                public boolean containsValue(final Object objectValue) {
+                    return getModifiableConfirmationTimeoutMap().containsValue(objectValue);
+                }
+
+                public Set<Entry<String, ConfirmationTimeout>> entrySet()
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public boolean equals(final Object object) {
+                    return getModifiableConfirmationTimeoutMap().equals(object);
+                }
+
+                public ConfirmationTimeout get(final Object objectKey) {
+                    return getModifiableConfirmationTimeoutMap().get(objectKey);
+                }
+
+                @Override
+                public int hashCode() {
+                    return getModifiableConfirmationTimeoutMap().hashCode();
+                }
+
+                public boolean isEmpty() {
+                    return getModifiableConfirmationTimeoutMap().isEmpty();
+                }
+
+                public Set<String> keySet() {
+                    return getModifiableConfirmationTimeoutMap().keySet();
+                }
+
+                public ConfirmationTimeout put(final String key, final ConfirmationTimeout confirmationTimeout) {
+                    return getModifiableConfirmationTimeoutMap().put(key, confirmationTimeout);
+                }
+
+                public void putAll(final Map<? extends String, ? extends ConfirmationTimeout> map)
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+
+                public ConfirmationTimeout putIfAbsent(
+                    final String key, final ConfirmationTimeout confirmationTimeout) {
+
+                    return getModifiableConfirmationTimeoutMap().putIfAbsent(key, confirmationTimeout);
+                }
+
+                public ConfirmationTimeout remove(final Object objectKey) {
+                    return getModifiableConfirmationTimeoutMap().remove(objectKey);
+                }
+
+                public boolean remove(final Object objectKey, final Object objectValue) {
+                    return getModifiableConfirmationTimeoutMap().remove(objectKey, objectValue);
+                }
+
+                public ConfirmationTimeout replace(
+                    final String key, final ConfirmationTimeout confirmationTimeout) {
+
+                    return getModifiableConfirmationTimeoutMap().replace(key, confirmationTimeout);
+                }
+
+                public boolean replace(
+                    final String key, final ConfirmationTimeout oldConfirmationTimeout,
+                    final ConfirmationTimeout newConfirmationTimeout) {
+
+                    return getModifiableConfirmationTimeoutMap().replace(key, oldConfirmationTimeout, newConfirmationTimeout);
+                }
+
+                public int size() {
+                    return getModifiableConfirmationTimeoutMap().size();
+                }
+
+                public Collection<ConfirmationTimeout> values()
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+            };
     }
 
     protected Map<String, ExpiryTimeout> getExpiryTimeoutMap() {
-        return expiryTimeoutMap;
+        return
+            new ConcurrentMap<String, ExpiryTimeout>() {
+                public void clear() {
+                    getModifiableExpiryTimeoutMap().clear();
+                }
+
+                public boolean containsKey(final Object objectKey) {
+                    return getModifiableExpiryTimeoutMap().containsKey(objectKey);
+                }
+
+                public boolean containsValue(final Object objectValue) {
+                    return getModifiableExpiryTimeoutMap().containsValue(objectValue);
+                }
+
+                public Set<Entry<String, ExpiryTimeout>> entrySet()
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public boolean equals(final Object object) {
+                    return getModifiableExpiryTimeoutMap().equals(object);
+                }
+
+                public ExpiryTimeout get(final Object objectKey) {
+                    return getModifiableExpiryTimeoutMap().get(objectKey);
+                }
+
+                @Override
+                public int hashCode() {
+                    return getModifiableExpiryTimeoutMap().hashCode();
+                }
+
+                public boolean isEmpty() {
+                    return getModifiableExpiryTimeoutMap().isEmpty();
+                }
+
+                public Set<String> keySet() {
+                    return getModifiableExpiryTimeoutMap().keySet();
+                }
+
+                public ExpiryTimeout put(final String key, final ExpiryTimeout expiryTimeout) {
+                    return getModifiableExpiryTimeoutMap().put(key, expiryTimeout);
+                }
+
+                public void putAll(final Map<? extends String, ? extends ExpiryTimeout> map)
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+
+                public ExpiryTimeout putIfAbsent(final String key, final ExpiryTimeout expiryTimeout) {
+                    return getModifiableExpiryTimeoutMap().putIfAbsent(key, expiryTimeout);
+                }
+
+                public ExpiryTimeout remove(final Object objectKey) {
+                    return getModifiableExpiryTimeoutMap().remove(objectKey);
+                }
+
+                public boolean remove(final Object objectKey, final Object objectValue) {
+                    return getModifiableExpiryTimeoutMap().remove(objectKey, objectValue);
+                }
+
+                public ExpiryTimeout replace(
+                    final String key, final ExpiryTimeout expiryTimeout) {
+
+                    return getModifiableExpiryTimeoutMap().replace(key, expiryTimeout);
+                }
+
+                public boolean replace(
+                    final String key, final ExpiryTimeout oldExpiryTimeout, final ExpiryTimeout newExpiryTimeout) {
+
+                    return getModifiableExpiryTimeoutMap().replace(key, oldExpiryTimeout, newExpiryTimeout);
+                }
+
+                public int size() {
+                    return getModifiableExpiryTimeoutMap().size();
+                }
+
+                public Collection<ExpiryTimeout> values()
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+            };
     }
 
-    protected Group getGroup(final Map<String, Group> groupMap, final String groupName) {
+    protected Group getGroup(final ConcurrentMap<String, Group> groupMap, final String groupName) {
         return groupMap.get(groupName);
     }
 
-    protected Map<String, String[]> getGroupPushIDsMap(final Map<String, Group> groupMap) {
+    protected Map<String, String[]> getGroupPushIDsMap(final ConcurrentMap<String, Group> groupMap) {
         Map<String, String[]> groupPushIDsMap = new HashMap<String, String[]>();
         for (Group group : new ArrayList<Group>(groupMap.values())) {
             groupPushIDsMap.put(group.getName(), group.getPushIDs());
@@ -686,27 +950,335 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected ConcurrentMap<String, Browser> getModifiableBrowserMap() {
-        return browserMap;
+        return
+            new ConcurrentMap<String, Browser>() {
+                public void clear() {
+                    browserMap.clear();
+                }
+
+                public boolean containsKey(final Object objectKey) {
+                    return browserMap.containsKey(objectKey);
+                }
+
+                public boolean containsValue(final Object objectValue) {
+                    return browserMap.containsValue(objectValue);
+                }
+
+                public Set<Entry<String, Browser>> entrySet()
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public boolean equals(final Object object) {
+                    return browserMap.equals(object);
+                }
+
+                public Browser get(final Object objectKey) {
+                    return browserMap.get(objectKey);
+                }
+
+                @Override
+                public int hashCode() {
+                    return browserMap.hashCode();
+                }
+
+                public boolean isEmpty() {
+                    return browserMap.isEmpty();
+                }
+
+                public Set<String> keySet() {
+                    return browserMap.keySet();
+                }
+
+                public Browser put(final String key, final Browser browser) {
+                    return browserMap.put(key, browser);
+                }
+
+                public void putAll(final Map<? extends String, ? extends Browser> map)
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+
+                public Browser putIfAbsent(final String key, final Browser browser) {
+                    return browserMap.putIfAbsent(key, browser);
+                }
+
+                public Browser remove(final Object objectKey) {
+                    return browserMap.remove(objectKey);
+                }
+
+                public boolean remove(final Object objectKey, final Object objectValue) {
+                    return browserMap.remove(objectKey, objectValue);
+                }
+
+                public Browser replace(final String key, final Browser browser) {
+                    return browserMap.replace(key, browser);
+                }
+
+                public boolean replace(final String key, final Browser oldBrowser, final Browser newBrowser) {
+                    return browserMap.replace(key, oldBrowser, newBrowser);
+                }
+
+                public int size() {
+                    return browserMap.size();
+                }
+
+                public Collection<Browser> values()
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+            };
+    }
+
+    protected ConcurrentMap<String, ConfirmationTimeout> getModifiableConfirmationTimeoutMap() {
+        return confirmationTimeoutMap;
+    }
+
+    protected ConcurrentMap<String, ExpiryTimeout> getModifiableExpiryTimeoutMap() {
+        return expiryTimeoutMap;
     }
 
     protected ConcurrentMap<String, Group> getModifiableGroupMap() {
-        return groupMap;
+        return
+            new ConcurrentMap<String, Group>() {
+                public void clear() {
+                    groupMap.clear();
+                }
+
+                public boolean containsKey(final Object objectKey) {
+                    return groupMap.containsKey(objectKey);
+                }
+
+                public boolean containsValue(final Object objectValue) {
+                    return groupMap.containsValue(objectValue);
+                }
+
+                public Set<Entry<String, Group>> entrySet()
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public boolean equals(final Object object) {
+                    return groupMap.equals(object);
+                }
+
+                public Group get(final Object objectKey) {
+                    return groupMap.get(objectKey);
+                }
+
+                @Override
+                public int hashCode() {
+                    return groupMap.hashCode();
+                }
+
+                public boolean isEmpty() {
+                    return groupMap.isEmpty();
+                }
+
+                public Set<String> keySet() {
+                    return groupMap.keySet();
+                }
+
+                public Group put(final String key, final Group group) {
+                    return groupMap.put(key, group);
+                }
+
+                public void putAll(final Map<? extends String, ? extends Group> map)
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+
+                public Group putIfAbsent(final String key, final Group group) {
+                    return groupMap.putIfAbsent(key, group);
+                }
+
+                public Group remove(final Object objectKey) {
+                    return groupMap.remove(objectKey);
+                }
+
+                public boolean remove(final Object objectKey, final Object objectValue) {
+                    return groupMap.remove(objectKey, objectValue);
+                }
+
+                public Group replace(final String key, final Group group) {
+                    return groupMap.replace(key, group);
+                }
+
+                public boolean replace(final String key, final Group oldGroup, final Group newGroup) {
+                    return groupMap.replace(key, oldGroup, newGroup);
+                }
+
+                public int size() {
+                    return groupMap.size();
+                }
+
+                public Collection<Group> values() {
+                    return new Values(groupMap.values());
+                }
+
+                final class Values
+                extends AbstractCollection<Group> {
+                    private final Collection<? extends Group> values;
+
+                    Values(final Collection<? extends Group> values) {
+                        this.values = values;
+                    }
+
+                    @Override
+                    public void clear() {
+                        groupMap.clear();
+                    }
+
+                    @Override
+                    public boolean contains(final Object object) {
+                        return groupMap.containsValue(object);
+                    }
+
+                    @Override
+                    public boolean isEmpty() {
+                        return groupMap.isEmpty();
+                    }
+
+                    @Override
+                    public Iterator<Group> iterator() {
+                        return new ValueIterator(getValues().iterator());
+                    }
+
+                    @Override
+                    public int size() {
+                        return groupMap.size();
+                    }
+
+                    protected Collection<? extends Group> getValues() {
+                        return values;
+                    }
+
+                    final class ValueIterator
+                    implements Iterator<Group> {
+                        private final Iterator<? extends Group> valueIterator;
+
+                        ValueIterator(final Iterator<? extends Group> valueIterator) {
+                            this.valueIterator = valueIterator;
+                        }
+
+                        public boolean hasNext() {
+                            return getValueIterator().hasNext();
+                        }
+
+                        public Group next() {
+                            return getValueIterator().next();
+                        }
+
+                        public void remove() {
+                            getValueIterator().remove();
+                        }
+
+                        protected Iterator<? extends Group> getValueIterator() {
+                            return valueIterator;
+                        }
+                    }
+                }
+            };
     }
 
-    protected Set<NotificationEntry> getModifiablePendingNotifiedPushIDSet() {
-        return pendingNotifiedPushIDSet;
+    protected Queue<Notification> getModifiableNotificationQueue() {
+        return notificationQueue;
+    }
+
+    protected ConcurrentMap<String, NotifyBackURI> getModifiableNotifyBackURIMap() {
+        return notifyBackURIMap;
+    }
+
+    protected Set<NotificationEntry> getModifiablePendingNotificationEntrySet() {
+        return pendingNotificationEntrySet;
     }
 
     protected ConcurrentMap<String, PushID> getModifiablePushIDMap() {
-        return pushIDMap;
+        return
+            new ConcurrentMap<String, PushID>() {
+                public void clear() {
+                    pushIDMap.clear();
+                }
+
+                public boolean containsKey(final Object objectKey) {
+                    return pushIDMap.containsKey(objectKey);
+                }
+
+                public boolean containsValue(final Object objectValue) {
+                    return pushIDMap.containsValue(objectValue);
+                }
+
+                public Set<Entry<String, PushID>> entrySet()
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public boolean equals(final Object object) {
+                    return pushIDMap.equals(object);
+                }
+
+                public PushID get(final Object objectKey) {
+                    return pushIDMap.get(objectKey);
+                }
+
+                @Override
+                public int hashCode() {
+                    return pushIDMap.hashCode();
+                }
+
+                public boolean isEmpty() {
+                    return pushIDMap.isEmpty();
+                }
+
+                public Set<String> keySet() {
+                    return pushIDMap.keySet();
+                }
+
+                public PushID put(final String key, final PushID pushID) {
+                    return pushIDMap.put(key, pushID);
+                }
+
+                public void putAll(final Map<? extends String, ? extends PushID> map)
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+
+                public PushID putIfAbsent(final String key, final PushID pushID) {
+                    return pushIDMap.putIfAbsent(key, pushID);
+                }
+
+                public PushID remove(final Object objectKey) {
+                    return pushIDMap.remove(objectKey);
+                }
+
+                public boolean remove(final Object objectKey, final Object objectValue) {
+                    return pushIDMap.remove(objectKey, objectValue);
+                }
+
+                public PushID replace(final String key, final PushID pushID) {
+                    return pushIDMap.replace(key, pushID);
+                }
+
+                public boolean replace(final String key, final PushID oldPushID, final PushID newPushID) {
+                    return pushIDMap.replace(key, oldPushID, newPushID);
+                }
+
+                public int size() {
+                    return pushIDMap.size();
+                }
+
+                public Collection<PushID> values()
+                throws UnsupportedOperationException {
+                    throw new UnsupportedOperationException();
+                }
+            };
     }
 
     protected Condition getNotificationAvailableCondition() {
         return notificationAvailableCondition;
-    }
-
-    protected Queue<Notification> getNotificationQueue() {
-        return notificationQueue;
     }
 
     protected Lock getNotificationQueueLock() {
@@ -721,8 +1293,16 @@ implements InternalPushGroupManager, PushGroupManager {
         return pushIDTimeout;
     }
 
+    protected ServletContext getServletContext() {
+        return servletContext;
+    }
+
+    protected boolean isOutOfBandNotification(final Map<String, String> propertyMap) {
+        return propertyMap != null && propertyMap.containsKey("subject");
+    }
+
     protected boolean isOutOfBandNotification(final PushConfiguration pushConfiguration) {
-        return pushConfiguration != null && pushConfiguration.getAttributes().containsKey("subject");
+        return pushConfiguration != null && pushConfiguration.containsAttributeKey("subject");
     }
 
     protected Browser newBrowser(final String browserID, final long minCloudPushInterval) {
@@ -730,9 +1310,10 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected ConfirmationTimeout newConfirmationTimeout(
-        final String browserID, final String groupName, final long timeout) {
+        final String browserID, final String groupName, final Map<String, String> propertyMap, final long timeout,
+        final long minCloudPushInterval) {
 
-        return new ConfirmationTimeout(browserID, groupName, timeout, getBrowser(browserID).getMinCloudPushInterval());
+        return new ConfirmationTimeout(browserID, groupName, propertyMap, timeout, minCloudPushInterval);
     }
 
     protected ExpiryTimeout newExpiryTimeout(final String pushID, final boolean isCloudPushID) {
@@ -746,7 +1327,7 @@ implements InternalPushGroupManager, PushGroupManager {
     protected Notification newNotification(
         final String groupName, final String payload) {
 
-        return new Notification(groupName, payload);
+        return new Notification(groupName, payload, newPushConfiguration());
     }
 
     protected Notification newNotification(
@@ -761,21 +1342,139 @@ implements InternalPushGroupManager, PushGroupManager {
         return new OutOfBandNotification(groupName, payload, pushConfiguration);
     }
 
+    protected PushConfiguration newPushConfiguration() {
+        return new PushConfiguration();
+    }
+
     protected PushID newPushID(final String id) {
         return new PushID(id, getPushIDTimeout(), getCloudPushIDTimeout());
     }
 
-    protected boolean removeBrowser(final Map<String, org.icepush.Browser> browserMap, final Browser browser) {
-        return browserMap.remove(browser.getID()) != null;
+    protected QueueConsumerTask newQueueConsumerTask() {
+        return new QueueConsumerTask();
     }
 
-    protected boolean removeGroup(final Map<String, Group> groupMap, final String groupName) {
+    protected void push(
+        final Queue<Notification> notificationQueue, final String groupName, final String payload) {
+
+        if (LOGGER.isLoggable(Level.FINE)) {
+            if (isNotNullAndIsNotEmpty(payload)) {
+                LOGGER.log(
+                    Level.FINE,
+                    "Request for a Push Notification with Payload '" + payload + "' for Group '" + groupName + "'."
+                );
+            } else {
+                LOGGER.log(
+                    Level.FINE,
+                    "Request for a Push Notification for Group '" + groupName + "'."
+                );
+            }
+        }
+        Notification _notification = newNotification(groupName, payload);
+        getNotificationQueueLock().lock();
+        try {
+            if (!notificationQueue.contains(_notification)) {
+                if (notificationQueue.offer(_notification)) {
+                    getNotificationAvailableCondition().signalAll();
+                } else {
+                    // Leave at INFO
+                    if (LOGGER.isLoggable(Level.INFO)) {
+                        LOGGER.log(
+                            Level.INFO,
+                            "Request for a Push Notification for Group '" + groupName + "' was dropped, " +
+                                "maximum size queue reached."
+                        );
+                    }
+                }
+            } else {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Request for a Push Notification for Group '" + groupName + "' was ignored, " +
+                            "duplicate detected."
+                    );
+                }
+            }
+        } finally {
+            getNotificationQueueLock().unlock();
+        }
+    }
+
+    protected void push(
+        final Queue<Notification> notificationQueue, final String groupName, final String payload,
+        final PushConfiguration pushConfiguration) {
+
+        if (LOGGER.isLoggable(Level.FINE)) {
+            if (isNotNullAndIsNotEmpty(payload)) {
+                LOGGER.log(
+                    Level.FINE,
+                    "Request for a Push Notification with Payload '" + payload + "' for Group '" + groupName + "'.  " +
+                        "(Push Configuration: '" + pushConfiguration + "')"
+                );
+            } else {
+                LOGGER.log(
+                    Level.FINE,
+                    "Request for a Push Notification for Group '" + groupName + "'.  " +
+                        "(Push Configuration: '" + pushConfiguration + "')"
+                );
+            }
+        }
+        Notification _notification;
+        if (isOutOfBandNotification(pushConfiguration)) {
+            _notification = newOutOfBandNotification(groupName, payload, pushConfiguration);
+        } else {
+            _notification = newNotification(groupName, payload, pushConfiguration);
+        }
+        getNotificationQueueLock().lock();
+        try {
+            if (!notificationQueue.contains(_notification)) {
+                //add this notification to a blocking queue
+                notificationQueue.add(_notification);
+                getNotificationAvailableCondition().signalAll();
+            } else {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Request for a Push Notification for Group '" + groupName + "' was ignored, " +
+                            "duplicate detected."
+                    );
+                }
+            }
+        } finally {
+            getNotificationQueueLock().unlock();
+        }
+    }
+
+    protected boolean removeBrowser(final ConcurrentMap<String, Browser> browserMap, final String browserID) {
+        return browserMap.remove(browserID) != null;
+    }
+
+    protected boolean removeConfirmationTimeout(
+        final ConcurrentMap<String, ConfirmationTimeout> confirmationTimeoutMap,
+        final ConfirmationTimeout confirmationTimeout) {
+
+        return confirmationTimeoutMap.remove(confirmationTimeout.getBrowserID()) != null;
+    }
+
+    protected boolean removeExpiryTimeout(
+        final ConcurrentMap<String, ExpiryTimeout> expiryTimeoutMap,
+        final ExpiryTimeout expiryTimeout) {
+
+        return expiryTimeoutMap.remove(expiryTimeout.getPushID()) != null;
+    }
+
+    protected boolean removeGroup(final ConcurrentMap<String, Group> groupMap, final String groupName) {
         return groupMap.remove(groupName) != null;
     }
 
-    protected boolean removeMember(final Map<String, Group> groupMap, final String groupName, final String pushID) {
+    protected boolean removeMember(
+        final ConcurrentMap<String, Group> groupMap, final ConcurrentMap<String, PushID> pushIDMap,
+        final String groupName, final String pushID) {
+
         boolean _modified = false;
-        if (groupMap != null && groupName != null && pushID != null) {
+        if (groupMap != null && pushIDMap != null &&
+            isNotNullAndIsNotEmpty(groupName) && isNotNullAndIsNotEmpty(pushID)) {
+
             Group group = groupMap.get(groupName);
             if (group != null) {
                 _modified = group.removePushID(pushID);
@@ -785,19 +1484,19 @@ implements InternalPushGroupManager, PushGroupManager {
                 }
                 memberRemoved(groupName, pushID);
                 if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(Level.FINE, "Removed PushID '" + pushID + "' from Push Group '" + groupName + "'.");
+                    LOGGER.log(Level.FINE, "Removed Push-ID '" + pushID + "' from Group '" + groupName + "'.");
                 }
             }
         }
         return _modified;
     }
 
-    protected boolean removePushID(final Map<String, PushID> pushIDMap, final String pushID) {
+    protected boolean removePushID(final ConcurrentMap<String, PushID> pushIDMap, final String pushID) {
         return pushIDMap.remove(pushID) != null;
     }
 
-    protected void scan(final Map<String, Group> groupMap, final String[] confirmedPushIDs) {
-        Set<String> pushIDSet = new HashSet<String>(Arrays.asList(confirmedPushIDs));
+    protected void scan(final ConcurrentMap<String, Group> groupMap, final Set<String> confirmedPushIDSet) {
+        Set<String> pushIDSet = new HashSet<String>(confirmedPushIDSet);
         long now = System.currentTimeMillis();
         for (final Group group : groupMap.values()) {
             group.touchIfMatching(pushIDSet);
@@ -815,11 +1514,7 @@ implements InternalPushGroupManager, PushGroupManager {
         }
     }
 
-    protected void scanForExpiry() {
-        scanForExpiry(getModifiableGroupMap());
-    }
-
-    protected void scanForExpiry(final Map<String, Group> groupMap) {
+    protected void scanForExpiry(final ConcurrentMap<String, Group> groupMap) {
         long now = System.currentTimeMillis();
         //avoid to scan/touch the groups on each notification
         if (lastExpiryScan + GROUP_SCANNING_TIME_RESOLUTION < now) {
@@ -838,262 +1533,42 @@ implements InternalPushGroupManager, PushGroupManager {
         if (_pushID != null) {
             Browser _browser = getBrowser(_pushID.getBrowserID());
             if (_browser != null) {
-                _browser.startConfirmationTimeout(notificationEntry.getGroupName());
+                _browser.startConfirmationTimeout(
+                    notificationEntry.getGroupName(), notificationEntry.getPropertyMap()
+                );
             }
         }
     }
 
-    protected class Notification
+    public static class ExtensionRegistration
+    implements ServletContextListener {
+        private static final Logger LOGGER = Logger.getLogger(ExtensionRegistration.class.getName());
+
+        public void contextDestroyed(final ServletContextEvent event) {
+            // Do nothing.
+        }
+
+        public void contextInitialized(final ServletContextEvent event) {
+            ExtensionRegistry.registerExtension(
+                PushGroupManager.class.getName(), LocalPushGroupManager.class, 1, event.getServletContext()
+            );
+        }
+    }
+
+    protected class QueueConsumerTask
+    extends TimerTask
     implements Runnable {
-        protected final Set<String> exemptPushIDSet = new HashSet<String>();
-
-        protected final String groupName;
-        protected final String payload;
-        protected final PushConfiguration pushConfiguration;
-
-        protected Notification(
-            final String groupName, final String payload) {
-
-            this(groupName, payload, new PushConfiguration());
-        }
-
-        protected Notification(
-            final String groupName, final String payload, final PushConfiguration pushConfiguration) {
-
-            this.groupName = groupName;
-            this.payload = payload;
-            this.pushConfiguration = pushConfiguration;
-            Set<String> pushIDSet = (Set<String>)this.pushConfiguration.getAttributes().get("pushIDSet");
-            if (pushIDSet != null) {
-                this.getExemptPushIDSet().addAll(pushIDSet);
-            }
-        }
-
-        public void coalesceWith(Notification nextNotification) {
-            Group group = getModifiableGroupMap().get(getGroupName());
-            if (group != null) {
-                nextNotification.getExemptPushIDSet().addAll(Arrays.asList(group.getPushIDs()));
-            }
-        }
-
-        @Override
-        public boolean equals(final Object object) {
-            return
-                object instanceof Notification &&
-                    ((Notification)object).getExemptPushIDSet().containsAll(getExemptPushIDSet()) &&
-                    ((Notification)object).getExemptPushIDSet().size() == getExemptPushIDSet().size() &&
-                    ((Notification)object).getGroupName().equals(getGroupName()) &&
-                    (
-                        (((Notification)object).getPayload() == null && getPayload() == null) ||
-                        (
-                            ((Notification)object).getPayload() != null &&
-                            ((Notification)object).getPayload().equals(getPayload())
-                        )
-                    ) &&
-                    ((Notification)object).getPushConfiguration().equals(getPushConfiguration());
-        }
-
-        @Override
-        public int hashCode() {
-            return getGroupName().hashCode();
-        }
-
-        public void run() {
-            try {
-                Group group = getModifiableGroupMap().get(getGroupName());
-                if (group != null) {
-                    Set<String> pushIDSet = new HashSet<String>(Arrays.asList(group.getPushIDs()));
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(
-                            Level.FINE,
-                            "Notification triggered for Group '" + getGroupName() + "' with " +
-                                "original Push-ID Set '" + pushIDSet + "'.");
-                    }
-                    pushIDSet.removeAll(getExemptPushIDSet());
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(
-                            Level.FINE,
-                            "Notification triggered for Group '" + getGroupName() + "' with " +
-                                "Push-ID Set '" + pushIDSet + "' after exemption.");
-                    }
-                    Set<NotificationEntry> notificationEntrySet = new HashSet<NotificationEntry>();
-                    for (final String pushID : pushIDSet) {
-                        notificationEntrySet.add(
-                            newNotificationEntry(pushID, getGroupName(), getPayload(), getPushConfiguration())
-                        );
-                    }
-                    filterNotificationEntrySet(notificationEntrySet);
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(
-                            Level.FINE,
-                            "Notification triggered for Group '" + getGroupName() + "' with " +
-                                "Notification Entry Set '" + notificationEntrySet + "' after filtering.");
-                    }
-                    for (final NotificationEntry notificationEntry : notificationEntrySet) {
-                        Browser browser = getBrowser(getPushID(notificationEntry.getPushID()).getBrowserID());
-                        if (browser != null) {
-                            browser.setPushConfiguration(getPushConfiguration());
-                        }
-                    }
-                    getPendingNotifiedPushIDSetLock().lock();
-                    try {
-                        getModifiablePendingNotifiedPushIDSet().addAll(notificationEntrySet);
-                    } finally {
-                        getPendingNotifiedPushIDSetLock().unlock();
-                    }
-                    beforeBroadcast(notificationEntrySet);
-                    outboundNotifier.broadcast(notificationEntrySet, getPushConfiguration().getDuration());
-                    pushed(getGroupName());
-                }
-            } finally {
-                scanForExpiry();
-            }
-        }
-
-        @Override
-        public String toString() {
-            return
-                new StringBuilder().
-                    append("Notification[").
-                        append(membersAsString()).
-                    append("]").
-                        toString();
-        }
-
-        protected void beforeBroadcast(final Set<NotificationEntry> notificationEntrySet) {
-        }
-
-        protected void filterNotificationEntrySet(final Set<NotificationEntry> notificationEntrySet) {
-        }
-
-        protected Set<String> getExemptPushIDSet() {
-            return exemptPushIDSet;
-        }
-
-        protected String getGroupName() {
-            return groupName;
-        }
-
-        protected String getPayload() {
-            return payload;
-        }
-
-        protected PushConfiguration getPushConfiguration() {
-            return pushConfiguration;
-        }
-
-        protected String membersAsString() {
-            return
-                new StringBuilder().
-                    append("exemptPushIDSet: '").append(getExemptPushIDSet()).append("', ").
-                    append("groupName: '").append(getGroupName()).append("', ").
-                    append("payload: '").append(getPayload()).append("', ").
-                    append("pushConfiguration: '").append(getPushConfiguration()).append("'").
-                        toString();
-        }
-
-        protected NotificationEntry newNotificationEntry(
-            final String pushID, final String groupName, final String payload,
-            final PushConfiguration pushConfiguration) {
-
-            return new NotificationEntry(pushID, groupName, payload, pushConfiguration);
-        }
-    }
-
-    protected class OutOfBandNotification
-    extends Notification
-    implements Runnable {
-        protected OutOfBandNotification(
-            final String groupName, final String payload, final PushConfiguration pushConfiguration) {
-
-            super(groupName, payload, pushConfiguration);
-        }
-
-        @Override
-        public boolean equals(final Object object) {
-            return
-                object instanceof Notification &&
-                    super.equals(object);
-        }
-
-        @Override
-        public String toString() {
-            return
-                new StringBuilder().
-                    append("OutOfBandNotification[").
-                        append(membersAsString()).
-                    append("]").
-                        toString();
-        }
-
-        @Override
-        protected void beforeBroadcast(final Set<NotificationEntry> notificationEntrySet) {
-            // Only needed for Cloud Push
-            startConfirmationTimeout(notificationEntrySet);
-        }
-    }
-
-    private class QueueConsumerTask extends TimerTask {
         private boolean running = true;
+
+        public QueueConsumerTask() {
+            // Do nothing.
+        }
 
         public void run() {
             try {
                 //take tasks from the queue and execute them serially
                 while (running) {
-                    try {
-                        long _currentTime = System.currentTimeMillis();
-                        Notification _scheduledNotification;
-                        getNotificationQueueLock().lock();
-                        try {
-                            if (getNotificationQueue().isEmpty()) {
-                                try {
-                                    // Await until signalled when notifications are available.
-                                    getNotificationAvailableCondition().await();
-                                } catch (final InterruptedException exception) {
-                                    LOGGER.log(Level.FINE, "Notification queue draining interrupted.");
-                                }
-                            }
-//                            Notification notification = getNotificationQueue().poll();
-//                            //put back notification, need to extract the next scheduled notification
-//                            queue.offer(notification);
-                            //search what notification needs to be fired now
-                            TreeSet<Notification> _notificationTreeSet =
-                                new TreeSet<Notification>(ScheduledAtComparator);
-                            _notificationTreeSet.addAll(getNotificationQueue());
-                            _scheduledNotification = _notificationTreeSet.first();
-                            long _scheduledAt = _scheduledNotification.getPushConfiguration().getScheduledAt();
-                            if (_scheduledAt < _currentTime) {
-                                //ready to send
-                                getNotificationQueue().remove(_scheduledNotification);
-                                long _duration = _scheduledNotification.getPushConfiguration().getDuration();
-                                long _endOfScheduledNotification = _scheduledAt + _duration;
-
-                                for (final Notification _nextScheduledNotification : _notificationTreeSet) {
-                                    //skip first notification
-                                    if (_nextScheduledNotification == _scheduledNotification) {
-                                        continue;
-                                    }
-                                    //test if it overlaps
-                                    if (_endOfScheduledNotification >
-                                            _nextScheduledNotification.getPushConfiguration().getScheduledAt()) {
-
-                                        //coalesce current notification with next overlapping notification
-                                        _scheduledNotification.coalesceWith(_nextScheduledNotification);
-                                    } else {
-                                        //stop when notification windows (durations) do not overlap anymore
-                                        break;
-                                    }
-                                }
-                            }
-                        } finally {
-                            getNotificationQueueLock().unlock();
-                        }
-                        _scheduledNotification.run();
-                    } catch (final NoClassDefFoundError error) {
-                        //ignore the application WAR was removed from the file system
-                    } catch (final Throwable throwable)  {
-                        LOGGER.log(Level.WARNING, "Notification queue encountered ", throwable);
-                    }
+                    takeAndExecute();
                 }
             } catch (Exception exception) {
                 if (LOGGER.isLoggable(Level.WARNING)) {
@@ -1107,11 +1582,68 @@ implements InternalPushGroupManager, PushGroupManager {
             running = false;
             getNotificationQueueLock().lock();
             try {
-                getNotificationQueue().offer(NOOP);//add noop to unblock the queue
+                // Offering noop to unblock the queue
+                getModifiableNotificationQueue().offer(new NoopNotification("---", null, newPushConfiguration()));
                 getNotificationAvailableCondition().signalAll();
                 return super.cancel();
             } finally {
                 getNotificationQueueLock().unlock();
+            }
+        }
+
+        protected void takeAndExecute() {
+            try {
+                long _currentTime = System.currentTimeMillis();
+                Notification _scheduledNotification;
+                getNotificationQueueLock().lock();
+                try {
+                    if (getModifiableNotificationQueue().isEmpty()) {
+                        try {
+                            // Await until signalled when notifications are available.
+                            getNotificationAvailableCondition().await();
+                        } catch (final InterruptedException exception) {
+                            LOGGER.log(Level.FINE, "Notification queue draining interrupted.");
+                        }
+                    }
+                    TreeSet<Notification> _notificationTreeSet = new TreeSet<Notification>(ScheduledAtComparator);
+                    _notificationTreeSet.addAll(getModifiableNotificationQueue());
+                    _scheduledNotification = _notificationTreeSet.first();
+                    long _scheduledAt = _scheduledNotification.getScheduledAt();
+                    if (_scheduledAt <= _currentTime) {
+                        //ready to send
+                        getModifiableNotificationQueue().remove(_scheduledNotification);
+                        long _duration = _scheduledNotification.getDuration();
+                        long _endOfScheduledNotification = _scheduledAt + _duration;
+
+                        for (final Notification _nextScheduledNotification : _notificationTreeSet) {
+                            //skip first notification
+                            if (_nextScheduledNotification == _scheduledNotification) {
+                                continue;
+                            }
+                            //test if it overlaps
+                            if (_endOfScheduledNotification >
+                                    _nextScheduledNotification.getScheduledAt()) {
+
+                                //coalesce current notification with next overlapping notification
+                                _scheduledNotification.coalesceWith(_nextScheduledNotification);
+                            } else {
+                                //stop when notification windows (durations) do not overlap anymore
+                                break;
+                            }
+                        }
+                    } else {
+                        _scheduledNotification = null;
+                    }
+                } finally {
+                    getNotificationQueueLock().unlock();
+                }
+                if (_scheduledNotification != null) {
+                    _scheduledNotification.run();
+                }
+            } catch (final NoClassDefFoundError exception) {
+                //ignore the application WAR was removed from the file system
+            } catch (final Throwable throwable)  {
+                LOGGER.log(Level.WARNING, "Notification queue encountered ", throwable);
             }
         }
     }

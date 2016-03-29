@@ -27,7 +27,16 @@
         <listener-class>org.icepush.util.ExtensionRegistry</listener-class>
     </listener>
     <listener>
+        <listener-class>org.icesoft.util.servlet.ExtensionRegistry</listener-class>
+    </listener>
+    <listener>
         <listener-class>org.icepush.servlet.MainServlet$ExtensionRegistration</listener-class>
+    </listener>
+    <listener>
+        <listener-class>org.icepush.LocalPushGroupManager$ExtensionRegistration</listener-class>
+    </listener>
+    <listener>
+        <listener-class>org.icepush.DatabaseConfigurator</listener-class>
     </listener>
 	<tag>
 		<description>Push notifications to a named group.</description>

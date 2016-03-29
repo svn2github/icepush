@@ -16,6 +16,8 @@
 package org.icepush;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -76,17 +78,19 @@ implements NotificationBroadcaster {
     private static class BroadcastTask
     extends TimerTask
     implements Runnable {
-        private final Receiver receiver;
-        private final Set<NotificationEntry> notificationSet;
+        private final Set<NotificationEntry> notificationEntrySet = new HashSet<NotificationEntry>();
 
-        public BroadcastTask(final Receiver receiver, final Set<NotificationEntry> notificationSet) {
+        private final Receiver receiver;
+
+        public BroadcastTask(final Receiver receiver, final Set<NotificationEntry> notificationEntrySet) {
             this.receiver = receiver;
-            this.notificationSet = notificationSet;
+            getModifiableNotificationEntrySet().addAll(notificationEntrySet);
         }
 
         public void run() {
             try {
-                getReceiver().receive(getNotificationSet());
+                getReceiver().receive(getNotificationEntrySet());
+                getModifiableNotificationEntrySet().clear();
             } catch (final Exception exception) {
                 if (LOGGER.isLoggable(Level.WARNING)) {
                     LOGGER.log(Level.WARNING, "Exception caught on broadcast task.", exception);
@@ -94,12 +98,16 @@ implements NotificationBroadcaster {
             }
         }
 
-        protected Receiver getReceiver() {
+        public Receiver getReceiver() {
             return receiver;
         }
 
-        protected Set<NotificationEntry> getNotificationSet() {
-            return notificationSet;
+        public Set<NotificationEntry> getNotificationEntrySet() {
+            return Collections.unmodifiableSet(getModifiableNotificationEntrySet());
+        }
+
+        protected Set<NotificationEntry> getModifiableNotificationEntrySet() {
+            return notificationEntrySet;
         }
     }
 }

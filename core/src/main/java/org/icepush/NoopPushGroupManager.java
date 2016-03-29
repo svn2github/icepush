@@ -50,6 +50,10 @@ implements PushGroupManager {
     public void addNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
     }
 
+    public boolean addNotifyBackURI(final NotifyBackURI notifyBackURI) {
+        return false;
+    }
+
     public void addPushGroupListener(final PushGroupListener listener) {
     }
 
@@ -77,6 +81,10 @@ implements PushGroupManager {
         return null;
     }
 
+    public NotifyBackURI getNotifyBackURI(final String notifyBackURI) {
+        return null;
+    }
+
     public Set<NotificationEntry> getPendingNotificationSet() {
         return Collections.emptySet();
     }
@@ -89,28 +97,28 @@ implements PushGroupManager {
         return null;
     }
 
+    public void park(final String pushID, final String notifyBackURI) {
+    }
+
     public void push(final String groupName) {
     }
 
     public void push(final String groupName, final String payload) {
     }
 
-    public void push(final String groupName, final PushConfiguration config) {
+    public void push(final String groupName, final PushConfiguration pushConfiguration) {
     }
 
-    public void push(final String groupName, final String payload, final PushConfiguration config) {
+    public void push(final String groupName, final String payload, final PushConfiguration pushConfiguration) {
     }
 
-    public void park(final String pushID, final NotifyBackURI notifyBackURI) {
-    }
-    
-    public void pruneParkedIDs(final NotifyBackURI notifyBackURI, final Set<String> listenedPushIDSet)  {
+    public void pruneParkedIDs(final String notifyBackURI, final Set<String> listenedPushIDSet)  {
     }
 
     public void removeBlockingConnectionServer(final String browserID) {
     }
 
-    public boolean removeBrowser(final Browser browser) {
+    public boolean removeBrowser(final String browserID) {
         return false;
     }
 
@@ -124,7 +132,7 @@ implements PushGroupManager {
     public void removePushGroupListener(final PushGroupListener listener) {
     }
 
-    public void scan(final String[] confirmedPushIDs) {
+    public void scan(final Set<String> confirmedPushIDSet) {
     }
 
     public void shutdown() {

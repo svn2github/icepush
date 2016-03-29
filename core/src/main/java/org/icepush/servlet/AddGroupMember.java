@@ -27,7 +27,7 @@ implements PseudoServlet {
         String _cloudPush = request.getParameter("cloudPush");
         if (_cloudPush != null) {
             PushConfiguration _pushConfiguration = new PushConfiguration();
-            _pushConfiguration.getAttributes().put("cloudPush", Boolean.valueOf(_cloudPush));
+            _pushConfiguration.putAttribute("cloudPush", Boolean.valueOf(_cloudPush));
             addGroupMember(_groupName, _pushID, _pushConfiguration);
         } else {
             addGroupMember(_groupName, _pushID);

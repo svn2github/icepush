@@ -15,14 +15,16 @@
  */
 package org.icepush;
 
-import javax.servlet.http.HttpServletRequest;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+
+import javax.servlet.http.HttpServletRequest;
 
 public class PushConfiguration
 implements Serializable {
@@ -32,7 +34,8 @@ implements Serializable {
 
     private static final Pattern NAME_VALUE = Pattern.compile("\\=");
 
-    private Map<String, Object> attributes = new HashMap<String, Object>();
+    private final Map<String, Object> attributeMap = new HashMap<String, Object>();
+
     private long scheduledAt = System.currentTimeMillis();
     private long duration = 0;
 
@@ -44,7 +47,6 @@ implements Serializable {
      * @see        #PushConfiguration(Map)
      */
     public PushConfiguration()  {
-        attributes = new HashMap<String, Object>();
     }
 
     /**
@@ -52,28 +54,21 @@ implements Serializable {
      *     Constructs a new PushConfiguration with the specified <code>attributes</code>.
      * </p>
      *
-     * @param      attributes
-     *                 The attributes of the new PushConfiguration to be constructed.
+     * @param      attributeMap
+     *                 The attribute map of the new PushConfiguration to be constructed.
      * @see        #PushConfiguration
      */
-    public PushConfiguration(Map<String, Object> attributes)  {
-        this.attributes = new HashMap<String, Object>(attributes);
+    public PushConfiguration(final Map<String, Object> attributeMap)  {
+        putAllAttributes(attributeMap);
     }
 
-    /**
-     * <p>
-     *     Gets the attributes of this PushConfiguration.
-     * </p>
-     *
-     * @return     The attributes.
-     */
-    public Map<String, Object> getAttributes()  {
-        return attributes;
+    public boolean containsAttributeKey(final String key) {
+        return getModifiableAttributeMap().containsKey(key);
     }
 
-    public PushConfiguration delayed(long delay, long duration) {
-        this.scheduledAt = System.currentTimeMillis() + delay;
-        this.duration = duration;
+    public PushConfiguration delayed(final long delay, final long duration) {
+        setScheduledAt(System.currentTimeMillis() + delay);
+        setDuration(duration);
         return this;
     }
 
@@ -81,21 +76,19 @@ implements Serializable {
     public boolean equals(final Object object) {
         return
             object instanceof PushConfiguration &&
-            ((PushConfiguration)object).getAttributes().equals(getAttributes()) &&
+            ((PushConfiguration)object).getAttributeMap().equals(getAttributeMap()) &&
             ((PushConfiguration)object).getDuration() == getDuration() &&
             ((PushConfiguration)object).getScheduledAt() == getScheduledAt();
     }
 
     public static PushConfiguration fromRequest(final HttpServletRequest request) {
         PushConfiguration _pushConfiguration;
-        String[] options = request.getParameterValues("option");
-        if (options != null && options.length > 0) {
+        String[] _options = request.getParameterValues("option");
+        if (_options != null && _options.length > 0) {
             _pushConfiguration = new PushConfiguration();
-            Map<String,Object> attributes = _pushConfiguration.getAttributes();
-            for (int i = 0; i < options.length; i++) {
-                String option = options[i];
-                String[] nameValue = NAME_VALUE.split(option);
-                attributes.put(nameValue[0], nameValue[1]);
+            for (final String _option : _options) {
+                String[] _nameValuePair = NAME_VALUE.split(_option);
+                _pushConfiguration.putAttribute(_nameValuePair[0], _nameValuePair[1]);
             }
         } else {
             _pushConfiguration = null;
@@ -123,10 +116,16 @@ implements Serializable {
         return _pushConfiguration;
     }
 
-    public PushConfiguration scheduled(Date time, long duration) {
-        this.scheduledAt = time.getTime();
-        this.duration = duration;
-        return this;
+    public Object getAttribute(final String key) {
+        if (getModifiableAttributeMap().containsKey(key)) {
+            return getModifiableAttributeMap().get(key);
+        } else {
+            return null;
+        }
+    }
+
+    public Map<String, Object> getAttributeMap() {
+        return Collections.unmodifiableMap(getModifiableAttributeMap());
     }
 
     public long getScheduledAt() {
@@ -139,7 +138,27 @@ implements Serializable {
 
     @Override
     public int hashCode() {
-        return getAttributes().hashCode();
+        return getAttributeMap().hashCode();
+    }
+
+    public Object putAttribute(final String key, final Object value) {
+        return getModifiableAttributeMap().put(key, value);
+    }
+
+    public void putAllAttributes(final Map<String, Object> attributeMap) {
+        for (final Map.Entry<String, Object> _attributeEntry : attributeMap.entrySet()) {
+            putAttribute(_attributeEntry.getKey(), _attributeEntry.getValue());
+        }
+    }
+
+    public Object removeAttribute(final String key) {
+        return getModifiableAttributeMap().remove(key);
+    }
+
+    public PushConfiguration scheduled(final Date time, final long duration) {
+        setScheduledAt(time.getTime());
+        setDuration(duration);
+        return this;
     }
 
     @Override
@@ -147,17 +166,43 @@ implements Serializable {
         return
             new StringBuilder().
                 append("PushConfiguration[").
-                    append(membersAsString()).
+                    append(classMembersToString()).
                 append("]").
                     toString();
     }
 
-    protected String membersAsString() {
+    protected String classMembersToString() {
         return
             new StringBuilder().
-                append("attributes: '").append(getAttributes()).append("', ").
+                append("attributeMap: '").append(getModifiableAttributeMap()).append("', ").
                 append("duration: '").append(getDuration()).append("', ").
                 append("scheduledAt: '").append(new Date(getScheduledAt())).append("'").
                     toString();
+    }
+
+    protected Map<String, Object> getModifiableAttributeMap() {
+        return attributeMap;
+    }
+
+    protected boolean setDuration(final long duration) {
+        boolean _modified;
+        if (this.duration != duration) {
+            this.duration = duration;
+            _modified = true;
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    protected boolean setScheduledAt(final long scheduledAt) {
+        boolean _modified;
+        if (this.scheduledAt != scheduledAt) {
+            this.scheduledAt = scheduledAt;
+            _modified = true;
+        } else {
+            _modified = false;
+        }
+        return _modified;
     }
 }

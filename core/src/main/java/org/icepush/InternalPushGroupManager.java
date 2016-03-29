@@ -21,6 +21,10 @@ import java.util.Set;
 
 public interface InternalPushGroupManager
 extends PushGroupManager {
+    void addAllNotificationEntries(Set<NotificationEntry> notificationEntrySet);
+
+    void broadcastNotificationEntries(Set<NotificationEntry> notificationEntrySet, long duration, String groupName);
+
     boolean cancelConfirmationTimeout(String browserID);
 
     boolean cancelExpiryTimeout(String pushID);
@@ -31,11 +35,17 @@ extends PushGroupManager {
 
     Map<String, Group> getGroupMap();
 
+    Map<String, NotifyBackURI> getNotifyBackURIMap();
+
     Map<String, PushID> getPushIDMap();
 
     void groupTouched(String groupName, long lastAccess);
 
     boolean isParked(String pushID);
+
+    boolean removeConfirmationTimeout(ConfirmationTimeout confirmationTimeout);
+
+    boolean removeExpiryTimeout(ExpiryTimeout expiryTimeout);
 
     boolean removeGroup(String groupName);
 
@@ -45,11 +55,18 @@ extends PushGroupManager {
 
     boolean removePushID(String pushID);
 
-    boolean startConfirmationTimeout(String browserID, String groupName);
+    void scanForExpiry();
 
-    boolean startConfirmationTimeout(String browserID, String groupName, long sequenceNumber);
+    boolean startConfirmationTimeout(
+        String browserID, String groupName, Map<String, String> propertyMap);
 
-    boolean startConfirmationTimeout(String browserID, String groupName, long sequenceNumber, long timeout);
+    boolean startConfirmationTimeout(
+        String browserID, String groupName, Map<String, String> propertyMap, long sequenceNumber);
+
+    boolean startConfirmationTimeout(
+        String browserID, String groupName, Map<String, String> propertyMap, long sequenceNumber, long timeout);
+
+    void startConfirmationTimeouts(Set<NotificationEntry> notificationEntrySet);
 
     boolean startExpiryTimeout(String pushID);
 
