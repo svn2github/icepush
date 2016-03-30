@@ -39,10 +39,14 @@ public class ExtensionRegistry implements ServletContextListener {
     /**
      * Add an extension under the specified name with the specified "quality"
      *
-     * @param context
-     * @param quality
-     * @param name
-     * @param extension
+     * @param      context
+     *                 The Servlet context.
+     * @param      quality
+     *                 The quality of the extension to be added.
+     * @param      name
+     *                 The name of the extension to be mapped to.
+     * @param      extension
+     *                 The extension to be added.
      */
     public static void addExtension(ServletContext context, int quality, String name, Object extension) {
         addExtensionsMapIfNeeded(context);
@@ -57,11 +61,16 @@ public class ExtensionRegistry implements ServletContextListener {
     }
 
     /**
-     * Return the extension of the specified name with the highest "quality".
+     * <p>
+     *     Return the extension of the specified name with the highest "quality".
+     * </p>
      *
-     * @param context
-     * @param name
-     * @return
+     * @param      context
+     *                 The Servlet context.
+     * @param      name
+     *                 The name of the extension to be retrieved.
+     * @return     The best extension mapped to the specified <code>name</code> based on the highest quality or
+     *             <code>null</code> if no extension could be found.
      */
     public static Object getBestExtension(ServletContext context, String name) {
         Map extensions = (Map) context.getAttribute(NAME);
@@ -71,11 +80,15 @@ public class ExtensionRegistry implements ServletContextListener {
     }
 
     /**
-     * Return an array of extensions ordered by the "quality" attribute.
+     * <p>
+     *     Return an array of extensions ordered by the "quality" attribute.
+     * </p>
      *
-     * @param context
-     * @param name
-     * @return
+     * @param      context
+     *                 The Servlet context.
+     * @param      name
+     *                 The name of the extension to be retrieved.
+     * @return     The extensions mapped to the specified <code>name</code>.
      */
     public static Object[] getExtensions(ServletContext context, String name) {
         Map extensions = (Map) context.getAttribute(NAME);

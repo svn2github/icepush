@@ -75,7 +75,7 @@ public class PushContext {
      * @param      pushID
      *                 The Push ID that needs to be added.
      * @param      pushConfiguration
-     *
+     *                 The Push configuration.
      * @throws     IllegalArgumentException
      *                 If the specified <code>groupName</code> and/or the specified <code>pushID</code> is
      *                 <code>null</code> or empty.

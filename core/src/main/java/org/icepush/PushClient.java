@@ -51,11 +51,6 @@ public class PushClient {
 
     private final String contextURI;
 
-    /**
-     *
-     * @param      contextURI
-     * @throws     PushClientException
-     */
     public PushClient(final String contextURI) {
         this.contextURI = contextURI;
     }
@@ -83,10 +78,9 @@ public class PushClient {
     }
 
     /**
-     *
-     * @return
      * @throws     PushClientException
      *                 if the Context-URI contains syntaxial errors or is malformed, or if an I/O error occurred.
+     * @return     The Entity-Body of the Response as a <code>String</code>.
      */
     public String createPushId()
     throws PushClientException {
@@ -101,10 +95,6 @@ public class PushClient {
         }
     }
 
-    /**
-     *
-     * @param      pushId
-     */
     public void deregister(final String pushId) {
         synchronized (pushIdCallbackMap) {
             pushIdCallbackMap.remove(pushId);
@@ -143,11 +133,6 @@ public class PushClient {
         }
     }
 
-    /**
-     *
-     * @param      pushId
-     * @param      callback
-     */
     public void register(final String pushId, final Runnable callback) {
         synchronized (pushIdCallbackMap) {
             if (pushIdCallbackMap.containsKey(pushId)) {
