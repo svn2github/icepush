@@ -217,6 +217,18 @@
             <version>1.4.1</version>
         </dependency>
 
+	<dependency>
+	    <groupId>org.mongodb</groupId>
+	    <artifactId>mongo-java-driver</artifactId>
+	    <version>3.0.3</version>
+	</dependency>
+
+	<dependency>
+	    <groupId>org.mongodb.morphia</groupId>
+	    <artifactId>morphia</artifactId>
+	    <version>1.1.1</version>
+	</dependency>
+
     </dependencies>
 
     <profiles>
