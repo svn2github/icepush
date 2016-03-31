@@ -15,6 +15,7 @@
  */
 package org.icepush;
 
+import static org.icesoft.util.ObjectUtilities.*;
 import static org.icesoft.util.PreCondition.checkArgument;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
@@ -219,12 +220,21 @@ public class PushContext {
      *                 The Push configuration.
      * @see        #push(String)
      * @throws     IllegalArgumentException
-     *                 If the specified <code>groupName</code> is <code>null</code> or empty.
+     *                 If the specified <code>groupName</code> is <code>null</code> or empty or if the specified
+     *                 <code>pushConfiguration</code> does contain the attribute <i>'subject'</i> but does not contain
+     *                 the attribute <i>'targetURI'</i>.
      */
-    public void push(final String groupName, PushConfiguration pushConfiguration) {
+    public void push(final String groupName, final PushConfiguration pushConfiguration) {
         checkArgument(
             isNotNullAndIsNotEmpty(groupName),
             "Illegal argument groupName: '" + groupName + "'.  Argument groupName cannot be null or empty."
+        );
+        checkArgument(
+            isNull(pushConfiguration) ||
+                !pushConfiguration.containsAttributeKey("subject") ||
+                pushConfiguration.containsAttributeKey("targetURI"),
+            "Illegal argument pushConfiguration: '" + pushConfiguration + "'.  " +
+                "Argument must contain attribute 'targetURI' when it contains attribute 'subject'."
         );
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
             push(groupName, pushConfiguration);
@@ -244,12 +254,21 @@ public class PushContext {
      *                 The Push configuration.
      * @see        #push(String, String, org.icepush.PushConfiguration)
      * @throws     IllegalArgumentException
-     *                 If the specified <code>groupName</code> is <code>null</code> or empty.
+     *                 If the specified <code>groupName</code> is <code>null</code> or empty or if the specified
+     *                 <code>pushConfiguration</code> does contain the attribute <i>'subject'</i> but does not contain
+     *                 the attribute <i>'targetURI'</i>.
      */
     public void push(final String groupName, final String payload, final PushConfiguration pushConfiguration) {
         checkArgument(
             isNotNullAndIsNotEmpty(groupName),
             "Illegal argument groupName: '" + groupName + "'.  Argument groupName cannot be null or empty."
+        );
+        checkArgument(
+            isNull(pushConfiguration) ||
+                !pushConfiguration.containsAttributeKey("subject") ||
+                pushConfiguration.containsAttributeKey("targetURI"),
+            "Illegal argument pushConfiguration: '" + pushConfiguration + "'.  " +
+                "Argument must contain attribute 'targetURI' when it contains attribute 'subject'."
         );
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).
             push(groupName, payload, pushConfiguration);

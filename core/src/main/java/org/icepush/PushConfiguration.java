@@ -15,6 +15,10 @@
  */
 package org.icepush;
 
+import static org.icesoft.util.ObjectUtilities.*;
+import static org.icesoft.util.PreCondition.checkArgument;
+import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
+
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Date;
@@ -58,7 +62,8 @@ implements Serializable {
      *                 The attribute map of the new PushConfiguration to be constructed.
      * @see        #PushConfiguration
      */
-    public PushConfiguration(final Map<String, Object> attributeMap)  {
+    public PushConfiguration(final Map<String, Object> attributeMap)
+    throws IllegalArgumentException {
         putAllAttributes(attributeMap);
     }
 
@@ -76,9 +81,9 @@ implements Serializable {
     public boolean equals(final Object object) {
         return
             object instanceof PushConfiguration &&
-            ((PushConfiguration)object).getAttributeMap().equals(getAttributeMap()) &&
-            ((PushConfiguration)object).getDuration() == getDuration() &&
-            ((PushConfiguration)object).getScheduledAt() == getScheduledAt();
+                ((PushConfiguration)object).getAttributeMap().equals(getAttributeMap()) &&
+                ((PushConfiguration)object).getDuration() == getDuration() &&
+                ((PushConfiguration)object).getScheduledAt() == getScheduledAt();
     }
 
     public static PushConfiguration fromRequest(final HttpServletRequest request) {
@@ -128,27 +133,36 @@ implements Serializable {
         return Collections.unmodifiableMap(getModifiableAttributeMap());
     }
 
-    public long getScheduledAt() {
-        return scheduledAt;
-    }
-
     public long getDuration() {
         return duration;
     }
 
+    public long getScheduledAt() {
+        return scheduledAt;
+    }
+
     @Override
     public int hashCode() {
-        return getAttributeMap().hashCode();
+        return getModifiableAttributeMap().hashCode();
     }
 
-    public Object putAttribute(final String key, final Object value) {
-        return getModifiableAttributeMap().put(key, value);
-    }
-
-    public void putAllAttributes(final Map<String, Object> attributeMap) {
+    public void putAllAttributes(final Map<String, Object> attributeMap)
+    throws IllegalArgumentException {
         for (final Map.Entry<String, Object> _attributeEntry : attributeMap.entrySet()) {
+            // throws IllegalArgumentException
             putAttribute(_attributeEntry.getKey(), _attributeEntry.getValue());
         }
+    }
+
+    public Object putAttribute(final String key, final Object value)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(key), "Illegal argument key: '" + key + "'.  Argument cannot be null or empty."
+        );
+        checkArgument(
+            isNotNull(value), "Illegal argument value: '" + value + "'.  Argument cannot be null."
+        );
+        return getModifiableAttributeMap().put(key, value);
     }
 
     public Object removeAttribute(final String key) {

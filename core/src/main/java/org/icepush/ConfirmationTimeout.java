@@ -17,6 +17,7 @@
 package org.icepush;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -109,6 +110,10 @@ implements DatabaseEntity, Serializable {
         return getDatabaseID();
     }
 
+    public Map<String, String> getPropertyMap() {
+        return Collections.unmodifiableMap(getModifiablePropertyMap());
+    }
+
     public void save() {
         ConcurrentMap<String, ConfirmationTimeout> _confirmationTimeoutMap =
             (ConcurrentMap<String, ConfirmationTimeout>)
@@ -128,10 +133,10 @@ implements DatabaseEntity, Serializable {
         setScheduledTime(scheduledTime);
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
-                Level.FINE,
-                "Confirmation Timeout for Browser '" + getBrowserID() + "' with " +
-                    "Scheduled Time '" + getScheduledTime() + "' scheduled.  " +
-                        "(now: '" + new Date(System.currentTimeMillis()) + "')");
+                    Level.FINE,
+                    "Confirmation Timeout for Browser '" + getBrowserID() + "' with " +
+                            "Scheduled Time '" + getScheduledTime() + "' scheduled.  " +
+                            "(now: '" + new Date(System.currentTimeMillis()) + "')");
         }
         getConfirmationTimer().schedule(getTimerTask(), new Date(getScheduledTime()));
     }
@@ -195,6 +200,9 @@ implements DatabaseEntity, Serializable {
                     CloudNotificationService _cloudNotificationService =
                         internalPushGroupManager.getCloudNotificationService();
                     if (_cloudNotificationService != null) {
+                        if (getPropertyMap().containsKey("targetURI")) {
+                            getModifiablePropertyMap().put("uri", getModifiablePropertyMap().remove("targetURI"));
+                        }
                         _cloudNotificationService.pushToNotifyBackURI(_notifyBackURI.getURI(), getPropertyMap());
                     } else {
                         if (LOGGER.isLoggable(Level.FINE)) {
@@ -244,7 +252,7 @@ implements DatabaseEntity, Serializable {
         return minCloudPushInterval;
     }
 
-    protected final Map<String, String> getPropertyMap() {
+    protected final Map<String, String> getModifiablePropertyMap() {
         return propertyMap;
     }
 

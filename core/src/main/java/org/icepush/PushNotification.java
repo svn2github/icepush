@@ -15,7 +15,12 @@
  */
 package org.icepush;
 
+import static org.icesoft.util.ObjectUtilities.*;
+import static org.icesoft.util.PreCondition.checkArgument;
+import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
+
 import java.io.Serializable;
+import java.net.URI;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -33,39 +38,11 @@ implements Serializable {
     /** The PushNotification attribute name for detail. */
     public static String DETAIL = "detail";
 
+    /** The PushNotification attribute name for targetURI. */
+    public static String TARGET_URI = "targetURI";
+
     protected PushNotification() {
         super();
-    }
-
-    /**
-     * <p>
-     *     Constructs a new PushNotification with the specified <code>subject</code>.
-     * </p>
-     *
-     * @param      subject
-     *                 The subject of the new PushNotification to be constructed.
-     * @see        #PushNotification(String, String)
-     * @see        #PushNotification(Map)
-     */
-    public PushNotification(final String subject)  {
-        putAttribute(SUBJECT, subject);
-    }
-
-    /**
-     * <p>
-     *     Constructs a new PushNotification with the specified <code>subject</code> and <code>detail</code>.
-     * </p>
-     *
-     * @param      subject
-     *                 The subject of the new PushNotification to be constructed.
-     * @param      detail
-     *                 The detail of the new PushNotification to be constructed.
-     * @see        #PushNotification(String)
-     * @see        #PushNotification(Map)
-     */
-    public PushNotification(final String subject, final String detail)  {
-        putAttribute(SUBJECT, subject);
-        putAttribute(DETAIL, detail);
     }
 
     /**
@@ -73,18 +50,68 @@ implements Serializable {
      *     Constructs a new PushNotification with the specified <code>attributes</code>.
      * </p>
      *
-     * @param      attributes
+     * @param      attributeMap
      *                 The attributes of the new PushNotification to be constructed.
-     * @see        #PushNotification(String)
-     * @see        #PushNotification(String, String)
+     * @see        #PushNotification(String, URI)
+     * @see        #PushNotification(String, String, URI)
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>attributeMap</code> contains <code>null</code> or empty keys or
+     *                 <code>null</code> values.
      */
-    public PushNotification(Map<String, Object> attributes)  {
-        super(attributes);
+    public PushNotification(final Map<String, Object> attributeMap)
+    throws IllegalArgumentException {
+        super(attributeMap);
     }
 
     /**
      * <p>
-     *     Gets the detail of this PushNotification.
+     *     Constructs a new PushNotification with the specified <code>subject</code>, <code>detail</code> and
+     *     <code>targetURI</code>.
+     * </p>
+     *
+     * @param      subject
+     *                 The subject of the new PushNotification to be constructed.
+     * @param      detail
+     *                 The detail of the new PushNotification to be constructed.
+     * @param      targetURI
+     *                 The targetURI of the new PushNotification to be constructed.
+     * @see        #PushNotification(String, URI)
+     * @see        #PushNotification(Map)
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>subject</code> and/or <code>targetURI</code> is <code>null</code> or
+     *                 empty.
+     */
+    public PushNotification(final String subject, final String detail, final URI targetURI)
+    throws IllegalArgumentException {
+        setSubject(subject);
+        setDetail(detail);
+        setTargetURI(targetURI);
+    }
+
+    /**
+     * <p>
+     *     Constructs a new PushNotification with the specified <code>subject</code> and <code>targetURI</code>.
+     * </p>
+     *
+     * @param      subject
+     *                 The subject of the new PushNotification to be constructed.
+     * @param      targetURI
+     *                 The targetURI of the new PushNotification to be constructed.
+     * @see        #PushNotification(String, String, URI)
+     * @see        #PushNotification(Map)
+     * @throws     IllegalArgumentException
+     *                 If the specified <code>subject</code> and/or <code>targetURI</code> is <code>null</code> or
+     *                 empty.
+     */
+    public PushNotification(final String subject, final URI targetURI)
+    throws IllegalArgumentException {
+        setSubject(subject);
+        setTargetURI(targetURI);
+    }
+
+    /**
+     * <p>
+     *     Gets the detail of this Push Notification.
      * </p>
      *
      * @return     The detail.
@@ -95,12 +122,59 @@ implements Serializable {
 
     /**
      * <p>
-     *     Gets the subject of this PushNotification.
+     *     Gets the subject of this Push Notification.
      * </p>
      *
      * @return     The subject.
      */
     public String getSubject() {
         return (String)getAttribute(SUBJECT);
+    }
+
+    /**
+     * <p>
+     *     Gets the target URI of this Push Notification.
+     * </p>
+     *
+     * @return     The target URI.
+     */
+    public String getTargetURI() {
+        return (String)getAttribute(TARGET_URI);
+    }
+
+    public void setDetail(final String detail)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(detail),
+            "Illegal argument detail: '" + detail + "'.  Argument cannot be null or empty."
+        );
+        putAttribute(DETAIL, detail);
+    }
+
+    public void setSubject(final String subject)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(subject),
+            "Illegal argument subject: '" + subject + "'.  Argument cannot be null or empty."
+        );
+        putAttribute(SUBJECT, subject);
+    }
+
+    public void setTargetURI(final URI targetURI) {
+        checkArgument(
+            isNotNull(targetURI),
+            "Illegal argument targetURI: '" + targetURI + "'.  Argument cannot be null."
+        );
+        putAttribute(TARGET_URI, targetURI.toString());
+    }
+
+    @Override
+    public String toString() {
+        return
+            new StringBuilder().
+                append("PushNotification[").
+                    append(classMembersToString()).
+                append("]").
+                    toString();
     }
 }
