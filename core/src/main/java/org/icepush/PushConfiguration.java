@@ -98,25 +98,50 @@ implements Serializable {
         } else {
             _pushConfiguration = null;
         }
-        String delay = request.getParameter("delay");
-        if (delay != null) {
-            String duration = request.getParameter("duration");
-            if (duration != null) {
+        String _delay = request.getParameter("delay");
+        if (isNotNullAndIsNotEmpty(_delay)) {
+            String _duration = request.getParameter("duration");
+            if (isNotNullAndIsNotEmpty(_duration)) {
                 if (_pushConfiguration == null) {
                     _pushConfiguration = new PushConfiguration();
                 }
-                _pushConfiguration.delayed(Long.parseLong(delay), Long.parseLong(duration));
+                _pushConfiguration.delayed(Long.parseLong(_delay), Long.parseLong(_duration));
             }
         }
-        String at = request.getParameter("at");
-        if (at != null) {
-            String duration = request.getParameter("duration");
-            if (duration != null) {
+        String _at = request.getParameter("at");
+        if (isNotNullAndIsNotEmpty(_at)) {
+            String _duration = request.getParameter("duration");
+            if (isNotNullAndIsNotEmpty(_duration)) {
                 if (_pushConfiguration == null) {
                     _pushConfiguration = new PushConfiguration();
                 }
-                _pushConfiguration.scheduled(new Date(Long.parseLong(at)), Long.parseLong(duration));
+                _pushConfiguration.scheduled(new Date(Long.parseLong(_at)), Long.parseLong(_duration));
             }
+        }
+        /*
+         * For now put subject, detail and targetURI in the Push Configuration's attribute map instead of making these
+         * 'first class' attributes like at, delay and duration.
+         */
+        String _subject = request.getParameter("subject");
+        if (isNotNullAndIsNotEmpty(_subject)) {
+            if (_pushConfiguration == null) {
+                _pushConfiguration = new PushConfiguration();
+            }
+            _pushConfiguration.putAttribute("subject", _subject);
+        }
+        String _detail = request.getParameter("detail");
+        if (isNotNullAndIsNotEmpty(_detail)) {
+            if (_pushConfiguration == null) {
+                _pushConfiguration = new PushConfiguration();
+            }
+            _pushConfiguration.putAttribute("detail", _detail);
+        }
+        String _targetURI = request.getParameter("targetURI");
+        if (isNotNullAndIsNotEmpty(_detail)) {
+            if (_pushConfiguration == null) {
+                _pushConfiguration = new PushConfiguration();
+            }
+            _pushConfiguration.putAttribute("targetURI", _targetURI);
         }
         return _pushConfiguration;
     }
