@@ -402,7 +402,8 @@ implements NotificationBroadcaster.Receiver, PushServer {
             } else {
                 resetTimeout(getPendingPushRequestQueue().peek());
             }
-            respondToIfNotificationsAvailable(pushRequest);
+
+            return respondToIfNotificationsAvailable(pushRequest);
         }
         return _anyNotifications;
     }
