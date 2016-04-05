@@ -77,8 +77,32 @@
         </ant>
     </target>
 
-    <target name="compile" depends="pre.compile, product.info" description="compile classes">
+    <target name="compile" depends="check.iceutil.jar, build.iceutil.jar, check.icenotify.jar, build.icenotify.jar, pre.compile, product.info" description="compile classes">
         <compile/>
+    </target>
+
+    <target name="check.iceutil.jar">
+        <available file="${root.offset}/${util.dir}/${dist.dir}/iceutil.jar" property="iceutil.jar.present" />
+    </target>
+
+    <target name="build.iceutil.jar" unless="iceutil.jar.present">
+        <subant failonerror="true">
+            <fileset dir="${root.offset}/${util.dir}" includes="build.xml" />
+            <target name="clean" />
+            <target name="jar" />
+        </subant>
+    </target>
+
+    <target name="check.icenotify.jar">
+        <available file="${root.offset}/${cloud.dir}/${dist.dir}/icenotify.jar" property="icenotify.jar.present" />
+    </target>
+
+    <target name="build.icenotify.jar" unless="icenotify.jar.present">
+        <subant failonerror="true">
+            <fileset dir="${root.offset}/${cloud.dir}" includes="build.xml" />
+            <target name="clean" />
+            <target name="jar" />
+        </subant>
     </target>
 
     <target name="javadoc">
