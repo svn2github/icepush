@@ -389,7 +389,8 @@ implements DatabaseEntity, Serializable {
                 save();
             }
         } else if (!this.propertyMap.equals(propertyMap) && propertyMap != null) {
-            this.propertyMap = propertyMap;
+            this.propertyMap.clear();
+            this.propertyMap.putAll(propertyMap);
             _modified = true;
             if (save) {
                 save();
