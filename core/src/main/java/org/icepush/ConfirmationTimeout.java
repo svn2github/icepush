@@ -201,7 +201,7 @@ implements DatabaseEntity, Serializable {
                         internalPushGroupManager.getCloudNotificationService();
                     if (_cloudNotificationService != null) {
                         if (getPropertyMap().containsKey("targetURI")) {
-                            getModifiablePropertyMap().put("uri", getModifiablePropertyMap().remove("targetURI"));
+                            getModifiablePropertyMap().put("url", getModifiablePropertyMap().remove("targetURI"));
                         }
                         _cloudNotificationService.pushToNotifyBackURI(_notifyBackURI.getURI(), getPropertyMap());
                     } else {
