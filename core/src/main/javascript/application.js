@@ -232,6 +232,16 @@ if (!window.ice.icepush) {
 
         var currentNotifications = [];
         var apiChannel = Client(true);
+        function commonParameters(query) {
+            try {
+                parameter(query, BrowserIDName, lookupCookieValue(BrowserIDName));
+            } catch (e) {
+                //skip sending browser ID when not yet defined
+            }
+            parameter(query, Account, ice.push.configuration.account);
+            parameter(query, Realm, ice.push.configuration.realm);
+            parameter(query, AccessToken, ice.push.configuration.access_token);
+        }
         //public API
         namespace.uriextension = '';
         namespace.push = {
@@ -261,16 +271,7 @@ if (!window.ice.icepush) {
 
             createPushId: function(retries, callback) {
                 var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
-                postAsynchronously(apiChannel, uri, function (query) {
-                    try {
-                        parameter(query, BrowserIDName, lookupCookieValue(BrowserIDName));
-                    } catch (e) {
-                        //skip sending browser ID when not yet defined
-                    }
-                    parameter(query, Account, ice.push.configuration.account);
-                    parameter(query, Realm, ice.push.configuration.realm);
-                    parameter(query, AccessToken, ice.push.configuration.access_token);
-                }, FormPost, $witch(function (condition) {
+                postAsynchronously(apiChannel, uri, commonParameters, FormPost, $witch(function (condition) {
                     condition(OK, function(response) {
                         if (isXMLResponse(response)) {
                             if (retries && retries > 1) {
@@ -292,10 +293,7 @@ if (!window.ice.icepush) {
             notify: function(group, payload, options) {
                 var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
-                    parameter(q, BrowserIDName, lookupCookieValue(BrowserIDName));
-                    parameter(q, Account, ice.push.configuration.account);
-                    parameter(q, Realm, ice.push.configuration.realm);
-                    parameter(q, AccessToken, ice.push.configuration.access_token);
+                    commonParameters(q);
                     parameter(q, 'group', group);
                     if (payload) {
                         parameter(q, 'payload', payload);
@@ -337,10 +335,7 @@ if (!window.ice.icepush) {
             addGroupMember: function(group, id, options) {
                 var uri = resolveURI(namespace.push.configuration.addGroupMemberURI || 'add-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
-                    parameter(q, BrowserIDName, lookupCookieValue(BrowserIDName));
-                    parameter(q, Account, ice.push.configuration.account);
-                    parameter(q, Realm, ice.push.configuration.realm);
-                    parameter(q, AccessToken, ice.push.configuration.access_token);
+                    commonParameters(q);
                     parameter(q, 'group', group);
                     parameter(q, 'id', id);
                     if (options) {
@@ -358,10 +353,7 @@ if (!window.ice.icepush) {
             removeGroupMember: function(group, id) {
                 var uri = resolveURI(namespace.push.configuration.removeGroupMemberURI || 'remove-group-member.icepush');
                 postAsynchronously(apiChannel, uri, function(q) {
-                    parameter(q, BrowserIDName, lookupCookieValue(BrowserIDName));
-                    parameter(q, Account, ice.push.configuration.account);
-                    parameter(q, Realm, ice.push.configuration.realm);
-                    parameter(q, AccessToken, ice.push.configuration.access_token);
+                    commonParameters(q);
                     parameter(q, 'group', group);
                     parameter(q, 'id', id);
                 }, FormPost, $witch(function(condition) {
@@ -369,12 +361,40 @@ if (!window.ice.icepush) {
                 }));
             },
 
+            addNotifyBackURI: function(notifyBackURI) {
+                var uri = resolveURI(namespace.push.configuration.addNotifyBackURIURI || 'add-notify-back-uri.icepush');
+                postAsynchronously(apiChannel, uri, function(q) {
+                    commonParameters(q);
+                    parameter(q, 'notifyBackURI', notifyBackURI);
+                }, FormPost, $witch(function(condition) {
+                    condition(ServerInternalError, throwServerError);
+                }));
+            },
+
+            removeNotifyBackURI: function() {
+                var uri = resolveURI(namespace.push.configuration.removeNotifyBackURIURI || 'remove-notify-back-uri.icepush');
+                postAsynchronously(apiChannel, uri, commonParameters, FormPost, $witch(function(condition) {
+                    condition(ServerInternalError, throwServerError);
+                }));
+            },
+
+            hasNotifyBackURI: function() {
+                var uri = resolveURI(namespace.push.configuration.hasNotifyBackURIURI || 'has-notify-back-uri.icepush');
+                var result;
+                postSynchronously(apiChannel, uri, commonParameters, FormPost, $witch(function(condition) {
+                    condition(OK, function(response) {
+                        var content = contentAsText(response);
+                        result = content ? toLowerCase(content) == 'true' : false;
+                    });
+                    condition(ServerInternalError, throwServerError);
+                }));
+
+                return result;
+            },
+
             get: function(uri, parameters, responseCallback) {
                 getAsynchronously(apiChannel, uri, function(query) {
-                    parameter(query, BrowserIDName, lookupCookieValue(BrowserIDName));
-                    parameter(query, Account, ice.push.configuration.account);
-                    parameter(query, Realm, ice.push.configuration.realm);
-                    parameter(query, AccessToken, ice.push.configuration.access_token);
+                    commonParameters(q);
                     parameters(curry(parameter, query));
                 }, noop, $witch(function(condition) {
                     condition(OK, function(response) {
@@ -386,10 +406,7 @@ if (!window.ice.icepush) {
 
             post: function(uri, parameters, responseCallback) {
                 postAsynchronously(apiChannel, uri, function(query) {
-                    parameter(query, BrowserIDName, lookupCookieValue(BrowserIDName));
-                    parameter(query, Account, ice.push.configuration.account);
-                    parameter(query, Realm, ice.push.configuration.realm);
-                    parameter(query, AccessToken, ice.push.configuration.access_token);
+                    commonParameters(q);
                     parameters(curry(parameter, query));
                 }, FormPost, $witch(function(condition) {
                     condition(OK, function(response) {

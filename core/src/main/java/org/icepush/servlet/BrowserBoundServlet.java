@@ -16,6 +16,7 @@
 package org.icepush.servlet;
 
 import java.util.Timer;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
@@ -36,13 +37,13 @@ extends PathDispatcher
 implements PseudoServlet {
     private final static Logger LOGGER = Logger.getLogger(BrowserBoundServlet.class.getName());
 
-    protected final String browserID;
-    protected final Configuration configuration;
-    protected final Slot heartbeatInterval;
-    protected final Timer monitoringScheduler;
-    protected final PushContext pushContext;
-    protected final ServletContext servletContext;
-    protected final boolean terminateBlockingConnectionOnShutdown;
+    private final String browserID;
+    private final Configuration configuration;
+    private final Slot heartbeatInterval;
+    private final Timer monitoringScheduler;
+    private final PushContext pushContext;
+    private final ServletContext servletContext;
+    private final boolean terminateBlockingConnectionOnShutdown;
 
     protected boolean setUp = false;
 
@@ -59,7 +60,8 @@ implements PseudoServlet {
         this.terminateBlockingConnectionOnShutdown = terminateBlockingConnectionOnShutdown;
         this.heartbeatInterval =
             new Slot(
-                configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout));
+                configuration.getAttributeAsLong("heartbeatTimeout", ConfigurationServer.DefaultHeartbeatTimeout)
+            );
     }
 
     @Override
@@ -74,6 +76,9 @@ implements PseudoServlet {
         dispatchOn(".*create-push-id\\.icepush", newCreatePushID());
         dispatchOn(".*add-group-member\\.icepush", newAddGroupMember());
         dispatchOn(".*remove-group-member\\.icepush", newRemoveGroupMember());
+        dispatchOn(".*add-notify-back-uri\\.icepush", newAddNotifyBackURI());
+        dispatchOn(".*has-notify-back-uri\\.icepush", newHasNotifyBackURI());
+        dispatchOn(".*remove-notify-back-uri\\.icepush", newRemoveNotifyBackURI());
         setUp = true;
     }
 
@@ -95,41 +100,88 @@ implements PseudoServlet {
         Slot sequenceNo = new Slot(0L);
         return
             new ConfigurationServer(
-                heartbeatInterval,
-                servletContext,
-                configuration,
+                getHeartbeatInterval(),
+                getServletContext(),
+                getConfiguration(),
                 new PushStormDetectionServer(
                     new SequenceTaggingServer(
                         sequenceNo,
                         newBlockingConnectionServer()
                     ),
-                    configuration
+                    getConfiguration()
                 )
             );
     }
 
+    protected final String getBrowserID() {
+        return browserID;
+    }
+
+    protected final Configuration getConfiguration() {
+        return configuration;
+    }
+
+    protected final Slot getHeartbeatInterval() {
+        return heartbeatInterval;
+    }
+
+    protected final Timer getMonitoringScheduler() {
+        return monitoringScheduler;
+    }
+
+    protected final PushContext getPushContext() {
+        return pushContext;
+    }
+
+    protected final ServletContext getServletContext() {
+        return servletContext;
+    }
+
+    protected final boolean getTerminateBlockingConnectionOnShutdown() {
+        return terminateBlockingConnectionOnShutdown;
+    }
+
     protected PseudoServlet newAddGroupMember() {
-        return new AddGroupMember(pushContext);
+        return new AddGroupMember(getPushContext());
+    }
+
+    protected PseudoServlet newAddNotifyBackURI() {
+        return new AddNotifyBackURI(getPushContext());
     }
 
     protected BlockingConnectionServer newBlockingConnectionServer() {
         BlockingConnectionServer _blockBlockingConnectionServer =
             new BlockingConnectionServer(
-                browserID, monitoringScheduler, heartbeatInterval, terminateBlockingConnectionOnShutdown, configuration
+                getBrowserID(),
+                getMonitoringScheduler(),
+                getHeartbeatInterval(),
+                getTerminateBlockingConnectionOnShutdown(),
+                getConfiguration()
             );
         _blockBlockingConnectionServer.setUp();
         return _blockBlockingConnectionServer;
     }
 
     protected PseudoServlet newCreatePushID() {
-        return new CreatePushID(pushContext);
+        return new CreatePushID(getPushContext());
+    }
+
+    protected PseudoServlet newHasNotifyBackURI() {
+        return new HasNotifyBackURI(getPushContext());
     }
 
     protected PseudoServlet newListen() {
-        return new EnvironmentAdaptingServlet(createBlockingConnectionServer(), heartbeatInterval, configuration);
+        return
+            new EnvironmentAdaptingServlet(
+                createBlockingConnectionServer(), getHeartbeatInterval(), getConfiguration()
+            );
     }
 
     protected PseudoServlet newRemoveGroupMember() {
-        return new RemoveGroupMember(pushContext);
+        return new RemoveGroupMember(getPushContext());
+    }
+
+    protected PseudoServlet newRemoveNotifyBackURI() {
+        return new RemoveNotifyBackURI(getPushContext());
     }
 }

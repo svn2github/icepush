@@ -17,6 +17,7 @@ package org.icepush;
 
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
+import java.net.URI;
 import java.util.AbstractCollection;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -226,6 +227,10 @@ implements InternalPushGroupManager, PushGroupManager {
         return addNotifyBackURI(getModifiableNotifyBackURIMap(), notifyBackURI);
     }
 
+    public boolean addNotifyBackURI(final String browserID, final URI notifyBackURI) {
+        return addNotifyBackURI(getModifiableBrowserMap(), getModifiableNotifyBackURIMap(), browserID, notifyBackURI);
+    }
+
     public void backOff(final String browserID, final long delay) {
         BlockingConnectionServer server = blockingConnectionServerMap.get(browserID);
         if (server != null) {
@@ -369,6 +374,10 @@ implements InternalPushGroupManager, PushGroupManager {
         return Collections.unmodifiableMap(getModifiablePushIDMap());
     }
 
+    public boolean hasNotifyBackURI(final String browserID) {
+        return hasNotifyBackURI(getBrowserMap(), browserID);
+    }
+
     public boolean isParked(final String pushID) {
         return parkedPushIDs.containsKey(pushID);
     }
@@ -449,6 +458,10 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public void removeNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
         outboundNotifier.removeReceiver(observer);
+    }
+
+    public boolean removeNotifyBackURI(final String browserID) {
+        return removeNotifyBackURI(getModifiableBrowserMap(), getModifiableNotifyBackURIMap(), browserID);
     }
 
     public void removePendingNotification(final String pushID) {
@@ -701,6 +714,25 @@ implements InternalPushGroupManager, PushGroupManager {
         boolean _modified;
         if (!notifyBackURIMap.containsKey(notifyBackURI.getURI())) {
             notifyBackURIMap.put(notifyBackURI.getURI(), notifyBackURI);
+            _modified = true;
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    protected boolean addNotifyBackURI(
+        final ConcurrentMap<String, Browser> browserMap, final ConcurrentMap<String, NotifyBackURI> notifyBackURIMap,
+        final String browserID, final URI notifyBackURI) {
+
+        boolean _modified;
+        if (!notifyBackURIMap.containsKey(notifyBackURI.toString())) {
+            NotifyBackURI _notifyBackURI = newNotifyBackURI(notifyBackURI.toString());
+            _notifyBackURI.setBrowserID(browserID);
+            notifyBackURIMap.put(_notifyBackURI.getURI(), _notifyBackURI);
+            if (browserMap.containsKey(browserID)) {
+                browserMap.get(browserID).setNotifyBackURI(_notifyBackURI.getURI(), true);
+            }
             _modified = true;
         } else {
             _modified = false;
@@ -1311,6 +1343,10 @@ implements InternalPushGroupManager, PushGroupManager {
         return servletContext;
     }
 
+    protected boolean hasNotifyBackURI(final Map<String, Browser> browserMap, final String browserID) {
+        return browserMap.containsKey(browserID) && browserMap.get(browserID).hasNotifyBackURI();
+    }
+
     protected boolean isOutOfBandNotification(final Map<String, String> propertyMap) {
         return propertyMap != null && propertyMap.containsKey("subject");
     }
@@ -1501,6 +1537,28 @@ implements InternalPushGroupManager, PushGroupManager {
                     LOGGER.log(Level.FINE, "Removed Push-ID '" + pushID + "' from Group '" + groupName + "'.");
                 }
             }
+        }
+        return _modified;
+    }
+
+    protected boolean removeNotifyBackURI(
+        final ConcurrentMap<String, Browser> browserMap, final ConcurrentMap<String, NotifyBackURI> notifyBackURIMap,
+        final String browserID) {
+
+        boolean _modified;
+        if (browserMap.containsKey(browserID)) {
+            if (browserMap.get(browserID).hasNotifyBackURI()) {
+                String _notifyBackURI = browserMap.get(browserID).getNotifyBackURI();
+                browserMap.get(browserID).setNotifyBackURI((String)null, true);
+                if (notifyBackURIMap.containsKey(_notifyBackURI)) {
+                    notifyBackURIMap.remove(_notifyBackURI);
+                }
+                _modified = true;
+            } else {
+                _modified = false;
+            }
+        } else {
+            _modified = false;
         }
         return _modified;
     }

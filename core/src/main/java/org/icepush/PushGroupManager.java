@@ -15,6 +15,7 @@
  */
 package org.icepush;
 
+import java.net.URI;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,6 +31,8 @@ public interface PushGroupManager {
     boolean addMember(String groupName, String pushID, PushConfiguration pushConfiguration);
 
     boolean addNotifyBackURI(NotifyBackURI notifyBackURI);
+
+    boolean addNotifyBackURI(String browserID, URI notifyBackURI);
 
     void addNotificationReceiver(NotificationBroadcaster.Receiver receiver);
 
@@ -55,6 +58,8 @@ public interface PushGroupManager {
 
     PushID getPushID(String pushIDString);
 
+    boolean hasNotifyBackURI(String browserID);
+
     void park(String pushID, String notifyBackURI);
 
     void push(String groupName);
@@ -72,6 +77,8 @@ public interface PushGroupManager {
     boolean removeBrowser(String browserID);
 
     boolean removeMember(String groupName, String pushID);
+
+    boolean removeNotifyBackURI(String browserID);
 
     void removeNotificationReceiver(NotificationBroadcaster.Receiver observer);
 

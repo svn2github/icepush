@@ -15,6 +15,7 @@
  */
 package org.icepush;
 
+import java.net.URI;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -51,6 +52,10 @@ implements PushGroupManager {
     }
 
     public boolean addNotifyBackURI(final NotifyBackURI notifyBackURI) {
+        return false;
+    }
+
+    public boolean addNotifyBackURI(final String browserID, final URI notifyBackURI) {
         return false;
     }
 
@@ -93,6 +98,10 @@ implements PushGroupManager {
         return null;
     }
 
+    public boolean hasNotifyBackURI(final String browserID) {
+        return false;
+    }
+
     public NotifyBackURI newNotifyBackURI(final String uri) {
         return null;
     }
@@ -127,6 +136,10 @@ implements PushGroupManager {
     }
 
     public void removeNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
+    }
+
+    public boolean removeNotifyBackURI(final String browserID) {
+        return false;
     }
 
     public void removePushGroupListener(final PushGroupListener listener) {

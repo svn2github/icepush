@@ -16,6 +16,8 @@
 
 package org.icepush;
 
+import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
+
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
@@ -219,6 +221,10 @@ implements DatabaseEntity, Serializable {
         } finally {
             unlockNotifiedPushIDSet();
         }
+    }
+
+    public boolean hasNotifyBackURI() {
+        return isNotNullAndIsNotEmpty(getNotifyBackURI());
     }
 
     public boolean isCloudPushEnabled() {
