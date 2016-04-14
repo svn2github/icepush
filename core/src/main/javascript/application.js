@@ -651,14 +651,14 @@ if (!window.ice.icepush) {
             };
 
             //make public park push ID feature
-            var deviceURI;
             namespace.push.parkInactivePushIds = function(url) {
-                deviceURI = url;
+                window.localStorage['ice.notifyBack'] = url;
                 namespace.push.connection.pauseConnection();
                 namespace.push.connection.resumeConnection();
             };
 
             namespace.push.connection.onSend(function(header) {
+                var deviceURI = window.localStorage['ice.notifyBack'];
                 if (deviceURI) {
                     header('ice.parkids', 'true');
                     header('ice.notifyBack', deviceURI)
