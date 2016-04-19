@@ -40,11 +40,9 @@ implements PseudoServlet {
     private final Map<String, BrowserEntry> browserEntryMap = new HashMap<String, BrowserEntry>();
 
     private final long browserTimeout;
-    private final long minCloudPushInterval;
 
     public BrowserDispatcher(final Configuration configuration) {
         this.browserTimeout = configuration.getAttributeAsLong("browserTimeout", 10 * 60 * 1000);
-        this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", 10 * 1000);
     }
 
     public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {
@@ -71,7 +69,7 @@ implements PseudoServlet {
         lockBrowserEntryMap();
         try {
             if (!getModifiableBrowserEntryMap().containsKey(browserID)) {
-                getPushGroupManager().addBrowser(newBrowser(browserID, getMinCloudPushInterval()));
+                getPushGroupManager().addBrowser(newBrowser(browserID));
                 getModifiableBrowserEntryMap().
                     put(browserID, new BrowserEntry(browserID, this.newServer(browserID), this));
             }
@@ -100,10 +98,6 @@ implements PseudoServlet {
         return browserTimeout;
     }
 
-    protected final long getMinCloudPushInterval() {
-        return minCloudPushInterval;
-    }
-
     protected final Map<String, BrowserEntry> getModifiableBrowserEntryMap() {
         return browserEntryMap;
     }
@@ -125,8 +119,8 @@ implements PseudoServlet {
         }
     }
 
-    protected Browser newBrowser(final String browserID, final long minCloudPushInterval) {
-        return new Browser(browserID, minCloudPushInterval);
+    protected Browser newBrowser(final String browserID) {
+        return new Browser(browserID);
     }
 
     protected abstract PseudoServlet newServer(String browserID)

@@ -61,7 +61,6 @@ implements DatabaseEntity, Serializable {
 
     private String browserID;
     private String groupName;
-    private long minCloudPushInterval;
     private long scheduledTime;
     private long timeout;
 
@@ -70,23 +69,21 @@ implements DatabaseEntity, Serializable {
     }
 
     public ConfirmationTimeout(
-        final String browserID, final String groupName, final Map<String, String> propertyMap, final long timeout,
-        final long minCloudPushInterval) {
+        final String browserID, final String groupName, final Map<String, String> propertyMap, final long timeout) {
 
         this(
-            browserID, groupName, propertyMap, timeout, minCloudPushInterval, true
+            browserID, groupName, propertyMap, timeout, true
         );
     }
 
     protected ConfirmationTimeout(
         final String browserID, final String groupName, final Map<String, String> propertyMap, final long timeout,
-        final long minCloudPushInterval, final boolean save) {
+        final boolean save) {
 
         setBrowserID(browserID, false);
         setGroupName(groupName, false);
         setPropertyMap(propertyMap, false);
         setTimeout(timeout, false);
-        setMinCloudPushInterval(minCloudPushInterval, false);
         // Confirmation Timeout is tied to a Browser-ID.  Therefore, let the databaseID be the browserID.
         this.databaseID = getBrowserID();
         if (save) {
@@ -172,7 +169,6 @@ implements DatabaseEntity, Serializable {
             new StringBuilder().
                 append("browserID: '").append(getBrowserID()).append("', ").
                 append("groupName: '").append(getGroupName()).append("', ").
-                append("minCloudPushInterval: '").append(getMinCloudPushInterval()).append("', ").
                 append("scheduledTime: '").append(new Date(getScheduledTime())).append("', ").
                 append("timeout: ").append(getTimeout()).append("'").
                     toString();
@@ -192,32 +188,30 @@ implements DatabaseEntity, Serializable {
                 for (final String _pushIDString : _browser.getPushIDSet()) {
                     internalPushGroupManager.park(_pushIDString, _notifyBackURI.getURI());
                 }
-                if (_notifyBackURI.getTimestamp() + getMinCloudPushInterval() <= System.currentTimeMillis()) {
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(Level.FINE, "Cloud Push dispatched for Browser '" + getBrowserID() + "'.");
+                }
+                _notifyBackURI.touch();
+                CloudNotificationService _cloudNotificationService =
+                    internalPushGroupManager.getCloudNotificationService();
+                if (_cloudNotificationService != null) {
+                    if (getPropertyMap().containsKey("targetURI")) {
+                        getModifiablePropertyMap().put("url", getModifiablePropertyMap().remove("targetURI"));
+                    }
+                    _cloudNotificationService.pushToNotifyBackURI(_notifyBackURI.getURI(), getPropertyMap());
+                } else {
                     if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(Level.FINE, "Cloud Push dispatched for Browser '" + getBrowserID() + "'.");
+                        LOGGER.log(Level.FINE, "Cloud Notification Service not found.");
                     }
-                    _notifyBackURI.touch();
-                    CloudNotificationService _cloudNotificationService =
-                        internalPushGroupManager.getCloudNotificationService();
-                    if (_cloudNotificationService != null) {
-                        if (getPropertyMap().containsKey("targetURI")) {
-                            getModifiablePropertyMap().put("url", getModifiablePropertyMap().remove("targetURI"));
-                        }
-                        _cloudNotificationService.pushToNotifyBackURI(_notifyBackURI.getURI(), getPropertyMap());
-                    } else {
-                        if (LOGGER.isLoggable(Level.FINE)) {
-                            LOGGER.log(Level.FINE, "Cloud Notification Service not found.");
-                        }
-                    }
-                    internalPushGroupManager.clearPendingNotifications(_browser.getPushIDSet());
-                    _browser.lockLastNotifiedPushIDSet();
-                    _browser.lockNotifiedPushIDSet();
-                    try {
-                        _browser.removeNotifiedPushIDs(_browser.getLastNotifiedPushIDSet());
-                    } finally {
-                        _browser.unlockNotifiedPushIDSet();
-                        _browser.unlockLastNotifiedPushIDSet();
-                    }
+                }
+                internalPushGroupManager.clearPendingNotifications(_browser.getPushIDSet());
+                _browser.lockLastNotifiedPushIDSet();
+                _browser.lockNotifiedPushIDSet();
+                try {
+                    _browser.removeNotifiedPushIDs(_browser.getLastNotifiedPushIDSet());
+                } finally {
+                    _browser.unlockNotifiedPushIDSet();
+                    _browser.unlockLastNotifiedPushIDSet();
                 }
             }
             _browser.cancelConfirmationTimeout(internalPushGroupManager);
@@ -246,10 +240,6 @@ implements DatabaseEntity, Serializable {
     protected static InternalPushGroupManager getInternalPushGroupManager() {
         return
             (InternalPushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
-    }
-
-    protected final long getMinCloudPushInterval() {
-        return minCloudPushInterval;
     }
 
     protected final Map<String, String> getModifiablePropertyMap() {
@@ -313,10 +303,6 @@ implements DatabaseEntity, Serializable {
         return setGroupName(groupName, true);
     }
 
-    protected final boolean setMinCloudPushInterval(final long minCloudPushInterval) {
-        return setMinCloudPushInterval(minCloudPushInterval, true);
-    }
-
     protected final boolean setPropertyMap(final Map<String, String> propertyMap) {
         return setPropertyMap(propertyMap, true);
     }
@@ -356,20 +342,6 @@ implements DatabaseEntity, Serializable {
             (this.groupName != null && !this.groupName.equals(groupName))) {
 
             this.groupName = groupName;
-            _modified = true;
-            if (save) {
-                save();
-            }
-        } else {
-            _modified = false;
-        }
-        return _modified;
-    }
-
-    private boolean setMinCloudPushInterval(final long minCloudPushInterval, final boolean save) {
-        boolean _modified;
-        if (this.minCloudPushInterval != minCloudPushInterval) {
-            this.minCloudPushInterval = minCloudPushInterval;
             _modified = true;
             if (save) {
                 save();

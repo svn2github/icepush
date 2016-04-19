@@ -97,7 +97,6 @@ implements InternalPushGroupManager, PushGroupManager {
     private final long groupTimeout;
     private final long cloudPushIDTimeout;
     private final long pushIDTimeout;
-    private final long minCloudPushInterval;
     private final ServletContext servletContext;
 
     private long lastTouchScan = System.currentTimeMillis();
@@ -113,7 +112,6 @@ implements InternalPushGroupManager, PushGroupManager {
         this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", DEFAULT_GROUP_TIMEOUT);
         this.pushIDTimeout = configuration.getAttributeAsLong("pushIdTimeout", DEFAULT_PUSHID_TIMEOUT);
         this.cloudPushIDTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", DEFAULT_CLOUDPUSHID_TIMEOUT);
-        this.minCloudPushInterval = configuration.getAttributeAsLong("minCloudPushInterval", DEFAULT_MIN_CLOUDPUSH_INTERVAL);
         PushInternalContext.getInstance().
             setAttribute(Timer.class.getName() + "$expiry", new Timer("Expiry Timeout timer", true));
         PushInternalContext.getInstance().
@@ -524,20 +522,7 @@ implements InternalPushGroupManager, PushGroupManager {
                 long now = System.currentTimeMillis();
                 long timeout = browser.getStatus().getConnectionRecreationTimeout() * 2;
                 LOGGER.log(Level.FINE, "Calculated confirmation timeout: '" + timeout + "'");
-                if (notifyBackURI.getTimestamp() + browser.getMinCloudPushInterval() <= now + timeout) {
-                    return startConfirmationTimeout(browserID, groupName, propertyMap, sequenceNumber, timeout);
-                } else {
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(
-                            Level.FINE,
-                            "Timeout is within the minimum Cloud Push interval for URI '" + notifyBackURI + "'. (" +
-                                "timestamp: '" + notifyBackURI.getTimestamp() + "', " +
-                                "minCloudPushInterval: '" + browser.getMinCloudPushInterval() + "', " +
-                                "now: '" + now + "', " +
-                                "timeout: '" + timeout + "'" +
-                            ")");
-                    }
-                }
+                return startConfirmationTimeout(browserID, groupName, propertyMap, sequenceNumber, timeout);
             }
         }
         return false;
@@ -551,8 +536,6 @@ implements InternalPushGroupManager, PushGroupManager {
         if (browser.isCloudPushEnabled()) {
             NotifyBackURI notifyBackURI = getNotifyBackURI(browser.getNotifyBackURI());
             if (notifyBackURI != null &&
-                notifyBackURI.getTimestamp() + browser.getMinCloudPushInterval() <=
-                    System.currentTimeMillis() + timeout &&
                 isOutOfBandNotification(propertyMap)) {
 
                 ConfirmationTimeout _confirmationTimeout = getConfirmationTimeoutMap().get(browserID);
@@ -569,8 +552,7 @@ implements InternalPushGroupManager, PushGroupManager {
                     try {
                         _confirmationTimeout =
                             newConfirmationTimeout(
-                                browserID, groupName, propertyMap, timeout,
-                                getBrowser(browserID).getMinCloudPushInterval()
+                                browserID, groupName, propertyMap, timeout
                             );
                         _confirmationTimeout.schedule(System.currentTimeMillis() + timeout);
                         getConfirmationTimeoutMap().put(browserID, _confirmationTimeout);
@@ -691,7 +673,7 @@ implements InternalPushGroupManager, PushGroupManager {
             } else {
                 _pushID = newPushID(pushID);
                 pushIDMap.put(pushID, _pushID);
-                addBrowser(newBrowser(_pushID.getBrowserID(), getMinCloudPushInterval()));
+                addBrowser(newBrowser(_pushID.getBrowserID()));
                 _pushID.startExpiryTimeout();
                 _modified = true;
             }
@@ -989,10 +971,6 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected long getGroupTimeout() {
         return groupTimeout;
-    }
-
-    protected long getMinCloudPushInterval() {
-        return minCloudPushInterval;
     }
 
     protected ConcurrentMap<String, Browser> getModifiableBrowserMap() {
@@ -1355,15 +1333,14 @@ implements InternalPushGroupManager, PushGroupManager {
         return pushConfiguration != null && pushConfiguration.containsAttributeKey("subject");
     }
 
-    protected Browser newBrowser(final String browserID, final long minCloudPushInterval) {
-        return new Browser(browserID, minCloudPushInterval);
+    protected Browser newBrowser(final String browserID) {
+        return new Browser(browserID);
     }
 
     protected ConfirmationTimeout newConfirmationTimeout(
-        final String browserID, final String groupName, final Map<String, String> propertyMap, final long timeout,
-        final long minCloudPushInterval) {
+        final String browserID, final String groupName, final Map<String, String> propertyMap, final long timeout) {
 
-        return new ConfirmationTimeout(browserID, groupName, propertyMap, timeout, minCloudPushInterval);
+        return new ConfirmationTimeout(browserID, groupName, propertyMap, timeout);
     }
 
     protected ExpiryTimeout newExpiryTimeout(final String pushID, final boolean isCloudPushID) {

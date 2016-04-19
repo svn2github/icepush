@@ -58,7 +58,6 @@ implements DatabaseEntity, Serializable {
     private String databaseID;
 
     private String id;
-    private long minCloudPushInterval;
 
     private long lastAccessTimestamp;
 
@@ -86,16 +85,15 @@ implements DatabaseEntity, Serializable {
     }
 
     public Browser(final Browser browser) {
-        this(browser.getID(), browser.getMinCloudPushInterval());
+        this(browser.getID());
         setNotifyBackURI(browser.getNotifyBackURI(), false);
         setLastAccessTimestamp(browser.getLastAccessTimestamp());
         setPushIDSet(browser.getPushIDSet());
         status = new Status(browser.getStatus(), this);
     }
 
-    public Browser(final String id, final long minCloudPushInterval) {
+    public Browser(final String id) {
         this.id = id;
-        this.minCloudPushInterval = minCloudPushInterval;
         this.status = newStatus();
         this.databaseID = getID();
     }
@@ -174,10 +172,6 @@ implements DatabaseEntity, Serializable {
         } finally {
             unlockLastNotifiedPushIDSet();
         }
-    }
-
-    public long getMinCloudPushInterval() {
-        return minCloudPushInterval;
     }
 
     public Set<NotificationEntry> getNotifiedPushIDSet() {
@@ -371,7 +365,6 @@ implements DatabaseEntity, Serializable {
                 append("id: '").append(getID()).append("', ").
                 append("lastAccessTimestamp: '").append(new Date(getLastAccessTimestamp())).append("', ").
                 append("lastNotifiedPushIDSet: '").append(getLastNotifiedPushIDSet()).append("', ").
-                append("minCloudPushInterval: '").append(getMinCloudPushInterval()).append("', ").
                 append("notifiedPushIDSet: '").append(getNotifiedPushIDSet()).append("', ").
                 append("notifyBackURI: '").append(getNotifyBackURI()).append("', ").
                 append("pushIDSet: '").append(getPushIDSet()).append("', ").
