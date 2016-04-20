@@ -71,13 +71,6 @@ implements PushRequest, Request {
         return cachedHeartbeatTimestamp;
     }
 
-    public String getNotifyBackURI() {
-        if (cachedNotifyBackURI == null) {
-            cachedNotifyBackURI = getParameter("ice.notifyBack", null);
-        }
-        return cachedNotifyBackURI;
-    }
-
     public Set<String> getPushIDSet() {
         if (cachedPushIDSet == null) {
             cachedPushIDSet = new HashSet<String>(Arrays.asList(getParameterAsStrings("ice.pushid")));

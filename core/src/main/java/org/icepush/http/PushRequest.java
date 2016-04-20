@@ -28,8 +28,6 @@ extends Request {
     long getHeartbeatTimestamp()
     throws NumberFormatException;
 
-    String getNotifyBackURI();
-
     Set<String> getPushIDSet();
 
     long getSequenceNumber()

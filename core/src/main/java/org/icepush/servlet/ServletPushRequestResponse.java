@@ -67,10 +67,6 @@ implements PushRequest, PushResponse, Request, Response {
         return pushRequest.getHeartbeatTimestamp();
     }
 
-    public String getNotifyBackURI() {
-        return pushRequest.getNotifyBackURI();
-    }
-
     public Set<String> getPushIDSet() {
         return pushRequest.getPushIDSet();
     }

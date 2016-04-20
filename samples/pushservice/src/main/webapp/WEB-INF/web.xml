@@ -34,7 +34,7 @@
         </init-param>
         <init-param>
             <param-name>Access-Control-Allow-Headers</param-name>
-            <param-value>origin, ice.push.sequence, ice.push.window, ice.push.browser, content-type, ice.parkids, ice.notifyBack, ice.push.heartbeatTimestamp</param-value>
+            <param-value>origin, ice.push.sequence, ice.push.window, ice.push.browser, content-type, ice.push.heartbeatTimestamp</param-value>
         </init-param>
         <init-param>
             <param-name>Access-Control-Expose-Headers</param-name>

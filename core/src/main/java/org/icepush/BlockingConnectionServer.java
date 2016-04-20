@@ -221,19 +221,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
                     (responseDelay + (browser.getStatus().getConnectionRecreationTimeout() * 4)) / 5);
             }
         }
-
-        if (LOGGER.isLoggable(Level.FINE)) {
-            setNotifyBackURI(pushRequest);
-            LOGGER.log(
-                Level.FINE,
-                "ICEpush metric:" +
-                    " IP: " + pushRequest.getRemoteAddr() +
-                    " pushIds: " + browser.getPushIDSet() +
-                    " Cloud Push ID: " + browser.getNotifyBackURI() +
-                    " Browser: " + browser.getID() +
-                    " last request: " + elapsed +
-                    " Latency: " + currentResponseDelay);
-        }
     }
 
     private void recordResponseTime() {
@@ -408,15 +395,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
         return _anyNotifications;
     }
 
-    private void setNotifyBackURI(final PushRequest pushRequest) {
-        String notifyBack = pushRequest.getNotifyBackURI();
-        if (notifyBack != null && notifyBack.trim().length() != 0) {
-            NotifyBackURI _notifyBackURI = getPushGroupManager().newNotifyBackURI(notifyBack);
-            getPushGroupManager().addNotifyBackURI(_notifyBackURI);
-            getPushGroupManager().getBrowser(getBrowserID()).setNotifyBackURI(_notifyBackURI.getURI(), true);
-        }
-    }
-
     protected static class NotifiedPushIDs
     extends org.icepush.NotifiedPushIDs
     implements PushResponseHandler, ResponseHandler {
@@ -488,7 +466,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
                 currentWindow = currentWindow == null ? "" : currentWindow;
                 boolean resend = !lastWindow.equals(currentWindow);
                 lastWindow = currentWindow;
-                setNotifyBackURI(pushRequest);
                 getPushGroupManager().scan(getPushGroupManager().getBrowser(getBrowserID()).getPushIDSet());
                 getPushGroupManager().getBrowser(getBrowserID()).cancelConfirmationTimeout();
                 getPushGroupManager().cancelExpiryTimeouts(getPushGroupManager().getBrowser(getBrowserID()).getID());
