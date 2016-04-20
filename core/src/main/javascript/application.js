@@ -378,18 +378,15 @@ if (!window.ice.icepush) {
                 }));
             },
 
-            hasNotifyBackURI: function() {
+            hasNotifyBackURI: function(resultCallback) {
                 var uri = resolveURI(namespace.push.configuration.hasNotifyBackURIURI || 'has-notify-back-uri.icepush');
-                var result;
-                postSynchronously(apiChannel, uri, commonParameters, FormPost, $witch(function(condition) {
+                postAsynchronously(apiChannel, uri, commonParameters, FormPost, $witch(function(condition) {
                     condition(OK, function(response) {
                         var content = contentAsText(response);
-                        result = content ? toLowerCase(content) == 'true' : false;
+                        resultCallback(content ? toLowerCase(content) == 'true' : false);
                     });
                     condition(ServerInternalError, throwServerError);
                 }));
-
-                return result;
             },
 
             get: function(uri, parameters, responseCallback) {
@@ -652,18 +649,8 @@ if (!window.ice.icepush) {
 
             //make public park push ID feature
             namespace.push.parkInactivePushIds = function(url) {
-                window.localStorage['ice.notifyBack'] = url;
-                namespace.push.connection.pauseConnection();
-                namespace.push.connection.resumeConnection();
+                namespace.push.addNotifyBackURI(url);
             };
-
-            namespace.push.connection.onSend(function(header) {
-                var deviceURI = window.localStorage['ice.notifyBack'];
-                if (deviceURI) {
-                    header('ice.parkids', 'true');
-                    header('ice.notifyBack', deviceURI)
-                }
-            });
 
             info(logger, 'bridge loaded!');
 
