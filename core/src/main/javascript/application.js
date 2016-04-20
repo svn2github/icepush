@@ -394,7 +394,7 @@ if (!window.ice.icepush) {
 
             get: function(uri, parameters, responseCallback) {
                 getAsynchronously(apiChannel, uri, function(query) {
-                    commonParameters(q);
+                    commonParameters(query);
                     parameters(curry(parameter, query));
                 }, noop, $witch(function(condition) {
                     condition(OK, function(response) {
@@ -406,7 +406,7 @@ if (!window.ice.icepush) {
 
             post: function(uri, parameters, responseCallback) {
                 postAsynchronously(apiChannel, uri, function(query) {
-                    commonParameters(q);
+                    commonParameters(query);
                     parameters(curry(parameter, query));
                 }, FormPost, $witch(function(condition) {
                     condition(OK, function(response) {
