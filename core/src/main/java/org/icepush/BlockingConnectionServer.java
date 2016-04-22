@@ -221,6 +221,18 @@ implements NotificationBroadcaster.Receiver, PushServer {
                     (responseDelay + (browser.getStatus().getConnectionRecreationTimeout() * 4)) / 5);
             }
         }
+
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(
+                Level.FINE,
+                "ICEpush metric:" +
+                    " IP: " + pushRequest.getRemoteAddr() +
+                    " pushIds: " + browser.getPushIDSet() +
+                    " Cloud Push ID: " + browser.getNotifyBackURI() +
+                    " Browser: " + browser.getID() +
+                    " last request: " + elapsed +
+                    " Latency: " + currentResponseDelay);
+        }
     }
 
     private void recordResponseTime() {
@@ -389,10 +401,10 @@ implements NotificationBroadcaster.Receiver, PushServer {
             } else {
                 resetTimeout(getPendingPushRequestQueue().peek());
             }
-
             return respondToIfNotificationsAvailable(pushRequest);
+        } else {
+            return false;
         }
-        return _anyNotifications;
     }
 
     protected static class NotifiedPushIDs
