@@ -493,6 +493,7 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public void shutdown() {
+        getCloudNotificationService().tearDown(getServletContext());
         outboundNotifier.shutdown();
         ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")).cancel();
         PushInternalContext.getInstance().removeAttribute(Timer.class.getName() + "$confirmation");
