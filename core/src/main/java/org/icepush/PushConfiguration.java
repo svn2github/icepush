@@ -143,6 +143,13 @@ implements Serializable {
             }
             _pushConfiguration.putAttribute("targetURI", _targetURI);
         }
+        String _forced = request.getParameter("forced");
+        if (isNotNullAndIsNotEmpty(_forced)) {
+            if (_pushConfiguration == null) {
+                _pushConfiguration = new PushConfiguration();
+            }
+            _pushConfiguration.putAttribute("forced", Boolean.parseBoolean(_forced));
+        }
         return _pushConfiguration;
     }
 

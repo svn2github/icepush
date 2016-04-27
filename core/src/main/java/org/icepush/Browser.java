@@ -111,12 +111,8 @@ implements DatabaseEntity, Serializable {
         }
     }
 
-    public boolean cancelConfirmationTimeout() {
-        return cancelConfirmationTimeout(getInternalPushGroupManager());
-    }
-
-    public boolean cancelConfirmationTimeout(final InternalPushGroupManager pushGroupManager) {
-        return pushGroupManager.cancelConfirmationTimeout(getID());
+    public boolean cancelConfirmationTimeout(final boolean ignoreForced) {
+        return cancelConfirmationTimeout(ignoreForced, getInternalPushGroupManager());
     }
 
     public boolean clearLastNotifiedPushIDSet() {
@@ -345,8 +341,10 @@ implements DatabaseEntity, Serializable {
         return _modified;
     }
 
-    public boolean startConfirmationTimeout(final String groupName, final Map<String, String> propertyMap) {
-        return getInternalPushGroupManager().startConfirmationTimeout(getID(), groupName, propertyMap);
+    public boolean startConfirmationTimeout(
+        final String groupName, final Map<String, String> propertyMap, final boolean forced) {
+
+        return getInternalPushGroupManager().startConfirmationTimeout(getID(), groupName, propertyMap, forced);
     }
 
     @Override
@@ -357,6 +355,12 @@ implements DatabaseEntity, Serializable {
                     append(classMembersToString()).
                 append("]").
                     toString();
+    }
+
+    protected boolean cancelConfirmationTimeout(
+        final boolean ignoreForced, final InternalPushGroupManager pushGroupManager) {
+
+        return pushGroupManager.cancelConfirmationTimeout(getID(), ignoreForced);
     }
 
     protected String classMembersToString() {

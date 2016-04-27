@@ -321,6 +321,8 @@ if (!window.ice.icepush) {
                                     parameter(q, 'detail', value);
                                 } else if (name == 'targetURI') {
                                     parameter(q, 'targetURI', value);
+                                } else if (name == 'forced') {
+                                    parameter(q, 'forced', value);
                                 } else {
                                     parameter(q, 'option', name + '=' + value);
                                 }

@@ -21,6 +21,8 @@ implements DatabaseEntity, Runnable, Serializable {
 
     private Map<String, String> propertyMap = new HashMap<String, String>();
 
+    private boolean forced;
+
     public OutOfBandNotification() {
         super();
         // Do nothing.
@@ -30,25 +32,29 @@ implements DatabaseEntity, Runnable, Serializable {
         final String groupName, final String payload, final Map<String, String> propertyMap, final long duration,
         final long scheduledAt, final Set<String> exemptPushIDSet) {
 
-        this(
-            groupName, payload, propertyMap, duration, scheduledAt, exemptPushIDSet, true
-        );
+        this(groupName, payload, propertyMap, false, duration, scheduledAt, exemptPushIDSet, true);
+    }
+
+    public OutOfBandNotification(
+        final String groupName, final String payload, final Map<String, String> propertyMap, final boolean forced,
+        final long duration, final long scheduledAt, final Set<String> exemptPushIDSet) {
+
+        this(groupName, payload, propertyMap, forced, duration, scheduledAt, exemptPushIDSet, true);
     }
 
     public OutOfBandNotification(
         final String groupName, final String payload, final PushConfiguration pushConfiguration) {
 
-        this(
-            groupName, payload, pushConfiguration, true
-        );
+        this(groupName, payload, pushConfiguration, true);
     }
 
     protected OutOfBandNotification(
-        final String groupName, final String payload, final Map<String, String> propertyMap, final long duration,
-        final long scheduledAt, final Set<String> exemptPushIDSet, final boolean save) {
+        final String groupName, final String payload, final Map<String, String> propertyMap, final boolean forced,
+        final long duration, final long scheduledAt, final Set<String> exemptPushIDSet, final boolean save) {
 
         super(groupName, payload, duration, scheduledAt, exemptPushIDSet, false);
         setPropertyMap(propertyMap, false);
+        setForced(forced, false);
         if (save) {
             save();
         }
@@ -59,13 +65,21 @@ implements DatabaseEntity, Runnable, Serializable {
 
         super(groupName, payload, pushConfiguration, false);
         Map<String, String> _propertyMap = new HashMap<String, String>();
+        Boolean _forced = false;
         for (final Map.Entry<String, Object> _attributeEntry : pushConfiguration.getAttributeMap().entrySet()) {
             // TODO: Actually filter the properties supported by the Cloud Notification Service.
-            if (_attributeEntry.getValue() instanceof String) {
+            if (_attributeEntry.getValue() instanceof Boolean) {
+                if (_attributeEntry.getKey().equals("forced")) {
+                    _forced = (Boolean)_attributeEntry.getValue();
+                }
+            } else if (_attributeEntry.getValue() instanceof String) {
                 _propertyMap.put(_attributeEntry.getKey(), (String)_attributeEntry.getValue());
             }
         }
         setPropertyMap(_propertyMap, false);
+        if (_forced != null) {
+            setForced(_forced, false);
+        }
         if (save) {
             save();
         }
@@ -82,6 +96,10 @@ implements DatabaseEntity, Runnable, Serializable {
 
     public final Map<String, String> getPropertyMap() {
         return Collections.unmodifiableMap(getModifiablePropertyMap());
+    }
+
+    public final boolean isForced() {
+        return forced;
     }
 
     @Override
@@ -104,6 +122,7 @@ implements DatabaseEntity, Runnable, Serializable {
     protected String classMembersToString() {
         return
             new StringBuilder().
+                append("forced: '").append(isForced()).append("', ").
                 append("propertyMap: '").append(getPropertyMap()).append("', ").
                 append(super.classMembersToString()).
                     toString();
@@ -117,17 +136,36 @@ implements DatabaseEntity, Runnable, Serializable {
     protected NotificationEntry newNotificationEntry(
         final String pushID) {
 
-        return newNotificationEntry(pushID, getGroupName(), getPayload(), getPropertyMap());
+        return newNotificationEntry(pushID, getGroupName(), getPayload(), getPropertyMap(), isForced());
     }
 
     protected NotificationEntry newNotificationEntry(
-        final String pushID, final String groupName, final String payload, final Map<String, String> propertyMap) {
+        final String pushID, final String groupName, final String payload, final Map<String, String> propertyMap,
+        final boolean forced) {
 
-        return new NotificationEntry(pushID, groupName, payload, propertyMap);
+        return new NotificationEntry(pushID, groupName, payload, propertyMap, forced);
+    }
+
+    protected final boolean setForced(final boolean forced) {
+        return setForced(forced, true);
     }
 
     protected final boolean setPropertyMap(final Map<String, String> propertyMap) {
         return setPropertyMap(propertyMap, true);
+    }
+
+    private boolean setForced(final boolean forced, final boolean save) {
+        boolean _modified;
+        if (this.forced != forced) {
+            this.forced = forced;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
     }
 
     private boolean setPropertyMap(final Map<String, String> propertyMap, final boolean save) {

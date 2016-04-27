@@ -479,7 +479,7 @@ implements NotificationBroadcaster.Receiver, PushServer {
                 boolean resend = !lastWindow.equals(currentWindow);
                 lastWindow = currentWindow;
                 getPushGroupManager().scan(getPushGroupManager().getBrowser(getBrowserID()).getPushIDSet());
-                getPushGroupManager().getBrowser(getBrowserID()).cancelConfirmationTimeout();
+                getPushGroupManager().getBrowser(getBrowserID()).cancelConfirmationTimeout(false);
                 getPushGroupManager().cancelExpiryTimeouts(getPushGroupManager().getBrowser(getBrowserID()).getID());
                 getPushGroupManager().startExpiryTimeouts(getPushGroupManager().getBrowser(getBrowserID()).getID());
                 if (null != getPushGroupManager().getBrowser(getBrowserID()).getNotifyBackURI())  {

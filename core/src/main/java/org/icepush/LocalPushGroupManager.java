@@ -243,11 +243,16 @@ implements InternalPushGroupManager, PushGroupManager {
         pushed(groupName);
     }
 
-    public boolean cancelConfirmationTimeout(final String browserID) {
-        ConfirmationTimeout _confirmationTimeout = getConfirmationTimeoutMap().remove(browserID);
+    public boolean cancelConfirmationTimeout(final String browserID, final boolean ignoreForced) {
+        ConfirmationTimeout _confirmationTimeout = getConfirmationTimeout(browserID);
         if (_confirmationTimeout != null) {
-            _confirmationTimeout.cancel(this);
-            return true;
+            if (ignoreForced || !_confirmationTimeout.isForced()) {
+                _confirmationTimeout = getConfirmationTimeoutMap().remove(browserID);
+                if (_confirmationTimeout != null) {
+                    _confirmationTimeout.cancel(this);
+                    return true;
+                }
+            }
         }
         return false;
     }
@@ -504,16 +509,16 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public boolean startConfirmationTimeout(
-        final String browserID, final String groupName, final Map<String, String> propertyMap) {
+        final String browserID, final String groupName, final Map<String, String> propertyMap, final boolean forced) {
 
         return
             startConfirmationTimeout(
-                browserID, groupName, propertyMap, getBrowser(browserID).getSequenceNumber()
+                browserID, groupName, propertyMap, forced, getBrowser(browserID).getSequenceNumber()
             );
     }
 
     public boolean startConfirmationTimeout(
-        final String browserID, final String groupName, final Map<String, String> propertyMap,
+        final String browserID, final String groupName, final Map<String, String> propertyMap, final boolean forced,
         final long sequenceNumber) {
 
         Browser browser = getBrowser(browserID);
@@ -523,14 +528,14 @@ implements InternalPushGroupManager, PushGroupManager {
                 long now = System.currentTimeMillis();
                 long timeout = browser.getStatus().getConnectionRecreationTimeout() * 2;
                 LOGGER.log(Level.FINE, "Calculated confirmation timeout: '" + timeout + "'");
-                return startConfirmationTimeout(browserID, groupName, propertyMap, sequenceNumber, timeout);
+                return startConfirmationTimeout(browserID, groupName, propertyMap, forced, sequenceNumber, timeout);
             }
         }
         return false;
     }
 
     public boolean startConfirmationTimeout(
-        final String browserID, final String groupName, final Map<String, String> propertyMap,
+        final String browserID, final String groupName, final Map<String, String> propertyMap, final boolean forced,
         final long sequenceNumber, final long timeout) {
 
         Browser browser = getBrowser(browserID);
@@ -553,7 +558,7 @@ implements InternalPushGroupManager, PushGroupManager {
                     try {
                         _confirmationTimeout =
                             newConfirmationTimeout(
-                                browserID, groupName, propertyMap, timeout
+                                browserID, groupName, propertyMap, forced, timeout
                             );
                         _confirmationTimeout.schedule(System.currentTimeMillis() + timeout);
                         getConfirmationTimeoutMap().put(browserID, _confirmationTimeout);
@@ -1339,9 +1344,10 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected ConfirmationTimeout newConfirmationTimeout(
-        final String browserID, final String groupName, final Map<String, String> propertyMap, final long timeout) {
+        final String browserID, final String groupName, final Map<String, String> propertyMap, final boolean forced,
+        final long timeout) {
 
-        return new ConfirmationTimeout(browserID, groupName, propertyMap, timeout);
+        return new ConfirmationTimeout(browserID, groupName, propertyMap, forced, timeout);
     }
 
     protected ExpiryTimeout newExpiryTimeout(final String pushID, final boolean isCloudPushID) {
@@ -1584,7 +1590,7 @@ implements InternalPushGroupManager, PushGroupManager {
             Browser _browser = getBrowser(_pushID.getBrowserID());
             if (_browser != null) {
                 _browser.startConfirmationTimeout(
-                    notificationEntry.getGroupName(), notificationEntry.getPropertyMap()
+                    notificationEntry.getGroupName(), notificationEntry.getPropertyMap(), notificationEntry.isForced()
                 );
             }
         }

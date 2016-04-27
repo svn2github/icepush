@@ -60,6 +60,7 @@ implements DatabaseEntity, Serializable {
     }
 
     private String browserID;
+    private boolean forced;
     private String groupName;
     private long scheduledTime;
     private long timeout;
@@ -69,20 +70,20 @@ implements DatabaseEntity, Serializable {
     }
 
     public ConfirmationTimeout(
-        final String browserID, final String groupName, final Map<String, String> propertyMap, final long timeout) {
+        final String browserID, final String groupName, final Map<String, String> propertyMap, final boolean forced,
+        final long timeout) {
 
-        this(
-            browserID, groupName, propertyMap, timeout, true
-        );
+        this(browserID, groupName, propertyMap, forced, timeout, true);
     }
 
     protected ConfirmationTimeout(
-        final String browserID, final String groupName, final Map<String, String> propertyMap, final long timeout,
-        final boolean save) {
+        final String browserID, final String groupName, final Map<String, String> propertyMap, final boolean forced,
+        final long timeout, final boolean save) {
 
         setBrowserID(browserID, false);
         setGroupName(groupName, false);
         setPropertyMap(propertyMap, false);
+        setForced(forced, false);
         setTimeout(timeout, false);
         // Confirmation Timeout is tied to a Browser-ID.  Therefore, let the databaseID be the browserID.
         this.databaseID = getBrowserID();
@@ -111,6 +112,10 @@ implements DatabaseEntity, Serializable {
         return Collections.unmodifiableMap(getModifiablePropertyMap());
     }
 
+    public boolean isForced() {
+        return forced;
+    }
+
     public void save() {
         ConcurrentMap<String, ConfirmationTimeout> _confirmationTimeoutMap =
             (ConcurrentMap<String, ConfirmationTimeout>)
@@ -130,10 +135,10 @@ implements DatabaseEntity, Serializable {
         setScheduledTime(scheduledTime);
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
-                    Level.FINE,
-                    "Confirmation Timeout for Browser '" + getBrowserID() + "' with " +
-                            "Scheduled Time '" + getScheduledTime() + "' scheduled.  " +
-                            "(now: '" + new Date(System.currentTimeMillis()) + "')");
+                Level.FINE,
+                "Confirmation Timeout for Browser '" + getBrowserID() + "' with " +
+                    "Scheduled Time '" + getScheduledTime() + "' scheduled.  " +
+                        "(now: '" + new Date(System.currentTimeMillis()) + "')");
         }
         getConfirmationTimer().schedule(getTimerTask(), new Date(getScheduledTime()));
     }
@@ -168,6 +173,7 @@ implements DatabaseEntity, Serializable {
         return
             new StringBuilder().
                 append("browserID: '").append(getBrowserID()).append("', ").
+                append("forced: '").append(isForced()).append("', ").
                 append("groupName: '").append(getGroupName()).append("', ").
                 append("scheduledTime: '").append(new Date(getScheduledTime())).append("', ").
                 append("timeout: ").append(getTimeout()).append("'").
@@ -214,7 +220,7 @@ implements DatabaseEntity, Serializable {
                     _browser.unlockLastNotifiedPushIDSet();
                 }
             }
-            _browser.cancelConfirmationTimeout(internalPushGroupManager);
+            _browser.cancelConfirmationTimeout(true, internalPushGroupManager);
         } catch (final Exception exception) {
             if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.log(
@@ -299,6 +305,10 @@ implements DatabaseEntity, Serializable {
         return setBrowserID(browserID, true);
     }
 
+    protected final boolean setForced(final boolean forced) {
+        return setForced(forced, true);
+    }
+
     protected final boolean setGroupName(final String groupName) {
         return setGroupName(groupName, true);
     }
@@ -326,6 +336,20 @@ implements DatabaseEntity, Serializable {
             (this.browserID != null && !this.browserID.equals(browserID))) {
 
             this.browserID = browserID;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    private boolean setForced(final boolean forced, final boolean save) {
+        boolean _modified;
+        if (this.forced != forced) {
+            this.forced = forced;
             _modified = true;
             if (save) {
                 save();

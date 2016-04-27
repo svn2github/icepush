@@ -39,6 +39,8 @@ implements /*DatabaseEntity, */Serializable {
 
     private Map<String, String> propertyMap = new HashMap<String, String>();
 
+    private boolean forced;
+
 //    @Id
 //    private String databaseID = UUID.randomUUID().toString();
 
@@ -53,16 +55,24 @@ implements /*DatabaseEntity, */Serializable {
     public NotificationEntry(
         final String pushID, final String groupName, final String payload) {
 
-        this(pushID, groupName, payload, null);
+        this(pushID, groupName, payload, null, false);
     }
 
     public NotificationEntry(
         final String pushID, final String groupName, final String payload, final Map<String, String> propertyMap) {
 
+        this(pushID, groupName, payload, propertyMap, false);
+    }
+
+    public NotificationEntry(
+        final String pushID, final String groupName, final String payload, final Map<String, String> propertyMap,
+        final boolean forced) {
+
         setPushID(pushID);
         setGroupName(groupName);
         setPayload(payload);
         setPropertyMap(propertyMap);
+        setForced(forced);
     }
 
     @Override
@@ -79,7 +89,8 @@ implements /*DatabaseEntity, */Serializable {
                     )
                 ) &&
                 ((NotificationEntry)object).getPropertyMap().entrySet().containsAll(getPropertyMap().entrySet()) &&
-                ((NotificationEntry)object).getPropertyMap().size() == getPropertyMap().size();
+                ((NotificationEntry)object).getPropertyMap().size() == getPropertyMap().size() &&
+                ((NotificationEntry)object).isForced() == isForced();
     }
 
 //    public String getDatabaseID() {
@@ -112,7 +123,12 @@ implements /*DatabaseEntity, */Serializable {
         _hashCode = 31 * _hashCode + (getGroupName() != null ? getGroupName().hashCode() : 0);
         _hashCode = 31 * _hashCode + (getPayload() != null ? getPayload().hashCode() : 0);
         _hashCode = 31 * _hashCode + (getModifiablePropertyMap() != null ? getModifiablePropertyMap().hashCode() : 0);
+        _hashCode = 31 * _hashCode + (isForced() ? 1 : 0);
         return _hashCode;
+    }
+
+    public boolean isForced() {
+        return forced;
     }
 
 //    public void save() {
@@ -135,6 +151,7 @@ implements /*DatabaseEntity, */Serializable {
     protected String classMembersToString() {
         return
             new StringBuilder().
+                append("forced: '").append(isForced()).append("', ").
                 append("groupName: '").append(getGroupName()).append("', ").
                 append("payload: '").append(getPayload()).append("', ").
                 append("propertyMap: '").append(getPropertyMap()).append("', ").
@@ -146,14 +163,10 @@ implements /*DatabaseEntity, */Serializable {
         return propertyMap;
     }
 
-    protected boolean setPropertyMap(final Map<String, String> propertyMap) {
+    protected boolean setForced(final boolean forced) {
         boolean _modified;
-        if (!this.propertyMap.isEmpty() && propertyMap == null) {
-            this.propertyMap.clear();
-            _modified = true;
-//            save();
-        } else if (!this.propertyMap.equals(propertyMap) && propertyMap != null) {
-            this.propertyMap = propertyMap;
+        if (this.forced != forced) {
+            this.forced = forced;
             _modified = true;
 //            save();
         } else {
@@ -182,6 +195,22 @@ implements /*DatabaseEntity, */Serializable {
             (this.payload != null && !this.payload.equals(payload))) {
 
             this.payload = payload;
+            _modified = true;
+//            save();
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    protected boolean setPropertyMap(final Map<String, String> propertyMap) {
+        boolean _modified;
+        if (!this.propertyMap.isEmpty() && propertyMap == null) {
+            this.propertyMap.clear();
+            _modified = true;
+//            save();
+        } else if (!this.propertyMap.equals(propertyMap) && propertyMap != null) {
+            this.propertyMap = propertyMap;
             _modified = true;
 //            save();
         } else {
