@@ -32,10 +32,13 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 
 import org.icepush.util.DatabaseEntity;
+import org.icesoft.util.Configuration;
+import org.icesoft.util.servlet.ServletContextConfiguration;
 
 import org.mongodb.morphia.Datastore;
 import org.mongodb.morphia.annotations.Entity;
@@ -51,6 +54,8 @@ implements DatabaseEntity, Serializable {
     private static final Logger LOGGER = Logger.getLogger(Browser.class.getName());
 
     public static final String BROWSER_ID_NAME = "ice.push.browser";
+    public static final String BROWSER_TIMEOUT_NAME = "org.icepush.browserTimeout";
+    public static final long BROWSER_TIMEOUT_DEFAULT_VALUE = 10 * 60 * 1000;
 
     private static AtomicInteger browserCounter = new AtomicInteger(0);
 
@@ -193,6 +198,27 @@ implements DatabaseEntity, Serializable {
 
     public Status getStatus() {
         return status;
+    }
+
+    public static long getTimeout(final Configuration configuration) {
+        if (configuration != null) {
+            String _prefix = configuration.getPrefix();
+            if (_prefix == null || _prefix.trim().length() == 0) {
+                return configuration.getAttributeAsLong(BROWSER_TIMEOUT_NAME, BROWSER_TIMEOUT_DEFAULT_VALUE);
+            } else if (BROWSER_TIMEOUT_NAME.startsWith(_prefix)) {
+                String _browserTimeoutName = BROWSER_TIMEOUT_NAME.substring(_prefix.trim().length());
+                if (_browserTimeoutName.startsWith(".")) {
+                    _browserTimeoutName = _browserTimeoutName.substring(1);
+                }
+                return configuration.getAttributeAsLong(_browserTimeoutName, BROWSER_TIMEOUT_DEFAULT_VALUE);
+            }
+        }
+        return BROWSER_TIMEOUT_DEFAULT_VALUE;
+    }
+
+    public static long getTimeout(final ServletContext servletContext)
+    throws IllegalArgumentException {
+        return getTimeout(new ServletContextConfiguration(servletContext));
     }
 
     public boolean hasLastNotifiedPushIDs() {

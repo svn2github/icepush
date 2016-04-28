@@ -42,7 +42,7 @@ implements PseudoServlet {
     private final long browserTimeout;
 
     public BrowserDispatcher(final Configuration configuration) {
-        this.browserTimeout = configuration.getAttributeAsLong("browserTimeout", 10 * 60 * 1000);
+        this.browserTimeout = configuration.getAttributeAsLong("browserTimeout", Browser.BROWSER_TIMEOUT_DEFAULT_VALUE);
     }
 
     public void service(HttpServletRequest request, HttpServletResponse response) throws Exception {

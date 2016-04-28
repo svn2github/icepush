@@ -15,6 +15,8 @@
  */
 package org.icepush;
 
+import org.icesoft.util.servlet.ServletContextConfiguration;
+
 import static org.icesoft.util.ObjectUtilities.*;
 import static org.icesoft.util.PreCondition.checkArgument;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
@@ -161,6 +163,7 @@ public class PushContext {
             if (null == currentBrowserID) {
                 browserID = Browser.generateBrowserID();
                 Cookie cookie = new Cookie(Browser.BROWSER_ID_NAME, browserID);
+                cookie.setMaxAge((int)(Browser.getTimeout(request.getServletContext()) / 1000));
                 cookie.setPath("/");
                 response.addCookie(cookie);
                 request.setAttribute(Browser.BROWSER_ID_NAME, browserID);

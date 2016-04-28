@@ -93,7 +93,6 @@ implements InternalPushGroupManager, PushGroupManager {
     private final Lock notificationQueueLock = new ReentrantLock();
     private final Condition notificationAvailableCondition = getNotificationQueueLock().newCondition();
     private final Queue<Notification> notificationQueue;
-    private final long browserTimeout;
     private final long groupTimeout;
     private final long cloudPushIDTimeout;
     private final long pushIDTimeout;
@@ -108,7 +107,6 @@ implements InternalPushGroupManager, PushGroupManager {
             CloudNotificationService.class.getName(), new CloudNotificationService(getServletContext())
         );
         Configuration configuration = new ServletContextConfiguration("org.icepush", getServletContext());
-        this.browserTimeout = configuration.getAttributeAsLong("browserTimeout", 10 * 60 * 1000);
         this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", DEFAULT_GROUP_TIMEOUT);
         this.pushIDTimeout = configuration.getAttributeAsLong("pushIdTimeout", DEFAULT_PUSHID_TIMEOUT);
         this.cloudPushIDTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", DEFAULT_CLOUDPUSHID_TIMEOUT);
@@ -168,8 +166,9 @@ implements InternalPushGroupManager, PushGroupManager {
         PushInternalContext.getInstance().setAttribute("notifyBackURIMap", this.notifyBackURIMap);
         PushInternalContext.getInstance().setAttribute("notificationQueue", this.notificationQueue);
         if (datastore != null) {
+            long _browserTimeout = Browser.getTimeout(servletContext);
             for (final String _browserID : this.browserMap.keySet()) {
-                if (this.browserMap.get(_browserID).getLastAccessTimestamp() + getBrowserTimeout() <
+                if (this.browserMap.get(_browserID).getLastAccessTimestamp() + _browserTimeout <
                         System.currentTimeMillis()) {
 
                     this.browserMap.remove(_browserID);
@@ -778,10 +777,6 @@ implements InternalPushGroupManager, PushGroupManager {
                 pendingNotifiedPushIDSet.remove(_pendingNotifiedPushID);
             }
         }
-    }
-
-    protected final long getBrowserTimeout() {
-        return browserTimeout;
     }
 
     protected long getCloudPushIDTimeout() {
