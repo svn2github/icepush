@@ -369,6 +369,12 @@ if (!window.ice.icepush) {
                     commonParameters(q);
                     parameter(q, 'notifyBackURI', notifyBackURI);
                 }, FormPost, $witch(function(condition) {
+                    condition(OK, function(response) {
+                        if (isXMLResponse(response)) {
+                            deserializeAndExecute(commandDispatcher, contentAsDOM(response).documentElement);
+                            namespace.push.addNotifyBackURI(notifyBackURI);
+                        }
+                    });
                     condition(ServerInternalError, throwServerError);
                 }));
             },
@@ -384,8 +390,13 @@ if (!window.ice.icepush) {
                 var uri = resolveURI(namespace.push.configuration.hasNotifyBackURIURI || 'has-notify-back-uri.icepush');
                 postAsynchronously(apiChannel, uri, commonParameters, FormPost, $witch(function(condition) {
                     condition(OK, function(response) {
-                        var content = contentAsText(response);
-                        resultCallback(content ? toLowerCase(content) == 'true' : false);
+                        if (isXMLResponse(response)) {
+                            deserializeAndExecute(commandDispatcher, contentAsDOM(response).documentElement);
+                            namespace.push.hasNotifyBackURI(resultCallback);
+                        } else {
+                            var content = contentAsText(response);
+                            resultCallback(content ? toLowerCase(content) == 'true' : false);
+                        }
                     });
                     condition(ServerInternalError, throwServerError);
                 }));
