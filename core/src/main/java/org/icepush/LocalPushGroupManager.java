@@ -713,17 +713,18 @@ implements InternalPushGroupManager, PushGroupManager {
         final String browserID, final URI notifyBackURI) {
 
         boolean _modified;
-        if (!notifyBackURIMap.containsKey(notifyBackURI.toString())) {
-            NotifyBackURI _notifyBackURI = newNotifyBackURI(notifyBackURI.toString());
-            _notifyBackURI.setBrowserID(browserID);
+        NotifyBackURI _notifyBackURI = notifyBackURIMap.get(notifyBackURI.toString());
+        if (_notifyBackURI == null) {
+            _notifyBackURI = newNotifyBackURI(notifyBackURI.toString());
             notifyBackURIMap.put(_notifyBackURI.getURI(), _notifyBackURI);
-            if (browserMap.containsKey(browserID)) {
-                browserMap.get(browserID).setNotifyBackURI(_notifyBackURI.getURI(), true);
-            }
             _modified = true;
         } else {
             _modified = false;
         }
+
+        _notifyBackURI.setBrowserID(browserID);
+        browserMap.get(browserID).setNotifyBackURI(_notifyBackURI.getURI(), true);
+
         return _modified;
     }
 
