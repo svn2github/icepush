@@ -244,13 +244,8 @@ implements InternalPushGroupManager, PushGroupManager {
     public boolean cancelConfirmationTimeout(final String browserID, final boolean ignoreForced) {
         ConfirmationTimeout _confirmationTimeout = getConfirmationTimeout(browserID);
         if (_confirmationTimeout != null) {
-            if (ignoreForced || !_confirmationTimeout.isForced()) {
-                _confirmationTimeout = getConfirmationTimeoutMap().remove(browserID);
-                if (_confirmationTimeout != null) {
-                    _confirmationTimeout.cancel(this);
-                    return true;
-                }
-            }
+            _confirmationTimeout.cancel(ignoreForced);
+            return getConfirmationTimeout(browserID) == null;
         }
         return false;
     }
@@ -553,24 +548,15 @@ implements InternalPushGroupManager, PushGroupManager {
                                 "sequence number: '" + sequenceNumber + "'" +
                             ").");
                     }
-                    try {
-                        _confirmationTimeout =
-                            newConfirmationTimeout(
-                                browserID, groupName, propertyMap, forced, timeout
-                            );
-                        _confirmationTimeout.schedule(System.currentTimeMillis() + timeout);
-                        getConfirmationTimeoutMap().put(browserID, _confirmationTimeout);
-                        return true;
-                    } catch (final IllegalStateException exception) {
-                        // timeoutTimer was cancelled or its timer thread terminated.
-                        return false;
-                    }
+                    _confirmationTimeout = newConfirmationTimeout(browserID);
+                    getConfirmationTimeoutMap().put(browserID, _confirmationTimeout);
                 }
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Confirmation timeout already scheduled for PushID '" + browserID + "' " +
-                            "(URI: '" + notifyBackURI + "', timeout: '" + timeout + "').");
+                try {
+                    _confirmationTimeout.schedule(propertyMap, forced, timeout);
+                    return true;
+                } catch (final IllegalStateException exception) {
+                    // timeoutTimer was cancelled or its timer thread terminated.
+                    return false;
                 }
             }
         }
@@ -1338,11 +1324,8 @@ implements InternalPushGroupManager, PushGroupManager {
         return new Browser(browserID);
     }
 
-    protected ConfirmationTimeout newConfirmationTimeout(
-        final String browserID, final String groupName, final Map<String, String> propertyMap, final boolean forced,
-        final long timeout) {
-
-        return new ConfirmationTimeout(browserID, groupName, propertyMap, forced, timeout);
+    protected ConfirmationTimeout newConfirmationTimeout(final String browserID) {
+        return new ConfirmationTimeout(browserID);
     }
 
     protected ExpiryTimeout newExpiryTimeout(final String pushID, final boolean isCloudPushID) {
