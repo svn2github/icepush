@@ -67,7 +67,6 @@ implements InternalPushGroupManager, PushGroupManager {
     private final Set<NotificationEntry> pendingNotificationEntrySet;
 
     static final int DEFAULT_NOTIFICATIONQUEUE_SIZE = 1000;
-    static final int DEFAULT_MIN_CLOUDPUSH_INTERVAL = 10 * 1000;
     static final int DEFAULT_CLOUDPUSHID_TIMEOUT = 30 * 60 * 1000;
     static final int DEFAULT_PUSHID_TIMEOUT = 2 * 60 * 1000;
     static final int DEFAULT_GROUP_TIMEOUT = 2 * 60 * 1000;
