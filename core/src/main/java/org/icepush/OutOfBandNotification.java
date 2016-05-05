@@ -3,6 +3,7 @@ package org.icepush;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -115,7 +116,15 @@ implements DatabaseEntity, Runnable, Serializable {
     @Override
     protected void beforeBroadcast(final Set<NotificationEntry> notificationEntrySet) {
         // Only needed for Cloud Push
-        getInternalPushGroupManager().startConfirmationTimeouts(notificationEntrySet);
+        Set<String> _browserIDSet = new HashSet<String>();
+        Set<NotificationEntry> _notificationEntrySet = new HashSet<NotificationEntry>();
+        for (final NotificationEntry _notificationEntry : notificationEntrySet) {
+            String _browserID = getInternalPushGroupManager().getPushID(_notificationEntry.getPushID()).getBrowserID();
+            if (_browserIDSet.add(_browserID)) {
+                _notificationEntrySet.add(_notificationEntry);
+            }
+        }
+        getInternalPushGroupManager().startConfirmationTimeouts(_notificationEntrySet);
     }
 
     @Override
