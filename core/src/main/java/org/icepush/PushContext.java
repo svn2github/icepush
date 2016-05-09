@@ -33,14 +33,20 @@ import javax.servlet.http.HttpServletResponse;
 public class PushContext {
     private static final Logger LOGGER = Logger.getLogger(PushContext.class.getName());
 
+    private final ServletContext servletContext;
+
     private int subCounter = 0;
 
     /**
      * <p>
      *     Constructs a new PushContext.
      * </p>
+     *
+     * @param      servletContext
+     *                 The Servlet Context.
      */
-    private PushContext() {
+    private PushContext(final ServletContext servletContext) {
+        this.servletContext = servletContext;
     }
 
     /**
@@ -163,7 +169,7 @@ public class PushContext {
             if (null == currentBrowserID) {
                 browserID = Browser.generateBrowserID();
                 Cookie cookie = new Cookie(Browser.BROWSER_ID_NAME, browserID);
-                cookie.setMaxAge((int)(Browser.getTimeout(request.getServletContext()) / 1000));
+                cookie.setMaxAge((int)(Browser.getTimeout(getServletContext()) / 1000));
                 cookie.setPath("/");
                 response.addCookie(cookie);
                 request.setAttribute(Browser.BROWSER_ID_NAME, browserID);
@@ -341,13 +347,17 @@ public class PushContext {
         );
         PushContext pushContext = (PushContext)servletContext.getAttribute(PushContext.class.getName());
         if (pushContext == null) {
-            servletContext.setAttribute(PushContext.class.getName(), pushContext = new PushContext());
+            servletContext.setAttribute(PushContext.class.getName(), pushContext = new PushContext(servletContext));
         }
         return pushContext;
     }
 
     protected PushGroupManager getPushGroupManager() {
         return (PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
+    }
+
+    protected final ServletContext getServletContext() {
+        return servletContext;
     }
 
     private synchronized String generateSubID() {
