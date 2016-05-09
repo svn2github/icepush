@@ -402,7 +402,6 @@ implements DatabaseEntity, Serializable {
             boolean _result;
             if (ignoreForced || !isForced()) {
                 getTimerTask().cancel();
-                removeCloudPushNotification(this, internalPushGroupManager);
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
@@ -468,7 +467,9 @@ implements DatabaseEntity, Serializable {
                         _browser.unlockLastNotifiedPushIDSet();
                     }
                 }
-                cancel(true, internalPushGroupManager);
+                if (cancel(true, internalPushGroupManager)) {
+                    removeCloudPushNotification(this, internalPushGroupManager);
+                }
             } catch (final Exception exception) {
                 if (LOGGER.isLoggable(Level.WARNING)) {
                     LOGGER.log(
