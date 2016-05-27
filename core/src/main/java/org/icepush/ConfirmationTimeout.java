@@ -74,12 +74,20 @@ implements DatabaseEntity, Serializable {
         }
     }
 
-    public void cancel() {
-        cancel(false);
+    public void cancel(final Set<String> pushIDSet) {
+        cancel(pushIDSet, false);
     }
 
-    public void cancel(final boolean ignoreForced) {
-        cancel(ignoreForced, getInternalPushGroupManager());
+    public void cancel(final Set<String> pushIDSet, final boolean ignoreForced) {
+        cancel(pushIDSet, ignoreForced, getInternalPushGroupManager());
+    }
+
+    public void cancelAll() {
+        cancelAll(false);
+    }
+
+    public void cancelAll(final boolean ignoreForced) {
+        cancelAll(ignoreForced, getInternalPushGroupManager());
     }
 
     protected final String getBrowserID() {
@@ -113,17 +121,19 @@ implements DatabaseEntity, Serializable {
         }
     }
 
-    public void schedule(final Map<String, String> propertyMap, final boolean forced, final long timeout) {
+    public void schedule(
+        final String pushID, final Map<String, String> propertyMap, final boolean forced, final long timeout) {
+
         CloudPushNotification _cloudPushNotification =
-            newCloudPushNotification(getBrowserID(), propertyMap, forced, timeout);
+            newCloudPushNotification(getBrowserID(), pushID, propertyMap, forced, timeout);
         addCloudPushNotification(_cloudPushNotification);
         _cloudPushNotification.schedule();
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
                 Level.FINE,
-                "Confirmation Timeout for Browser '" + getBrowserID() + "' with " +
+                "Confirmation Timeout for Push-ID '" + pushID + "' (Browser '" + getBrowserID() + "') with " +
                     "Scheduled Time '" + _cloudPushNotification.getScheduledTime() + "' scheduled.  " +
-                        "(now: '" + new Date(System.currentTimeMillis()) + "')");
+                        "[now: '" + new Date(System.currentTimeMillis()) + "']");
         }
     }
 
@@ -150,14 +160,27 @@ implements DatabaseEntity, Serializable {
         }
     }
 
-    protected void cancel(final boolean ignoreForced, final InternalPushGroupManager internalPushGroupManager) {
+    protected void cancel(
+        final Set<String> pushIDSet, final boolean ignoreForced,
+        final InternalPushGroupManager internalPushGroupManager) {
+
         lockCloudPushNotificationSet();
         try {
             Iterator<CloudPushNotification> _cloudPushNotificationSetIterator =
                 getModifiableCloudPushNotificationSet().iterator();
             while (_cloudPushNotificationSetIterator.hasNext()) {
-                if (_cloudPushNotificationSetIterator.next().cancel(ignoreForced)) {
-                    _cloudPushNotificationSetIterator.remove();
+                CloudPushNotification _cloudPushNotification = _cloudPushNotificationSetIterator.next();
+                if (pushIDSet.contains(_cloudPushNotification.getPushID())) {
+                    if (_cloudPushNotification.cancel(ignoreForced)) {
+                        _cloudPushNotificationSetIterator.remove();
+                        if (LOGGER.isLoggable(Level.FINE)) {
+                            LOGGER.log(
+                                Level.FINE,
+                                "Confirmation Timeout for Push-ID '" + _cloudPushNotification.getPushID() + "' " +
+                                    "(Browser '" + getBrowserID() + "') cancelled.  " +
+                                        "[now: '" + new Date(System.currentTimeMillis()) + "']");
+                        }
+                    }
                 }
             }
             if (getModifiableCloudPushNotificationSet().isEmpty()) {
@@ -165,8 +188,42 @@ implements DatabaseEntity, Serializable {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
-                        "Confirmation Timeout for Browser '" + getBrowserID() + "' cancelled.  " +
-                            "(now: '" + new Date(System.currentTimeMillis()) + "')");
+                        "Confirmation Timeouts for Browser '" + getBrowserID() + "' cancelled.  " +
+                            "[now: '" + new Date(System.currentTimeMillis()) + "']");
+                }
+            }
+        } finally {
+            unlockCloudPushNotificationSet();
+        }
+    }
+
+    protected void cancelAll(
+        final boolean ignoreForced, final InternalPushGroupManager internalPushGroupManager) {
+
+        lockCloudPushNotificationSet();
+        try {
+            Iterator<CloudPushNotification> _cloudPushNotificationSetIterator =
+                getModifiableCloudPushNotificationSet().iterator();
+            while (_cloudPushNotificationSetIterator.hasNext()) {
+                CloudPushNotification _cloudPushNotification = _cloudPushNotificationSetIterator.next();
+                if (_cloudPushNotification.cancel(ignoreForced)) {
+                    _cloudPushNotificationSetIterator.remove();
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(
+                            Level.FINE,
+                            "Confirmation Timeout for Push-ID '" + _cloudPushNotification.getPushID() + "' " +
+                                "(Browser '" + getBrowserID() + "') cancelled.  " +
+                                    "[now: '" + new Date(System.currentTimeMillis()) + "']");
+                    }
+                }
+            }
+            if (getModifiableCloudPushNotificationSet().isEmpty()) {
+                internalPushGroupManager.removeConfirmationTimeout(this);
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Confirmation Timeouts for Browser '" + getBrowserID() + "' cancelled.  " +
+                            "[now: '" + new Date(System.currentTimeMillis()) + "']");
                 }
             }
         } finally {
@@ -200,9 +257,10 @@ implements DatabaseEntity, Serializable {
     }
 
     protected CloudPushNotification newCloudPushNotification(
-        final String browserID, final Map<String, String> propertyMap, final boolean forced, final long timeout) {
+        final String browserID, final String pushID, final Map<String, String> propertyMap, final boolean forced,
+        final long timeout) {
 
-        return new CloudPushNotification(browserID, propertyMap, forced, timeout);
+        return new CloudPushNotification(browserID, pushID, propertyMap, forced, timeout);
     }
 
     protected boolean removeCloudPushNotification(
@@ -244,7 +302,7 @@ implements DatabaseEntity, Serializable {
                 unlockCloudPushNotificationSet();
             }
         } else {
-            cancel(true, internalPushGroupManager);
+            cancelAll(true, internalPushGroupManager);
         }
     }
 
@@ -304,6 +362,7 @@ implements DatabaseEntity, Serializable {
 
         private String browserID;
         private boolean forced;
+        private String pushID;
         private long scheduledTime;
         private long timeout;
 
@@ -325,16 +384,18 @@ implements DatabaseEntity, Serializable {
         }
 
         public CloudPushNotification(
-            final String browserID, final Map<String, String> propertyMap, final boolean forced, final long timeout) {
+            final String browserID, final String pushID, final Map<String, String> propertyMap, final boolean forced,
+            final long timeout) {
 
-            this(browserID, propertyMap, forced, timeout, true);
+            this(browserID, pushID, propertyMap, forced, timeout, true);
         }
 
         protected CloudPushNotification(
-            final String browserID, final Map<String, String> propertyMap, final boolean forced, final long timeout,
-            final boolean save) {
+            final String browserID, final String pushID, final Map<String, String> propertyMap, final boolean forced,
+            final long timeout, final boolean save) {
 
             setBrowserID(browserID, false);
+            setPushID(pushID, false);
             setPropertyMap(propertyMap, false);
             setForced(forced, false);
             setTimeout(timeout, false);
@@ -361,6 +422,10 @@ implements DatabaseEntity, Serializable {
 
         public final Map<String, String> getPropertyMap() {
             return Collections.unmodifiableMap(getModifiablePropertyMap());
+        }
+
+        public final String getPushID() {
+            return pushID;
         }
 
         public final long getScheduledTime() {
@@ -405,9 +470,10 @@ implements DatabaseEntity, Serializable {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
-                        "Cloud Push Notification for Browser '" + getBrowserID() + "' " +
-                            "scheduled for '" + new Date(getScheduledTime()) + "' cancelled.  " +
-                                "(now: '" + new Date(System.currentTimeMillis()) + "')");
+                        "Cloud Push Notification for Push-ID '" + getPushID() + "' " +
+                            "(Browser '" + getBrowserID() + "') " +
+                                "scheduled for '" + new Date(getScheduledTime()) + "' cancelled.  " +
+                                    "[now: '" + new Date(System.currentTimeMillis()) + "']");
                 }
                 _result = true;
             } else {
@@ -422,6 +488,7 @@ implements DatabaseEntity, Serializable {
                     append("browserID: '").append(getBrowserID()).append("', ").
                     append("forced: '").append(isForced()).append("', ").
                     append("propertyMap: '").append(getPropertyMap()).append("', ").
+                    append("pushID: '").append(getPushID()).append("', ").
                     append("scheduledTime: '").append(getScheduledTime()).append("', ").
                     append("timeout: '").append(getTimeout()).append("'").
                         toString();
@@ -433,8 +500,9 @@ implements DatabaseEntity, Serializable {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE,
-                    "Cloud Push Notification for Browser '" + getBrowserID() + "' occurred.  " +
-                        "(URI: '" + _notifyBackURI + "', timeout: '" + getTimeout() + "')");
+                    "Cloud Push Notification for Push-ID '" + getPushID() + "' " +
+                        "(Browser '" + getBrowserID() + "') occurred.  " +
+                            "[URI: '" + _notifyBackURI + "', timeout: '" + getTimeout() + "']");
             }
             try {
                 if (_notifyBackURI != null) {
@@ -442,7 +510,11 @@ implements DatabaseEntity, Serializable {
                         internalPushGroupManager.park(_pushIDString, _notifyBackURI.getURI());
                     }
                     if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(Level.FINE, "Cloud Push dispatched for Browser '" + getBrowserID() + "'.");
+                        LOGGER.log(
+                            Level.FINE,
+                            "Cloud Push dispatched for Push-ID '" + getPushID() + "' " +
+                                "(Browser '" + getBrowserID() + "')."
+                        );
                     }
                     _notifyBackURI.touch();
                     CloudNotificationService _cloudNotificationService =
@@ -497,9 +569,10 @@ implements DatabaseEntity, Serializable {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
-                        "Scheduling Confirmation Timeout for Browser '" + getBrowserID() + "' at " +
-                            "Scheduled Time '" + new Date(getScheduledTime()) + "'.  " +
-                                "(now: '" + new Date(System.currentTimeMillis()) + "')"
+                        "Scheduling Confirmation Timeout for Push-ID '" + getPushID() + "' " +
+                            "(Browser '" + getBrowserID() + "') at " +
+                                "Scheduled Time '" + new Date(getScheduledTime()) + "'.  " +
+                                    "[now: '" + new Date(System.currentTimeMillis()) + "']"
                     );
                 }
                 reschedule();
@@ -507,9 +580,10 @@ implements DatabaseEntity, Serializable {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
-                        "Executing Confirmation Timeout for Browser '" + getBrowserID() + "' with " +
-                            "Scheduled Time '" + new Date(getScheduledTime()) + "'.  " +
-                                "(now: '" + new Date(System.currentTimeMillis()) + "')"
+                        "Executing Confirmation Timeout for Push-ID '" + getPushID() + "' " +
+                            "(Browser '" + getBrowserID() + "') with " +
+                                "Scheduled Time '" + new Date(getScheduledTime()) + "'.  " +
+                                    "[now: '" + new Date(System.currentTimeMillis()) + "']"
                     );
                 }
                 execute(internalPushGroupManager);
@@ -526,6 +600,10 @@ implements DatabaseEntity, Serializable {
 
         protected final boolean setPropertyMap(final Map<String, String> propertyMap) {
             return setPropertyMap(propertyMap, true);
+        }
+
+        protected final boolean setPushID(final String pushID) {
+            return setPushID(pushID, true);
         }
 
         protected final boolean setScheduledTime(final long scheduledTime) {
@@ -582,6 +660,22 @@ implements DatabaseEntity, Serializable {
             } else if (!this.propertyMap.equals(propertyMap) && propertyMap != null) {
                 this.propertyMap.clear();
                 this.propertyMap.putAll(propertyMap);
+                _modified = true;
+                if (save) {
+                    save();
+                }
+            } else {
+                _modified = false;
+            }
+            return _modified;
+        }
+
+        private boolean setPushID(final String pushID, final boolean save) {
+            boolean _modified;
+            if ((this.pushID == null && pushID != null) ||
+                (this.pushID != null && !this.pushID.equals(pushID))) {
+
+                this.pushID = pushID;
                 _modified = true;
                 if (save) {
                     save();

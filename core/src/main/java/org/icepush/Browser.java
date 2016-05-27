@@ -367,11 +367,11 @@ implements DatabaseEntity, Serializable {
         return _modified;
     }
 
-    public boolean startConfirmationTimeout(
-        final String groupName, final Map<String, String> propertyMap, final boolean forced) {
-
-        return getInternalPushGroupManager().startConfirmationTimeout(getID(), groupName, propertyMap, forced);
-    }
+//    public boolean startConfirmationTimeout(
+//        final String groupName, final Map<String, String> propertyMap, final boolean forced) {
+//
+//        return getInternalPushGroupManager().startConfirmationTimeout(getID(), groupName, propertyMap, forced);
+//    }
 
     @Override
     public String toString() {
@@ -386,7 +386,7 @@ implements DatabaseEntity, Serializable {
     protected boolean cancelConfirmationTimeout(
         final boolean ignoreForced, final InternalPushGroupManager pushGroupManager) {
 
-        return pushGroupManager.cancelConfirmationTimeout(getID(), ignoreForced);
+        return pushGroupManager.cancelConfirmationTimeouts(getID(), getPushIDSet(), ignoreForced);
     }
 
     protected String classMembersToString() {

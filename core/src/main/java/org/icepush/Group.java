@@ -17,7 +17,9 @@
 package org.icepush;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
@@ -51,7 +53,7 @@ implements DatabaseEntity, Serializable {
 
     protected Group(final Group group) {
         this(group.getName(), group.getGroupTimeout());
-        pushIDSet.addAll(group.getPushIDSet());
+        getModifiablePushIDSet().addAll(group.getPushIDSet());
         lastAccess = group.getLastAccess();
     }
 
@@ -65,9 +67,34 @@ implements DatabaseEntity, Serializable {
     }
 
     public boolean addPushID(final String pushID) {
-        boolean _modified = getPushIDSet().add(pushID);
-        if (_modified) {
-            save();
+        boolean _modified;
+        if (!getModifiablePushIDSet().contains(pushID)) {
+            PushID _pushID = getInternalPushGroupManager().getPushID(pushID);
+            if (_pushID != null) {
+                String _browserID = _pushID.getBrowserID();
+                Iterator<String> _pushIDSetIterator = getModifiablePushIDSet().iterator();
+                while (_pushIDSetIterator.hasNext()) {
+                    String _pushIDString = _pushIDSetIterator.next();
+                    if (getInternalPushGroupManager().getPushID(_pushIDString).
+                            getBrowserID().equals(_browserID)) {
+
+                        _pushIDSetIterator.remove();
+                        if (LOGGER.isLoggable(Level.FINE)) {
+                            LOGGER.log(
+                                Level.FINE,
+                                "Removed Push-ID '" + _pushIDString + "' from Group '" + getName() + "' due to " +
+                                    "belonging to the same Browser-ID as Push-ID '" + pushID + "' being added."
+                            );
+                        }
+                    }
+                }
+            }
+            _modified = getModifiablePushIDSet().add(pushID);
+            if (_modified) {
+                save();
+            }
+        } else {
+            _modified = false;
         }
         return _modified;
     }
@@ -123,7 +150,7 @@ implements DatabaseEntity, Serializable {
         return
             new StringBuilder().
                 append("name: '").append(getName()).append("', ").
-                append("pushIDSet: '").append(getPushIDSet()).append("', ").
+                append("pushIDSet: '").append(getModifiablePushIDSet()).append("', ").
                 append("lastAccess: '").append(getLastAccess()).append("'").
                     toString();
     }
@@ -141,22 +168,26 @@ implements DatabaseEntity, Serializable {
         return lastAccess;
     }
 
-    protected String[] getPushIDs() {
-        return getPushIDSet().toArray(new String[getPushIDSet().size()]);
-    }
-
-    protected Set<String> getPushIDSet() {
+    protected Set<String> getModifiablePushIDSet() {
         return pushIDSet;
     }
 
+    protected String[] getPushIDs() {
+        return getModifiablePushIDSet().toArray(new String[getModifiablePushIDSet().size()]);
+    }
+
+    protected Set<String> getPushIDSet() {
+        return Collections.unmodifiableSet(getModifiablePushIDSet());
+    }
+
     protected boolean removePushID(final String pushID, final InternalPushGroupManager internalPushGroupManager) {
-        boolean _modified = getPushIDSet().remove(pushID);
+        boolean _modified = getModifiablePushIDSet().remove(pushID);
         if (_modified) {
-            if (!getPushIDSet().isEmpty()) {
+            if (!getModifiablePushIDSet().isEmpty()) {
                 save();
             }
         }
-        if (getPushIDSet().isEmpty()) {
+        if (getModifiablePushIDSet().isEmpty()) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE, "Disposed Group '" + getName() + "' since it no longer contains any Push-IDs.");
@@ -177,7 +208,7 @@ implements DatabaseEntity, Serializable {
 
     protected void touchIfMatching(final Set<String> pushIDSet) {
         for (final String _pushID : pushIDSet) {
-            if (getPushIDSet().contains(_pushID)) {
+            if (getModifiablePushIDSet().contains(_pushID)) {
                 touch();
                 getInternalPushGroupManager().groupTouched(getName(), getLastAccess());
                 //no need to touchIfMatching again
