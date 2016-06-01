@@ -55,7 +55,7 @@ implements DatabaseEntity, Serializable {
 
     public static final String BROWSER_ID_NAME = "ice.push.browser";
     public static final String BROWSER_TIMEOUT_NAME = "org.icepush.browserTimeout";
-    public static final long BROWSER_TIMEOUT_DEFAULT_VALUE = 3 * 365 * 24 * 60 * 60 * 1000;                   // 3 years
+    public static final long BROWSER_TIMEOUT_DEFAULT_VALUE = 3L * 365L * 24L * 60L * 60L * 1000L;             // 3 years
 
     private static AtomicInteger browserCounter = new AtomicInteger(0);
 
