@@ -68,11 +68,6 @@ implements ServletContextListener {
             }
             // Do nothing.
         }
-        CloudNotificationService.getSetUpLock(_servletContext).lock();
-        try {
-            CloudNotificationService.getSetUpCondition(_servletContext).signalAll();
-        } finally {
-            CloudNotificationService.getSetUpLock(_servletContext).unlock();
-        }
+        CloudNotificationService.wakeUpAllAsSetUpIsComplete(_servletContext);
     }
 }
