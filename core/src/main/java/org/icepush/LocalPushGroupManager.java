@@ -101,6 +101,23 @@ implements InternalPushGroupManager, PushGroupManager {
     private long lastExpiryScan = System.currentTimeMillis();
 
     public LocalPushGroupManager(final ServletContext servletContext) {
+        this(
+            servletContext, Browser.class, Group.class, PushID.class, ExpiryTimeout.class, ConfirmationTimeout.class,
+            NotifyBackURI.class, Notification.class/*, NotificationEntry.class*/
+        );
+    }
+
+    protected LocalPushGroupManager(
+        final ServletContext servletContext,
+        final Class<? extends Browser> browserClass,
+        final Class<? extends Group> groupClass,
+        final Class<? extends PushID> pushIDClass,
+        final Class<? extends ExpiryTimeout> expiryTimeoutClass,
+        final Class<? extends ConfirmationTimeout> confirmationTimeoutClass,
+        final Class<? extends NotifyBackURI> notifyBackURIClass,
+        final Class<? extends Notification> notificationClass/*,
+        final Class<? extends NotificationEntry> notificationEntryClass*/) {
+
         this.servletContext = servletContext;
         getServletContext().setAttribute(
             CloudNotificationService.class.getName(), new CloudNotificationService(getServletContext())
@@ -118,25 +135,25 @@ implements InternalPushGroupManager, PushGroupManager {
         Datastore datastore = (Datastore)PushInternalContext.getInstance().getAttribute(Datastore.class.getName());
         if (datastore != null) {
             this.browserMap =
-                new DatabaseBackedConcurrentMap<Browser>(Browser.class, datastore);
+                new DatabaseBackedConcurrentMap<Browser>(browserClass, datastore);
             this.groupMap =
-                new DatabaseBackedConcurrentMap<Group>(Group.class, datastore);
+                new DatabaseBackedConcurrentMap<Group>(groupClass, datastore);
             this.pushIDMap =
-                new DatabaseBackedConcurrentMap<PushID>(PushID.class, datastore);
+                new DatabaseBackedConcurrentMap<PushID>(pushIDClass, datastore);
             this.expiryTimeoutMap =
-                new DatabaseBackedConcurrentMap<ExpiryTimeout>(ExpiryTimeout.class, datastore);
+                new DatabaseBackedConcurrentMap<ExpiryTimeout>(expiryTimeoutClass, datastore);
             this.confirmationTimeoutMap =
-                new DatabaseBackedConcurrentMap<ConfirmationTimeout>(ConfirmationTimeout.class, datastore);
+                new DatabaseBackedConcurrentMap<ConfirmationTimeout>(confirmationTimeoutClass, datastore);
             this.notifyBackURIMap =
-                new DatabaseBackedConcurrentMap<NotifyBackURI>(NotifyBackURI.class, datastore);
+                new DatabaseBackedConcurrentMap<NotifyBackURI>(notifyBackURIClass, datastore);
             this.notificationQueue =
                 new DatabaseBackedQueue<Notification>(
                     configuration.getAttributeAsInteger("notificationQueueSize", DEFAULT_NOTIFICATIONQUEUE_SIZE),
-                    Notification.class,
+                    notificationClass,
                     datastore
                 );
 //            this.pendingNotificationEntrySet =
-//                new DatabaseBackedSetCollection<NotificationEntry>(NotificationEntry.class, datastore);
+//                new DatabaseBackedSetCollection<NotificationEntry>(notificationEntryClass, datastore);
         } else {
             this.browserMap =
                 new ConcurrentHashMap<String, Browser>();
@@ -343,10 +360,10 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public synchronized static PushGroupManager getInstance(final ServletContext servletContext) {
         PushGroupManager _pushGroupManager =
-            (PushGroupManager)servletContext.getAttribute(PushGroupManager.class.getName());
+            (PushGroupManager)servletContext.getAttribute(PushGroupManager.class.getName() + "#instance");
         if (_pushGroupManager == null)  {
             _pushGroupManager = new LocalPushGroupManager(servletContext);
-            servletContext.setAttribute(PushGroupManager.class.getName(), _pushGroupManager);
+            servletContext.setAttribute(PushGroupManager.class.getName() + "#instance", _pushGroupManager);
         }
         return _pushGroupManager;
     }
@@ -1054,7 +1071,70 @@ implements InternalPushGroupManager, PushGroupManager {
 
                 public Collection<Browser> values()
                 throws UnsupportedOperationException {
-                    throw new UnsupportedOperationException();
+                    return new Values(browserMap.values());
+                }
+
+                final class Values
+                extends AbstractCollection<Browser> {
+                    private final Collection<? extends Browser> values;
+
+                    Values(final Collection<? extends Browser> values) {
+                        this.values = values;
+                    }
+
+                    @Override
+                    public void clear() {
+                        browserMap.clear();
+                    }
+
+                    @Override
+                    public boolean contains(final Object object) {
+                        return browserMap.containsValue(object);
+                    }
+
+                    @Override
+                    public boolean isEmpty() {
+                        return browserMap.isEmpty();
+                    }
+
+                    @Override
+                    public Iterator<Browser> iterator() {
+                        return new ValueIterator(getValues().iterator());
+                    }
+
+                    @Override
+                    public int size() {
+                        return browserMap.size();
+                    }
+
+                    protected Collection<? extends Browser> getValues() {
+                        return values;
+                    }
+
+                    final class ValueIterator
+                    implements Iterator<Browser> {
+                        private final Iterator<? extends Browser> valueIterator;
+
+                        ValueIterator(final Iterator<? extends Browser> valueIterator) {
+                            this.valueIterator = valueIterator;
+                        }
+
+                        public boolean hasNext() {
+                            return getValueIterator().hasNext();
+                        }
+
+                        public Browser next() {
+                            return getValueIterator().next();
+                        }
+
+                        public void remove() {
+                            getValueIterator().remove();
+                        }
+
+                        protected Iterator<? extends Browser> getValueIterator() {
+                            return valueIterator;
+                        }
+                    }
                 }
             };
     }

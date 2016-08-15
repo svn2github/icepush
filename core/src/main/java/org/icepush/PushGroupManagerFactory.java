@@ -40,7 +40,8 @@ public class PushGroupManagerFactory {
         final ServletContext servletContext, final ScheduledThreadPoolExecutor executor,
         final Configuration configuration) {
 
-        String _pushGroupManagerClassName = (String)servletContext.getAttribute("org.icepush.PushGroupManager");
+        String _pushGroupManagerClassName =
+            (String)servletContext.getAttribute(PushGroupManager.class.getName() + "#class");
         if (_pushGroupManagerClassName == null) {
             _pushGroupManagerClassName = configuration.getAttribute("pushGroupManager", null);
         }

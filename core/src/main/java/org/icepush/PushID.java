@@ -52,29 +52,58 @@ implements DatabaseEntity, Serializable {
         // Do nothing.
     }
 
-    protected PushID(
+    public PushID(
         final String id, final long pushIDTimeout, final long cloudPushIDTimeout) {
+
+        this(
+            id,
+            pushIDTimeout,
+            cloudPushIDTimeout,
+            true
+        );
+    }
+
+    public PushID(
+        final String id, final String browserID, final String subID, final long pushIDTimeout,
+        final long cloudPushIDTimeout) {
+
+        this(
+            id,
+            browserID,
+            subID,
+            pushIDTimeout,
+            cloudPushIDTimeout,
+            true
+        );
+    }
+
+    protected PushID(
+        final String id, final long pushIDTimeout, final long cloudPushIDTimeout, final boolean save) {
 
         this(
             id,
             id.substring(0, id.indexOf(':')),
             id.substring(id.indexOf(':') + 1),
             pushIDTimeout,
-            cloudPushIDTimeout
+            cloudPushIDTimeout,
+            save
         );
     }
 
     protected PushID(
         final String id, final String browserID, final String subID, final long pushIDTimeout,
-        final long cloudPushIDTimeout) {
+        final long cloudPushIDTimeout, final boolean save) {
 
-        this.id = id;
-        this.browserID = browserID;
-        this.subID = subID;
-        this.pushIDTimeout = pushIDTimeout;
-        this.cloudPushIDTimeout = cloudPushIDTimeout;
+        setID(id, false);
+        setBrowserID(browserID, false);
+        setSubID(subID, false);
+        setPushIDTimeout(pushIDTimeout, false);
+        setCloudPushIDTimeout(cloudPushIDTimeout, false);
         // Let the databaseID be the pushID.
-        this.databaseID = getID();
+        setDatabaseID(getID());
+        if (save) {
+            save();
+        }
     }
 
     public boolean addToGroup(final String groupName) {
@@ -184,12 +213,20 @@ implements DatabaseEntity, Serializable {
         }
     }
 
+    public boolean setCloudPushIDTimeout(final long cloudPushIDTimeout) {
+        return setCloudPushIDTimeout(cloudPushIDTimeout, true);
+    }
+
+    public boolean setPushIDTimeout(final long pushIDTimeout) {
+        return setPushIDTimeout(pushIDTimeout, true);
+    }
+
     public boolean startExpiryTimeout() {
-        return getInternalPushGroupManager().startExpiryTimeout(getID());
+        return startExpiryTimeout(getInternalPushGroupManager());
     }
 
     public boolean startExpiryTimeout(final String browserID, final long sequenceNumber) {
-        return getInternalPushGroupManager().startExpiryTimeout(getID(), browserID, sequenceNumber);
+        return startExpiryTimeout(getInternalPushGroupManager(), browserID, sequenceNumber);
     }
 
     @Override
@@ -251,5 +288,125 @@ implements DatabaseEntity, Serializable {
 
     protected long getPushIDTimeout() {
         return pushIDTimeout;
+    }
+
+    protected boolean setBrowserID(final String browserID) {
+        return setBrowserID(browserID, true);
+    }
+
+    protected boolean setDatabaseID(final String databaseID) {
+        return setDatabaseID(databaseID, true);
+    }
+
+    protected boolean setID(final String id) {
+        return setID(id, true);
+    }
+
+    protected boolean setSubID(final String subID) {
+        return setSubID(subID, true);
+    }
+
+    protected boolean startExpiryTimeout(
+        final InternalPushGroupManager internalPushGroupManager) {
+
+        return internalPushGroupManager.startExpiryTimeout(getID());
+    }
+
+    protected boolean startExpiryTimeout(
+        final InternalPushGroupManager internalPushGroupManager, final String browserID, final long timeout) {
+
+        return internalPushGroupManager.startExpiryTimeout(getID(), browserID, timeout);
+    }
+
+    private boolean setBrowserID(final String browserID, final boolean save) {
+        boolean _modified;
+        if ((this.browserID == null && browserID != null) ||
+            (this.browserID != null && !this.browserID.equals(browserID))) {
+
+            this.browserID = browserID;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    private boolean setCloudPushIDTimeout(final long cloudPushIDTimeout, final boolean save) {
+        boolean _modified;
+        if (this.cloudPushIDTimeout != cloudPushIDTimeout) {
+            this.cloudPushIDTimeout = cloudPushIDTimeout;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    private boolean setDatabaseID(final String databaseID, final boolean save) {
+        boolean _modified;
+        if ((this.databaseID == null && databaseID != null) ||
+            (this.databaseID != null && !this.databaseID.equals(databaseID))) {
+
+            this.databaseID = databaseID;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    private boolean setID(final String id, final boolean save) {
+        boolean _modified;
+        if ((this.id == null && id != null) ||
+            (this.id != null && !this.id.equals(id))) {
+
+            this.id = id;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    private boolean setPushIDTimeout(final long pushIDTimeout, final boolean save) {
+        boolean _modified;
+        if (this.pushIDTimeout != pushIDTimeout) {
+            this.pushIDTimeout = pushIDTimeout;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    private boolean setSubID(final String subID, final boolean save) {
+        boolean _modified;
+        if ((this.subID == null && subID != null) ||
+            (this.subID != null && !this.subID.equals(subID))) {
+
+            this.subID = subID;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
     }
 }

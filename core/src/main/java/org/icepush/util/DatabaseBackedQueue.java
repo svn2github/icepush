@@ -31,10 +31,10 @@ implements Collection<E>, Iterable<E>, Queue<E> {
     private final Lock takeLock = new ReentrantLock();
 
     private final Datastore datastore;
-    private final Class<E> elementClass;
-    private final Queue<TimestampedElementContainer<E>> timestampedElementContainerQueue;
+    private final Class<? extends E> elementClass;
+    private final Queue<TimestampedElementContainer<? extends E>> timestampedElementContainerQueue;
 
-    public DatabaseBackedQueue(final Class<E> elementClass, final Datastore datastore)
+    public DatabaseBackedQueue(final Class<? extends E> elementClass, final Datastore datastore)
     throws IllegalArgumentException {
         checkArgument(
             isNotNull(elementClass),
@@ -44,13 +44,14 @@ implements Collection<E>, Iterable<E>, Queue<E> {
             isNotNull(datastore),
             "Illegal argument datastore: '" + datastore + "'.  Argument cannot be null."
         );
-        this.timestampedElementContainerQueue = new LinkedBlockingQueue<TimestampedElementContainer<E>>();
+        this.timestampedElementContainerQueue =
+            new LinkedBlockingQueue<TimestampedElementContainer<? extends E>>();
         this.elementClass = elementClass;
         this.datastore = datastore;
         populate();
     }
 
-    public DatabaseBackedQueue(final int capacity, final Class<E> elementClass, final Datastore datastore)
+    public DatabaseBackedQueue(final int capacity, final Class<? extends E> elementClass, final Datastore datastore)
     throws IllegalArgumentException {
         checkArgument(
             capacity > 0,
@@ -64,7 +65,8 @@ implements Collection<E>, Iterable<E>, Queue<E> {
             isNotNull(datastore),
             "Illegal argument datastore: '" + datastore + "'.  Argument cannot be null."
         );
-        this.timestampedElementContainerQueue = new LinkedBlockingQueue<TimestampedElementContainer<E>>(capacity);
+        this.timestampedElementContainerQueue =
+            new LinkedBlockingQueue<TimestampedElementContainer<? extends E>>(capacity);
         this.elementClass = elementClass;
         this.datastore = datastore;
         populate();
@@ -112,7 +114,7 @@ implements Collection<E>, Iterable<E>, Queue<E> {
     }
 
     public boolean contains(final Object object) {
-        Iterator<E> _elementQueueIterator = iterator();
+        Iterator<? extends E> _elementQueueIterator = iterator();
         // This Queue implementation does not support elements to be null.
         if (object != null) {
             while (_elementQueueIterator.hasNext()) {
@@ -142,7 +144,7 @@ implements Collection<E>, Iterable<E>, Queue<E> {
     public Iterator<E> iterator() {
         return
             new Iterator<E>() {
-                private Iterator<TimestampedElementContainer<E>> delegateIterator =
+                private Iterator<TimestampedElementContainer<? extends E>> delegateIterator =
                     getTimestampedElementContainerQueue().iterator();
 
                 public boolean hasNext() {
@@ -159,7 +161,7 @@ implements Collection<E>, Iterable<E>, Queue<E> {
                     getDelegateIterator().remove();
                 }
 
-                protected Iterator<TimestampedElementContainer<E>> getDelegateIterator() {
+                protected Iterator<TimestampedElementContainer<? extends E>> getDelegateIterator() {
                     return delegateIterator;
                 }
             };
@@ -208,7 +210,8 @@ implements Collection<E>, Iterable<E>, Queue<E> {
     public E poll() {
         getTakeLock().lock();
         try {
-            TimestampedElementContainer<E> _timestampedElementContainer = getTimestampedElementContainerQueue().poll();
+            TimestampedElementContainer<? extends E> _timestampedElementContainer =
+                getTimestampedElementContainerQueue().poll();
             if (_timestampedElementContainer != null) {
                 getDatastore().
                     findAndDelete(
@@ -253,7 +256,7 @@ implements Collection<E>, Iterable<E>, Queue<E> {
     public E remove()
     throws NoSuchElementException {
         // throws NoSuchElementException
-        TimestampedElementContainer<E> _timestampedElementContainer =
+        TimestampedElementContainer<? extends E> _timestampedElementContainer =
             getTimestampedElementContainerQueue().remove();
         if (_timestampedElementContainer != null) {
             getDatastore().
@@ -294,7 +297,7 @@ implements Collection<E>, Iterable<E>, Queue<E> {
     }
 
     public boolean remove(final Object object) {
-        Iterator<E> _elementQueueIterator = iterator();
+        Iterator<? extends E> _elementQueueIterator = iterator();
         // This Queue implementation does not support elements to be null.
         if (object != null) {
             while (_elementQueueIterator.hasNext()) {
@@ -367,7 +370,9 @@ implements Collection<E>, Iterable<E>, Queue<E> {
         StringBuilder _stringBuilder = new StringBuilder();
         _stringBuilder.append("DatabaseBackedQueue[");
         boolean _first = true;
-        for (final TimestampedElementContainer<E> _timestampedElementContainer : getTimestampedElementContainerQueue()) {
+        for (final TimestampedElementContainer<? extends E> _timestampedElementContainer :
+                getTimestampedElementContainerQueue()) {
+
             if (!_first) {
                 _stringBuilder.append(", ");
             } else {
@@ -386,7 +391,7 @@ implements Collection<E>, Iterable<E>, Queue<E> {
         return datastore;
     }
 
-    protected final Class<E> getElementClass() {
+    protected final Class<? extends E> getElementClass() {
         return elementClass;
     }
 
@@ -394,7 +399,7 @@ implements Collection<E>, Iterable<E>, Queue<E> {
         return putLock;
     }
 
-    protected final Queue<TimestampedElementContainer<E>> getTimestampedElementContainerQueue() {
+    protected final Queue<TimestampedElementContainer<? extends E>> getTimestampedElementContainerQueue() {
         return timestampedElementContainerQueue;
     }
 

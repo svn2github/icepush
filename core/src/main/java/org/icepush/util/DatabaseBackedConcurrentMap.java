@@ -21,9 +21,9 @@ implements ConcurrentMap<String, V>, Map<String, V> {
     private final ConcurrentMap<String, V> map = new ConcurrentHashMap<String, V>();
 
     private final Datastore datastore;
-    private final Class<V> valueClass;
+    private final Class<? extends V> valueClass;
 
-    public DatabaseBackedConcurrentMap(final Class<V> valueClass, final Datastore datastore)
+    public DatabaseBackedConcurrentMap(final Class<? extends V> valueClass, final Datastore datastore)
     throws IllegalArgumentException {
         checkArgument(
             isNotNull(valueClass),
@@ -261,12 +261,12 @@ implements ConcurrentMap<String, V>, Map<String, V> {
         return map;
     }
 
-    protected final Class<V> getValueClass() {
+    protected final Class<? extends V> getValueClass() {
         return valueClass;
     }
 
     private void populate() {
-        List<V> _valueList = getDatastore().find(getValueClass()).asList();
+        List<? extends V> _valueList = getDatastore().find(getValueClass()).asList();
         for (final V _value : _valueList) {
             getMap().putIfAbsent(_value.getKey(), _value);
         }

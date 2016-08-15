@@ -13,7 +13,6 @@
  * express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-
 package org.icepush;
 
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
@@ -23,7 +22,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -64,7 +62,7 @@ implements DatabaseEntity, Serializable {
 
     private String id;
 
-    private long lastAccessTimestamp;
+    private long lastAccessTimestamp = System.currentTimeMillis();
 
     @Transient
     private final Lock notifiedPushIDSetLock = new ReentrantLock();
@@ -90,17 +88,32 @@ implements DatabaseEntity, Serializable {
     }
 
     public Browser(final Browser browser) {
-        this(browser.getID());
-        setNotifyBackURI(browser.getNotifyBackURI(), false);
-        setLastAccessTimestamp(browser.getLastAccessTimestamp());
-        setPushIDSet(browser.getPushIDSet());
-        status = new Status(browser.getStatus(), this);
+        this(browser, true);
     }
 
     public Browser(final String id) {
-        this.id = id;
-        this.status = newStatus();
-        this.databaseID = getID();
+        this(id, true);
+    }
+
+    protected Browser(final Browser browser, final boolean save) {
+        this(browser.getID(), false);
+        setNotifyBackURI(browser.getNotifyBackURI(), false);
+        setLastAccessTimestamp(browser.getLastAccessTimestamp(), false);
+        setPushIDSet(browser.getPushIDSet(), false);
+        setStatus(newStatus(browser.getStatus(), this), false);
+        if (save) {
+            save();
+        }
+    }
+
+    protected Browser(final String id, final boolean save) {
+        setID(id, false);
+        setDatabaseID(getID(), false);
+        // Setting the Status MUST be done last.
+        setStatus(newStatus(), false);
+        if (save) {
+            save();
+        }
     }
 
     public boolean addNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
@@ -296,82 +309,14 @@ implements DatabaseEntity, Serializable {
         }
     }
 
+    // Solely used by BrowserDispatcher
     public boolean setLastAccessTimestamp(final long lastAccessTimestamp) {
-        boolean _modified;
-        if (this.lastAccessTimestamp != lastAccessTimestamp) {
-            this.lastAccessTimestamp = lastAccessTimestamp;
-            _modified = true;
-            save();
-        } else {
-            _modified = false;
-        }
-        return _modified;
-    }
-
-    public boolean setLastNotifiedPushIDSet(final Set<NotificationEntry> lastNotifiedPushIDSet) {
-        lockLastNotifiedPushIDSet();
-        try {
-            boolean _modified;
-            if (!this.lastNotifiedPushIDSet.equals(lastNotifiedPushIDSet)) {
-                this.lastNotifiedPushIDSet = new HashSet<NotificationEntry>(lastNotifiedPushIDSet);
-                _modified = true;
-                save();
-            } else {
-                _modified = false;
-            }
-            return _modified;
-        } finally {
-            unlockLastNotifiedPushIDSet();
-        }
+        return setLastAccessTimestamp(lastAccessTimestamp, true);
     }
 
     public boolean setNotifyBackURI(final String notifyBackURI, final boolean broadcastIfIsNew) {
-        boolean _modified;
-        if ((this.notifyBackURI == null && notifyBackURI != null) ||
-            (this.notifyBackURI != null && !this.notifyBackURI.equals(notifyBackURI))) {
-
-            this.notifyBackURI = notifyBackURI;
-            _modified = true;
-            if (this.notifyBackURI != null) {
-                getInternalPushGroupManager().getNotifyBackURI(this.notifyBackURI).setBrowserID(getID());
-            }
-            save();
-        } else {
-            if (this.notifyBackURI != null) {
-                getInternalPushGroupManager().getNotifyBackURI(this.notifyBackURI).touch();
-            }
-            _modified = false;
-        }
-        return _modified;
+        return setNotifyBackURI(notifyBackURI, broadcastIfIsNew, true);
     }
-
-    public boolean setPushIDSet(final Set<String> pushIDSet) {
-        boolean _modified;
-        if ((this.pushIDSet == null && pushIDSet != null) ||
-            (this.pushIDSet != null && !this.pushIDSet.equals(pushIDSet))) {
-
-            this.pushIDSet = new HashSet<String>(pushIDSet);
-            _modified = true;
-            save();
-        } else {
-            _modified = false;
-        }
-        return _modified;
-    }
-
-    public boolean setSequenceNumber(final long sequenceNumber) {
-        boolean _modified = status.setSequenceNumber(sequenceNumber);
-        if (_modified) {
-            save();
-        }
-        return _modified;
-    }
-
-//    public boolean startConfirmationTimeout(
-//        final String groupName, final Map<String, String> propertyMap, final boolean forced) {
-//
-//        return getInternalPushGroupManager().startConfirmationTimeout(getID(), groupName, propertyMap, forced);
-//    }
 
     @Override
     public String toString() {
@@ -398,7 +343,8 @@ implements DatabaseEntity, Serializable {
                 append("notifiedPushIDSet: '").append(getNotifiedPushIDSet()).append("', ").
                 append("notifyBackURI: '").append(getNotifyBackURI()).append("', ").
                 append("pushIDSet: '").append(getPushIDSet()).append("', ").
-                append("status: '").append(getStatus()).append("'").
+                append("status: '").append(getStatus()).append(", '").
+                append("databaseID: '").append(getDatabaseID()).append("'").
                     toString();
     }
 
@@ -432,11 +378,51 @@ implements DatabaseEntity, Serializable {
     }
 
     protected Status newStatus() {
-        return new Status(getID());
+        return new Status(this);
     }
 
-    protected void setStatus(final Status status) {
-        this.status = status;
+    protected Status newStatus(final Status status, final Browser browser) {
+        return new Status(status, browser);
+    }
+
+    protected final boolean setDatabaseID(final String databaseID) {
+        return setDatabaseID(databaseID, true);
+    }
+
+    protected final boolean setID(final String id) {
+        return setID(id, true);
+    }
+
+    protected boolean setLastNotifiedPushIDSet(final Set<NotificationEntry> lastNotifiedPushIDSet) {
+        return setLastNotifiedPushIDSet(lastNotifiedPushIDSet, true);
+    }
+
+    protected boolean setPushIDSet(final Set<String> pushIDSet) {
+        return setPushIDSet(pushIDSet, true);
+    }
+
+    protected boolean setSequenceNumber(final long sequenceNumber) {
+        return setSequenceNumber(sequenceNumber, true);
+    }
+
+    protected boolean setStatus(final Status status) {
+        return setStatus(status, true);
+    }
+
+    protected boolean setStatus(final Status status, final boolean save) {
+        boolean _modified;
+        if ((this.status == null && status != null) ||
+            (this.status != null && !this.status.equals(status))) {
+
+            this.status = status;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
     }
 
     protected void unlockLastNotifiedPushIDSet() {
@@ -464,6 +450,119 @@ implements DatabaseEntity, Serializable {
         return request.getParameter(BROWSER_ID_NAME);
     }
 
+    private boolean setDatabaseID(final String databaseID, final boolean save) {
+        boolean _modified;
+        if ((this.databaseID == null && databaseID != null) ||
+            (this.databaseID != null && !this.databaseID.equals(databaseID))) {
+
+            this.databaseID = databaseID;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    private boolean setID(final String id, final boolean save) {
+        boolean _modified;
+        if ((this.id == null && id != null) ||
+            (this.id != null && !this.id.equals(id))) {
+
+            this.id = id;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    private boolean setLastAccessTimestamp(final long lastAccessTimestamp, final boolean save) {
+        boolean _modified;
+        if (this.lastAccessTimestamp != lastAccessTimestamp) {
+            this.lastAccessTimestamp = lastAccessTimestamp;
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    private boolean setLastNotifiedPushIDSet(final Set<NotificationEntry> lastNotifiedPushIDSet, final boolean save) {
+        lockLastNotifiedPushIDSet();
+        try {
+            boolean _modified;
+            if (!this.lastNotifiedPushIDSet.equals(lastNotifiedPushIDSet)) {
+                this.lastNotifiedPushIDSet = new HashSet<NotificationEntry>(lastNotifiedPushIDSet);
+                _modified = true;
+                if (save) {
+                    save();
+                }
+            } else {
+                _modified = false;
+            }
+            return _modified;
+        } finally {
+            unlockLastNotifiedPushIDSet();
+        }
+    }
+
+    private boolean setNotifyBackURI(final String notifyBackURI, final boolean broadcastIfIsNew, final boolean save) {
+        boolean _modified;
+        if ((this.notifyBackURI == null && notifyBackURI != null) ||
+            (this.notifyBackURI != null && !this.notifyBackURI.equals(notifyBackURI))) {
+
+            this.notifyBackURI = notifyBackURI;
+            _modified = true;
+            if (this.notifyBackURI != null) {
+                getInternalPushGroupManager().getNotifyBackURI(this.notifyBackURI).setBrowserID(getID());
+            }
+            if (save) {
+                save();
+            }
+        } else {
+            if (this.notifyBackURI != null) {
+                getInternalPushGroupManager().getNotifyBackURI(this.notifyBackURI).touch();
+            }
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    private boolean setPushIDSet(final Set<String> pushIDSet, final boolean save) {
+        boolean _modified;
+        if ((this.pushIDSet == null && pushIDSet != null) ||
+            (this.pushIDSet != null && !this.pushIDSet.equals(pushIDSet))) {
+
+            this.pushIDSet = new HashSet<String>(pushIDSet);
+            _modified = true;
+            if (save) {
+                save();
+            }
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    private boolean setSequenceNumber(final long sequenceNumber, final boolean save) {
+        boolean _modified = status.setSequenceNumber(sequenceNumber);
+        if (_modified) {
+            if (save) {
+                save();
+            }
+        }
+        return _modified;
+    }
+
     public static class Status
     implements Serializable {
         private static final long serialVersionUID = 2530024421926858382L;
@@ -480,23 +579,51 @@ implements DatabaseEntity, Serializable {
             // Do nothing.
         }
 
-        protected Status(final String browserID) {
-            this.browserID = browserID;
+        public Status(final Status status, final Browser browser) {
+            this(status, browser, true);
         }
 
-        protected Status(final Status status, final Browser browser) {
-            setBackupConnectionRecreationTimeout(status.getBackupConnectionRecreationTimeout());
-            setConnectionRecreationTimeout(status.getConnectionRecreationTimeout());
-            setSequenceNumber(status.getSequenceNumber());
-            this.browserID = browser.getID();
+        public Status(final Browser browser) {
+            this(browser, true);
+        }
+
+        protected Status(final Status status, final Browser browser, final boolean save) {
+            setBrowserID(browser.getID(), false);
+            setBackupConnectionRecreationTimeout(status.getBackupConnectionRecreationTimeout(), false);
+            setConnectionRecreationTimeout(status.getConnectionRecreationTimeout(), false);
+            setSequenceNumber(status.getSequenceNumber(), false);
+            if (save) {
+                getBrowser().save();
+            }
+        }
+
+        protected Status(final Browser browser, final boolean save) {
+            setBrowserID(browser.getID(), false);
+            if (save) {
+                browser.save();
+            }
         }
 
         public void backUpConnectionRecreationTimeout() {
             backupConnectionRecreationTimeout = connectionRecreationTimeout;
         }
 
+        @Override
+        public boolean equals(final Object object) {
+            return
+                object instanceof Status &&
+                    ((Status)object).getBackupConnectionRecreationTimeout() == getBackupConnectionRecreationTimeout() &&
+                    ((Status)object).getBrowserID().equals(getBrowserID()) &&
+                    ((Status)object).getConnectionRecreationTimeout() == getConnectionRecreationTimeout() &&
+                    ((Status)object).getSequenceNumber() == getSequenceNumber();
+        }
+
         public long getBackupConnectionRecreationTimeout() {
             return backupConnectionRecreationTimeout;
+        }
+
+        public String getBrowserID() {
+            return browserID;
         }
 
         public long getConnectionRecreationTimeout() {
@@ -507,47 +634,31 @@ implements DatabaseEntity, Serializable {
             return sequenceNumber;
         }
 
+        @Override
+        public int hashCode() {
+            int _hashCode = getBrowserID() != null ? getBrowserID().hashCode() : 0;
+            _hashCode =
+                31 * _hashCode +
+                    (int)(getBackupConnectionRecreationTimeout() ^ (getBackupConnectionRecreationTimeout() >>> 32));
+            _hashCode =
+                31 * _hashCode +
+                    (int)(getConnectionRecreationTimeout() ^ (getConnectionRecreationTimeout() >>> 32));
+            _hashCode =
+                31 * _hashCode +
+                    (int)(getSequenceNumber() ^ (getSequenceNumber() >>> 32));
+            return _hashCode;
+        }
+
         public boolean revertConnectionRecreationTimeout() {
             return setConnectionRecreationTimeout(getBackupConnectionRecreationTimeout());
         }
 
         public boolean setBackupConnectionRecreationTimeout(final long backupConnectionRecreationTimeout) {
-            boolean _modified;
-            if (this.backupConnectionRecreationTimeout != backupConnectionRecreationTimeout) {
-                this.backupConnectionRecreationTimeout = backupConnectionRecreationTimeout;
-
-                _modified = true;
-                getBrowser().save();
-            } else {
-                _modified = false;
-            }
-            return _modified;
+            return setBackupConnectionRecreationTimeout(backupConnectionRecreationTimeout, true);
         }
 
         public boolean setConnectionRecreationTimeout(final long connectionRecreationTimeout) {
-            boolean _modified;
-            if (this.connectionRecreationTimeout != connectionRecreationTimeout) {
-                this.connectionRecreationTimeout = connectionRecreationTimeout;
-
-                _modified = true;
-                getBrowser().save();
-            } else {
-                _modified = false;
-            }
-            return _modified;
-        }
-
-        public boolean setSequenceNumber(final long sequenceNumber) {
-            boolean _modified;
-            if (this.sequenceNumber != sequenceNumber) {
-                this.sequenceNumber = sequenceNumber;
-
-                _modified = true;
-                getBrowser().save();
-            } else {
-                _modified = false;
-            }
-            return _modified;
+            return setConnectionRecreationTimeout(connectionRecreationTimeout, true);
         }
 
         @Override
@@ -580,8 +691,81 @@ implements DatabaseEntity, Serializable {
                 ).getBrowser(getBrowserID());
         }
 
-        protected String getBrowserID() {
-            return browserID;
+        protected boolean setBrowserID(final String browserID) {
+            return setBrowserID(browserID, true);
+        }
+
+        protected boolean setSequenceNumber(final long sequenceNumber) {
+            return setSequenceNumber(sequenceNumber, true);
+        }
+
+        private boolean setBackupConnectionRecreationTimeout(
+            final long backupConnectionRecreationTimeout, final boolean save) {
+
+            boolean _modified;
+            if (this.backupConnectionRecreationTimeout != backupConnectionRecreationTimeout) {
+                this.backupConnectionRecreationTimeout = backupConnectionRecreationTimeout;
+
+                _modified = true;
+                if (save) {
+                    getBrowser().save();
+                }
+            } else {
+                _modified = false;
+            }
+            return _modified;
+        }
+
+        private boolean setBrowserID(
+            final String browserID, final boolean save) {
+
+            boolean _modified;
+            if ((this.browserID == null && browserID != null) ||
+                (this.browserID != null && !this.browserID.equals(browserID))) {
+
+                this.browserID = browserID;
+                _modified = true;
+                if (save) {
+                    getBrowser().save();
+                }
+            } else {
+                _modified = false;
+            }
+            return _modified;
+        }
+
+        private boolean setConnectionRecreationTimeout(
+            final long connectionRecreationTimeout, final boolean save) {
+
+            boolean _modified;
+            if (this.connectionRecreationTimeout != connectionRecreationTimeout) {
+                this.connectionRecreationTimeout = connectionRecreationTimeout;
+
+                _modified = true;
+                if (save) {
+                    getBrowser().save();
+                }
+            } else {
+                _modified = false;
+            }
+            return _modified;
+        }
+
+        private boolean setSequenceNumber(
+            final long sequenceNumber, final boolean save) {
+
+            boolean _modified;
+            if (this.sequenceNumber != sequenceNumber) {
+                this.sequenceNumber = sequenceNumber;
+
+                _modified = true;
+                if (save) {
+                    getBrowser().save();
+                }
+            } else {
+                _modified = false;
+            }
+            return _modified;
         }
     }
 }

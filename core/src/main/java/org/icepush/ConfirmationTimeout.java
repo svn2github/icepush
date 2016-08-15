@@ -296,7 +296,7 @@ implements DatabaseEntity, Serializable {
             lockCloudPushNotificationSet();
             try {
                 for (final CloudPushNotification _cloudPushNotification : getModifiableCloudPushNotificationSet()) {
-                    _cloudPushNotification.scheduleOrExecute(internalPushGroupManager);
+                    _cloudPushNotification.scheduleOrExecute(this, internalPushGroupManager);
                 }
             } finally {
                 unlockCloudPushNotificationSet();
@@ -354,7 +354,7 @@ implements DatabaseEntity, Serializable {
     }
 
     @Embedded
-    public class CloudPushNotification
+    public static class CloudPushNotification
     implements Serializable {
         private static final long serialVersionUID = 2592022163953943399L;
 
@@ -400,7 +400,7 @@ implements DatabaseEntity, Serializable {
             setForced(forced, false);
             setTimeout(timeout, false);
             if (save) {
-                save();
+                getConfirmationTimeout().save();
             }
         }
 
@@ -494,7 +494,9 @@ implements DatabaseEntity, Serializable {
                         toString();
         }
 
-        protected void execute(final InternalPushGroupManager internalPushGroupManager) {
+        protected void execute(
+            final ConfirmationTimeout confirmationTimeout, final InternalPushGroupManager internalPushGroupManager) {
+
             Browser _browser = internalPushGroupManager.getBrowser(getBrowserID());
             NotifyBackURI _notifyBackURI = internalPushGroupManager.getNotifyBackURI(_browser.getNotifyBackURI());
             if (LOGGER.isLoggable(Level.FINE)) {
@@ -540,7 +542,7 @@ implements DatabaseEntity, Serializable {
                     }
                 }
                 if (cancel(true, internalPushGroupManager)) {
-                    removeCloudPushNotification(this, internalPushGroupManager);
+                    confirmationTimeout.removeCloudPushNotification(this, internalPushGroupManager);
                 }
             } catch (final Exception exception) {
                 if (LOGGER.isLoggable(Level.WARNING)) {
@@ -552,8 +554,28 @@ implements DatabaseEntity, Serializable {
             }
         }
 
+        protected void execute(
+            final InternalPushGroupManager internalPushGroupManager) {
+
+            execute(getConfirmationTimeout(internalPushGroupManager), internalPushGroupManager);
+        }
+
+        protected ConfirmationTimeout getConfirmationTimeout() {
+            return getConfirmationTimeout(getInternalPushGroupManager());
+        }
+
+        protected ConfirmationTimeout getConfirmationTimeout(final InternalPushGroupManager internalPushGroupManager) {
+            return internalPushGroupManager.getConfirmationTimeout(getBrowserID());
+        }
+
         protected final Timer getConfirmationTimer() {
             return ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation"));
+        }
+
+        protected static InternalPushGroupManager getInternalPushGroupManager() {
+            return
+                (InternalPushGroupManager)
+                    PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
         }
 
         protected final Map<String, String> getModifiablePropertyMap() {
@@ -564,7 +586,9 @@ implements DatabaseEntity, Serializable {
             return timerTask;
         }
 
-        public void scheduleOrExecute(final InternalPushGroupManager internalPushGroupManager) {
+        protected void scheduleOrExecute(
+            final ConfirmationTimeout confirmationTimeout, final InternalPushGroupManager internalPushGroupManager) {
+
             if (System.currentTimeMillis() < getScheduledTime()) {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
@@ -586,8 +610,14 @@ implements DatabaseEntity, Serializable {
                                     "[now: '" + new Date(System.currentTimeMillis()) + "']"
                     );
                 }
-                execute(internalPushGroupManager);
+                execute(confirmationTimeout, internalPushGroupManager);
             }
+        }
+
+        protected void scheduleOrExecute(
+            final InternalPushGroupManager internalPushGroupManager) {
+
+            scheduleOrExecute(getConfirmationTimeout(internalPushGroupManager), internalPushGroupManager);
         }
 
         protected final boolean setBrowserID(final String browserID) {
@@ -627,7 +657,7 @@ implements DatabaseEntity, Serializable {
                 this.browserID = browserID;
                 _modified = true;
                 if (save) {
-                    save();
+                    getConfirmationTimeout().save();
                 }
             } else {
                 _modified = false;
@@ -641,7 +671,7 @@ implements DatabaseEntity, Serializable {
                 this.forced = forced;
                 _modified = true;
                 if (save) {
-                    save();
+                    getConfirmationTimeout().save();
                 }
             } else {
                 _modified = false;
@@ -655,14 +685,14 @@ implements DatabaseEntity, Serializable {
                 this.propertyMap.clear();
                 _modified = true;
                 if (save) {
-                    save();
+                    getConfirmationTimeout().save();
                 }
             } else if (!this.propertyMap.equals(propertyMap) && propertyMap != null) {
                 this.propertyMap.clear();
                 this.propertyMap.putAll(propertyMap);
                 _modified = true;
                 if (save) {
-                    save();
+                    getConfirmationTimeout().save();
                 }
             } else {
                 _modified = false;
@@ -678,7 +708,7 @@ implements DatabaseEntity, Serializable {
                 this.pushID = pushID;
                 _modified = true;
                 if (save) {
-                    save();
+                    getConfirmationTimeout().save();
                 }
             } else {
                 _modified = false;
@@ -692,7 +722,7 @@ implements DatabaseEntity, Serializable {
                 this.scheduledTime = scheduledTime;
                 _modified = true;
                 if (save) {
-                    save();
+                    getConfirmationTimeout().save();
                 }
             } else {
                 _modified = false;
@@ -706,7 +736,7 @@ implements DatabaseEntity, Serializable {
                 this.timeout = timeout;
                 _modified = true;
                 if (save) {
-                    save();
+                    getConfirmationTimeout().save();
                 }
             } else {
                 _modified = false;
