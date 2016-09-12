@@ -236,10 +236,10 @@
         <!-- Not sure why but when I tried to put this in the top-level parent pom, it would sign all the artifacts
              but would only deploy the signatures for the main .jar and not the the sources and javadoc jars. It
              apparently works fine if the profile is defined in each project so that's what I've done for now. -->
-        <profile>
+     <!-- old signer profile 
+      <profile>
             <id>sign-artifacts</id>
             <activation>
-                <!--<activeByDefault>true</activeByDefault>-->
                 <property>
                     <name>signArtifacts</name>
                 </property>
@@ -266,7 +266,7 @@
                     </plugin>
                 </plugins>
             </build>
-        </profile>
+        </profile>  -->
 
     </profiles>
 
