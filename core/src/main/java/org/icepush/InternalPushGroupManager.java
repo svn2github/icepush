@@ -47,6 +47,12 @@ extends PushGroupManager {
 
     boolean isParked(String pushID);
 
+    NotificationEntry newNotificationEntry(
+        String pushID, String groupName, String payload);
+
+    NotificationEntry newNotificationEntry(
+        String pushID, String groupName, String payload, Map<String, String> propertyMap, boolean forced);
+
     boolean removeConfirmationTimeout(ConfirmationTimeout confirmationTimeout);
 
     boolean removeExpiryTimeout(ExpiryTimeout expiryTimeout);

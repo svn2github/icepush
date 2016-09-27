@@ -145,14 +145,16 @@ implements DatabaseEntity, Runnable, Serializable {
                     LOGGER.log(
                         Level.FINE,
                         "Notification triggered for Group '" + getGroupName() + "' with " +
-                            "original Push-ID Set '" + _pushIDSet + "'.");
+                            "original Push-ID Set '" + _pushIDSet + "'."
+                    );
                 }
                 _pushIDSet.removeAll(getExemptPushIDSet());
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
                         "Notification triggered for Group '" + getGroupName() + "' with " +
-                            "Push-ID Set '" + _pushIDSet + "' after exemption.");
+                            "Push-ID Set '" + _pushIDSet + "' after exemption."
+                    );
                 }
                 Set<NotificationEntry> _notificationEntrySet = new HashSet<NotificationEntry>();
                 for (final String pushID : _pushIDSet) {
@@ -163,7 +165,8 @@ implements DatabaseEntity, Runnable, Serializable {
                     LOGGER.log(
                         Level.FINE,
                         "Notification triggered for Group '" + getGroupName() + "' with " +
-                            "Notification Entry Set '" + _notificationEntrySet + "' after filtering.");
+                            "Notification Entry Set '" + _notificationEntrySet + "' after filtering."
+                    );
                 }
                 getInternalPushGroupManager().addAllNotificationEntries(_notificationEntrySet);
                 beforeBroadcast(_notificationEntrySet);
@@ -227,13 +230,9 @@ implements DatabaseEntity, Runnable, Serializable {
     protected NotificationEntry newNotificationEntry(
         final String pushID) {
 
-        return newNotificationEntry(pushID, getGroupName(), getPayload());
-    }
-
-    protected NotificationEntry newNotificationEntry(
-        final String pushID, final String groupName, final String payload) {
-
-        return new NotificationEntry(pushID, groupName, payload);
+        return
+            getInternalPushGroupManager().
+                newNotificationEntry(pushID, getGroupName(), getPayload());
     }
 
     protected final boolean setDuration(final long duration) {

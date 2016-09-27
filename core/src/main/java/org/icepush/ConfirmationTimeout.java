@@ -200,6 +200,13 @@ implements DatabaseEntity, Serializable {
     protected void cancelAll(
         final boolean ignoreForced, final InternalPushGroupManager internalPushGroupManager) {
 
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(
+                Level.FINE,
+                "Cancelling Confirmation Timeouts for Browser '" + getBrowserID() + "'...  " +
+                    "[now: '" + new Date(System.currentTimeMillis()) + "']"
+            );
+        }
         lockCloudPushNotificationSet();
         try {
             Iterator<CloudPushNotification> _cloudPushNotificationSetIterator =
@@ -213,7 +220,8 @@ implements DatabaseEntity, Serializable {
                             Level.FINE,
                             "Confirmation Timeout for Push-ID '" + _cloudPushNotification.getPushID() + "' " +
                                 "(Browser '" + getBrowserID() + "') cancelled.  " +
-                                    "[now: '" + new Date(System.currentTimeMillis()) + "']");
+                                    "[now: '" + new Date(System.currentTimeMillis()) + "']"
+                        );
                     }
                 }
             }
@@ -223,7 +231,8 @@ implements DatabaseEntity, Serializable {
                     LOGGER.log(
                         Level.FINE,
                         "Confirmation Timeouts for Browser '" + getBrowserID() + "' cancelled.  " +
-                            "[now: '" + new Date(System.currentTimeMillis()) + "']");
+                            "[now: '" + new Date(System.currentTimeMillis()) + "']"
+                    );
                 }
             }
         } finally {
@@ -292,6 +301,13 @@ implements DatabaseEntity, Serializable {
     }
 
     protected void scheduleExecuteOrCancel(final InternalPushGroupManager internalPushGroupManager) {
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(
+                Level.FINE,
+                "Scheduling, executing or cancelling Configuration Timeouts for Browser '" + getBrowserID() + "'...  " +
+                    "[now: '" + new Date(System.currentTimeMillis()) + "']"
+            );
+        }
         if (internalPushGroupManager.getBrowser(getBrowserID()) != null) {
             lockCloudPushNotificationSet();
             try {
@@ -446,6 +462,13 @@ implements DatabaseEntity, Serializable {
         }
 
         public void reschedule() {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(
+                    Level.FINE,
+                    "Rescheduling Configuration Timeouts for Browser '" + getBrowserID() + "'...  " +
+                        "[now: '" + new Date(System.currentTimeMillis()) + "']"
+                );
+            }
             getConfirmationTimer().schedule(getTimerTask(), new Date(getScheduledTime()));
         }
 
@@ -497,6 +520,13 @@ implements DatabaseEntity, Serializable {
         protected void execute(
             final ConfirmationTimeout confirmationTimeout, final InternalPushGroupManager internalPushGroupManager) {
 
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(
+                    Level.FINE,
+                    "Executing Configuration Timeouts for Browser '" + getBrowserID() + "'...  " +
+                        "[now: '" + new Date(System.currentTimeMillis()) + "']"
+                );
+            }
             Browser _browser = internalPushGroupManager.getBrowser(getBrowserID());
             NotifyBackURI _notifyBackURI = internalPushGroupManager.getNotifyBackURI(_browser.getNotifyBackURI());
             if (LOGGER.isLoggable(Level.FINE)) {
@@ -589,27 +619,16 @@ implements DatabaseEntity, Serializable {
         protected void scheduleOrExecute(
             final ConfirmationTimeout confirmationTimeout, final InternalPushGroupManager internalPushGroupManager) {
 
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(
+                    Level.FINE,
+                    "Executing or cancelling Configuration Timeouts for Browser '" + getBrowserID() + "'...  " +
+                        "[now: '" + new Date(System.currentTimeMillis()) + "']"
+                );
+            }
             if (System.currentTimeMillis() < getScheduledTime()) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Scheduling Confirmation Timeout for Push-ID '" + getPushID() + "' " +
-                            "(Browser '" + getBrowserID() + "') at " +
-                                "Scheduled Time '" + new Date(getScheduledTime()) + "'.  " +
-                                    "[now: '" + new Date(System.currentTimeMillis()) + "']"
-                    );
-                }
                 reschedule();
             } else {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Executing Confirmation Timeout for Push-ID '" + getPushID() + "' " +
-                            "(Browser '" + getBrowserID() + "') with " +
-                                "Scheduled Time '" + new Date(getScheduledTime()) + "'.  " +
-                                    "[now: '" + new Date(System.currentTimeMillis()) + "']"
-                    );
-                }
                 execute(confirmationTimeout, internalPushGroupManager);
             }
         }

@@ -49,6 +49,7 @@ import org.icepush.servlet.ServletContextConfiguration;
 import org.icepush.util.DatabaseBackedConcurrentMap;
 import org.icepush.util.DatabaseBackedQueue;
 import org.icesoft.notify.cloud.core.CloudNotificationService;
+import org.icesoft.notify.cloud.core.LocalCloudNotificationService;
 import org.icesoft.util.servlet.ExtensionRegistry;
 
 import org.mongodb.morphia.Datastore;
@@ -120,7 +121,7 @@ implements InternalPushGroupManager, PushGroupManager {
 
         this.servletContext = servletContext;
         getServletContext().setAttribute(
-            CloudNotificationService.class.getName(), new CloudNotificationService(getServletContext())
+            CloudNotificationService.class.getName(), newCloudNotificationService(getServletContext())
         );
         Configuration configuration = new ServletContextConfiguration("org.icepush", getServletContext());
         this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", DEFAULT_GROUP_TIMEOUT);
@@ -408,6 +409,19 @@ implements InternalPushGroupManager, PushGroupManager {
         return parkedPushIDs.containsKey(pushID);
     }
 
+    public NotificationEntry newNotificationEntry(
+        final String pushID, final String groupName, final String payload) {
+
+        return new NotificationEntry(pushID, groupName, payload);
+    }
+
+    public NotificationEntry newNotificationEntry(
+        final String pushID, final String groupName, final String payload, final Map<String, String> propertyMap,
+        final boolean forced) {
+
+        return new NotificationEntry(pushID, groupName, payload, propertyMap, forced);
+    }
+
     public NotifyBackURI newNotifyBackURI(final String uri) {
         return new NotifyBackURI(uri);
     }
@@ -451,7 +465,7 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public void push(final String groupName, final PushConfiguration pushConfiguration) {
-        push(groupName, (String)null, pushConfiguration);
+        push(groupName, (String) null, pushConfiguration);
     }
 
     public void push(final String groupName, final String payload, final PushConfiguration pushConfiguration) {
@@ -1419,6 +1433,10 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected Browser newBrowser(final String browserID) {
         return new Browser(browserID);
+    }
+
+    protected CloudNotificationService newCloudNotificationService(final ServletContext servletContext) {
+        return new LocalCloudNotificationService(servletContext);
     }
 
     protected ConfirmationTimeout newConfirmationTimeout(final String browserID) {

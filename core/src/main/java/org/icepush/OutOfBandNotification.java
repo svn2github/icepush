@@ -145,14 +145,9 @@ implements DatabaseEntity, Runnable, Serializable {
     protected NotificationEntry newNotificationEntry(
         final String pushID) {
 
-        return newNotificationEntry(pushID, getGroupName(), getPayload(), getPropertyMap(), isForced());
-    }
-
-    protected NotificationEntry newNotificationEntry(
-        final String pushID, final String groupName, final String payload, final Map<String, String> propertyMap,
-        final boolean forced) {
-
-        return new NotificationEntry(pushID, groupName, payload, propertyMap, forced);
+        return
+            getInternalPushGroupManager().
+                newNotificationEntry(pushID, getGroupName(), getPayload(), getPropertyMap(), isForced());
     }
 
     protected final boolean setForced(final boolean forced) {

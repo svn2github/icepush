@@ -423,13 +423,14 @@ implements Collection<E>, Iterable<E>, Queue<E> {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
                 Level.FINE,
-                "Database-backed Map populated with '" + getTimestampedElementContainerQueue() + "'."
+                "Database-backed Map for Class '" + getElementClass() + "' " +
+                    "populated with '" + getTimestampedElementContainerQueue() + "'."
             );
         }
     }
 
     @Entity(value = "timestamped_element_containers")
-    protected static class TimestampedElementContainer<E extends DatabaseEntity>
+    public static class TimestampedElementContainer<E extends DatabaseEntity>
     implements Comparable<TimestampedElementContainer<E>>, DatabaseEntity, Serializable {
         @Id
         private String databaseID;

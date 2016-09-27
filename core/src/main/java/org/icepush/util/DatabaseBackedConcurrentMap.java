@@ -273,7 +273,8 @@ implements ConcurrentMap<String, V>, Map<String, V> {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
                 Level.FINE,
-                "Database-backed Map populated with '" + entrySet() + "'."
+                "Database-backed Map for Class '" + getValueClass() + "' " +
+                    "populated with '" + entrySet() + "'."
             );
         }
     }
