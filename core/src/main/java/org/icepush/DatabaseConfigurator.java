@@ -34,14 +34,13 @@ implements ServletContextListener {
             private static final boolean DB_ENABLED = false;
             private static final boolean DB_DEBUG_ENABLED = false;
             private static final String DB_HOST = "localhost";
-            private static final String DB_NAME = "icesoft_technologies_inc";
+            private static final String DB_NAME = "icesoft_technologies";
             private static final int DB_PORT = 27017;
             private static final boolean DB_TRACE_ENABLED = false;
         }
     }
 
     private Configuration configuration;
-    private MongoClient mongoClient;
 
     public void contextDestroyed(final ServletContextEvent event) {
         if (isDBEnabled()) {
@@ -154,7 +153,7 @@ implements ServletContextListener {
     }
 
     protected final MongoClient getMongoClient() {
-        return mongoClient;
+        return (MongoClient)PushInternalContext.getInstance().getAttribute(MongoClient.class.getName());
     }
 
     protected final boolean isDBEnabled() {
@@ -212,6 +211,10 @@ implements ServletContextListener {
     }
 
     private void setMongoClient(final MongoClient mongoClient) {
-        this.mongoClient = mongoClient;
+        if (mongoClient != null) {
+            PushInternalContext.getInstance().setAttribute(MongoClient.class.getName(), mongoClient);
+        } else {
+            PushInternalContext.getInstance().removeAttribute(MongoClient.class.getName());
+        }
     }
 }
