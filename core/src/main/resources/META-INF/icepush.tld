@@ -30,10 +30,10 @@
         <listener-class>org.icesoft.util.servlet.ExtensionRegistry</listener-class>
     </listener>
     <listener>
-        <listener-class>org.icepush.servlet.MainServlet$ExtensionRegistration</listener-class>
+        <listener-class>@main.servlet@$ExtensionRegistration</listener-class>
     </listener>
     <listener>
-        <listener-class>org.icepush.LocalPushGroupManager$ExtensionRegistration</listener-class>
+        <listener-class>@push.group.manager@$ExtensionRegistration</listener-class>
     </listener>
     <listener>
         <listener-class>org.icepush.DatabaseConfigurator</listener-class>

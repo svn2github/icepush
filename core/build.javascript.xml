@@ -48,6 +48,10 @@
                 <include name="**/**"/>
             </fileset>
         </copy>
+        <replace file="${res.dir}/icepush.tld">
+            <replacefilter token="@main.servlet@" value="${main.servlet}" />
+            <replacefilter token="@push.group.manager@" value="${push.group.manager}" />
+        </replace>
     </target>
 
     <target name="build.bridge.compressed" depends="prepare, file-checks, use-first-location, use-second-location" />

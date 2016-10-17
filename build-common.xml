@@ -162,9 +162,14 @@
 			
 			<copy todir="${build.dir}/jar/META-INF" failonerror="false" >
 				<fileset dir="${meta.dir}">
-	            	<include name="*.*"/>
-	            </fileset>
+					<include name="*.*"/>
+				</fileset>
 			</copy>
+
+			<replace file="${build.dir}/jar/META-INF/icepush.tld">
+				<replacefilter token="@main.servlet@" value="${main.servlet}" />
+				<replacefilter token="@push.group.manager@" value="${push.group.manager}" />
+			</replace>
 
 			<!-- Check if core.groupId is set, and if so use it instead of default groupId -->
 			<condition property="jar.groupId" value="${core.groupId}">
