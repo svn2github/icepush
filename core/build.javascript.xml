@@ -17,6 +17,7 @@
   -->
 
 <project name="icepush.js" default="build">
+    <property file="../build.javascript.properties"/>
     <property file="build.properties"/>
     <property name="src.dir" location="src/main/javascript"/>
     <property name="lib.dir" location="src/main/javascript/lib"/>
