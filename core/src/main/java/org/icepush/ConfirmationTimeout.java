@@ -16,6 +16,8 @@
 
 package org.icepush;
 
+import static org.icesoft.notify.cloud.core.NotificationProvider.Category;
+
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Date;
@@ -555,7 +557,10 @@ implements DatabaseEntity, Serializable {
                         if (getPropertyMap().containsKey("targetURI")) {
                             getModifiablePropertyMap().put("url", getModifiablePropertyMap().remove("targetURI"));
                         }
-                        _cloudNotificationService.pushToNotifyBackURI(_notifyBackURI.getURI(), getPropertyMap());
+                        Map<Category, Map<String, String>> _categoryToPropertyMap =
+                            new HashMap<Category, Map<String, String>>();
+                        _categoryToPropertyMap.put(Category.GLOBAL, getPropertyMap());
+                        _cloudNotificationService.pushToNotifyBackURI(_notifyBackURI.getURI(), _categoryToPropertyMap);
                     } else {
                         if (LOGGER.isLoggable(Level.FINE)) {
                             LOGGER.log(Level.FINE, "Cloud Notification Service not found.");
