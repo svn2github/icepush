@@ -15,12 +15,13 @@
  */
 package org.icepush;
 
-import static org.icesoft.util.ObjectUtilities.*;
+import static org.icesoft.util.ObjectUtilities.isNotNull;
 import static org.icesoft.util.PreCondition.checkArgument;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
 import java.io.Serializable;
 import java.net.URI;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,17 +33,50 @@ implements Serializable {
 
     private static final Logger LOGGER = Logger.getLogger(PushNotification.class.getName());
 
-    /** The PushNotification attribute name for subject. */
-    public static String SUBJECT = "subject";
+    public static enum Category {
+        GLOBAL("global"),
+        CLOUD("cloud"),
+        EMAIL("email"),
+        SMS("sms");
+
+        private final String value;
+
+        private Category(final String value) {
+            this.value = value;
+        }
+
+        public static Category fromValue(final String value) {
+            return valueOf(value);
+        }
+
+        public String value() {
+            return value;
+        }
+    }
 
     /** The PushNotification attribute name for detail. */
-    public static String DETAIL = "detail";
+    public static final String DETAIL = "detail";
 
-    /** The PushNotification attribute name for targetURI. */
-    public static String TARGET_URI = "targetURI";
+    /** The PushNotification attribute name for expireTime. */
+    public static final String EXPIRE_TIME = "expireTime";
 
     /** The PushNotification attribute name for forced. */
-    public static String FORCED = "forced";
+    public static final String FORCED = "forced";
+
+    /** The PushNotification attribute name for icon. */
+    public static final String ICON = "icon";
+
+    /** The PushNotification attribute name for payload. */
+    public static final String PAYLOAD = "payload";
+
+    /** The PushNotification attribute name for priority. */
+    public static final String PRIORITY = "priority";
+
+    /** The PushNotification attribute name for subject. */
+    public static final String SUBJECT = "subject";
+
+    /** The PushNotification attribute name for targetURI. */
+    public static final String TARGET_URI = "targetURI";
 
     protected PushNotification() {
         super();
@@ -172,7 +206,91 @@ implements Serializable {
      * @return     The detail.
      */
     public String getDetail() {
-        return (String)getAttribute(DETAIL);
+        return getDetail(Category.GLOBAL);
+    }
+
+    public String getDetail(final Category category) {
+        if (containsAttributeKey(DETAIL)) {
+            return (String)((Map)getAttribute(DETAIL)).get(category.value());
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * <p>
+     *     Gets the expire time of this Push Notification.
+     * </p>
+     *
+     * @return     The expire time.
+     */
+    public String getExpireTime() {
+        return getExpireTime(Category.GLOBAL);
+    }
+
+    public String getExpireTime(final Category category) {
+        if (containsAttributeKey(EXPIRE_TIME)) {
+            return (String)((Map)getAttribute(EXPIRE_TIME)).get(category.value());
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * <p>
+     *     Gets the icon of this Push Notification.
+     * </p>
+     *
+     * @return     The icon.
+     */
+    public String getIcon() {
+        return getIcon(Category.GLOBAL);
+    }
+
+    public String getIcon(final Category category) {
+        if (containsAttributeKey(ICON)) {
+            return (String)((Map)getAttribute(ICON)).get(category.value());
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * <p>
+     *     Gets the payload of this Push Notification.
+     * </p>
+     *
+     * @return     The payload.
+     */
+    public String getPayload() {
+        return getPayload(Category.GLOBAL);
+    }
+
+    public String getPayload(final Category category) {
+        if (containsAttributeKey(PAYLOAD)) {
+            return (String)((Map)getAttribute(PAYLOAD)).get(category.value());
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * <p>
+     *     Gets the priority of this Push Notification.
+     * </p>
+     *
+     * @return     The priority.
+     */
+    public String getPriority() {
+        return getPriority(Category.GLOBAL);
+    }
+
+    public String getPriority(final Category category) {
+        if (containsAttributeKey(PRIORITY)) {
+            return (String)((Map)getAttribute(PRIORITY)).get(category.value());
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -183,7 +301,15 @@ implements Serializable {
      * @return     The subject.
      */
     public String getSubject() {
-        return (String)getAttribute(SUBJECT);
+        return getSubject(Category.GLOBAL);
+    }
+
+    public String getSubject(final Category category) {
+        if (containsAttributeKey(SUBJECT)) {
+            return (String)((Map)getAttribute(SUBJECT)).get(category.value());
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -194,7 +320,15 @@ implements Serializable {
      * @return     The target URI.
      */
     public String getTargetURI() {
-        return (String)getAttribute(TARGET_URI);
+        return getTargetUri(Category.GLOBAL);
+    }
+
+    public String getTargetUri(final Category category) {
+        if (containsAttributeKey(TARGET_URI)) {
+            return (String)((Map)getAttribute(TARGET_URI)).get(category.value());
+        } else {
+            return null;
+        }
     }
 
     public boolean isForced() {
@@ -207,11 +341,127 @@ implements Serializable {
             isNotNullAndIsNotEmpty(detail),
             "Illegal argument detail: '" + detail + "'.  Argument cannot be null or empty."
         );
-        putAttribute(DETAIL, detail);
+        setDetail(detail, Category.GLOBAL);
+    }
+
+    public void setDetail(final String detail, final Category category)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(detail),
+            "Illegal argument detail: '" + detail + "'.  Argument cannot be null or empty."
+        );
+        Map<String, String> _map;
+        if (containsAttributeKey(DETAIL)) {
+            _map = (Map<String, String>)getAttribute(DETAIL);
+        } else {
+            _map = new HashMap<String, String>();
+            putAttribute(DETAIL, _map);
+        }
+        _map.put(category != null ? category.value() : Category.GLOBAL.value(), detail);
+    }
+
+    public void setExpireTime(final String expireTime)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(expireTime),
+            "Illegal argument expireTime: '" + expireTime + "'.  Argument cannot be null or empty."
+        );
+        setExpireTime(expireTime, Category.GLOBAL);
+    }
+
+    public void setExpireTime(final String expireTime, final Category category)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(expireTime),
+            "Illegal argument expireTime: '" + expireTime + "'.  Argument cannot be null or empty."
+        );
+        Map<String, String> _map;
+        if (containsAttributeKey(EXPIRE_TIME)) {
+            _map = (Map<String, String>)getAttribute(EXPIRE_TIME);
+        } else {
+            _map = new HashMap<String, String>();
+            putAttribute(EXPIRE_TIME, _map);
+        }
+        _map.put(category != null ? category.value() : Category.GLOBAL.value(), expireTime);
     }
 
     public void setForced(final boolean forced) {
         putAttribute(FORCED, forced);
+    }
+
+    public void setIcon(final String icon)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(icon),
+            "Illegal argument icon: '" + icon + "'.  Argument cannot be null or empty."
+        );
+        setIcon(icon, Category.GLOBAL);
+    }
+
+    public void setIcon(final String icon, final Category category)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(icon),
+            "Illegal argument icon: '" + icon + "'.  Argument cannot be null or empty."
+        );
+        Map<String, String> _map;
+        if (containsAttributeKey(ICON)) {
+            _map = (Map<String, String>)getAttribute(ICON);
+        } else {
+            _map = new HashMap<String, String>();
+            putAttribute(ICON, _map);
+        }
+        _map.put(category != null ? category.value() : Category.GLOBAL.value(), icon);
+    }
+
+    public void setPayload(final String payload)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(payload),
+            "Illegal argument payload: '" + payload + "'.  Argument cannot be null or empty."
+        );
+        setPayload(payload, Category.GLOBAL);
+    }
+
+    public void setPayload(final String payload, final Category category)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(payload),
+            "Illegal argument payload: '" + payload + "'.  Argument cannot be null or empty."
+        );
+        Map<String, String> _map;
+        if (containsAttributeKey(PAYLOAD)) {
+            _map = (Map<String, String>)getAttribute(PAYLOAD);
+        } else {
+            _map = new HashMap<String, String>();
+            putAttribute(PAYLOAD, _map);
+        }
+        _map.put(category != null ? category.value() : Category.GLOBAL.value(), payload);
+    }
+
+    public void setPriority(final String priority)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(priority),
+            "Illegal argument priority: '" + priority + "'.  Argument cannot be null or empty."
+        );
+        setPriority(priority, Category.GLOBAL);
+    }
+
+    public void setPriority(final String priority, final Category category)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(priority),
+            "Illegal argument priority: '" + priority + "'.  Argument cannot be null or empty."
+        );
+        Map<String, String> _map;
+        if (containsAttributeKey(PRIORITY)) {
+            _map = (Map<String, String>)getAttribute(PRIORITY);
+        } else {
+            _map = new HashMap<String, String>();
+            putAttribute(PRIORITY, _map);
+        }
+        _map.put(category != null ? category.value() : Category.GLOBAL.value(), priority);
     }
 
     public void setSubject(final String subject)
@@ -220,15 +470,48 @@ implements Serializable {
             isNotNullAndIsNotEmpty(subject),
             "Illegal argument subject: '" + subject + "'.  Argument cannot be null or empty."
         );
-        putAttribute(SUBJECT, subject);
+        setSubject(subject, Category.GLOBAL);
     }
 
-    public void setTargetURI(final URI targetURI) {
+    public void setSubject(final String subject, final Category category)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNullAndIsNotEmpty(subject),
+            "Illegal argument subject: '" + subject + "'.  Argument cannot be null or empty."
+        );
+        Map<String, String> _map;
+        if (containsAttributeKey(SUBJECT)) {
+            _map = (Map<String, String>)getAttribute(SUBJECT);
+        } else {
+            _map = new HashMap<String, String>();
+            putAttribute(SUBJECT, _map);
+        }
+        _map.put(category != null ? category.value() : Category.GLOBAL.value(), subject);
+    }
+
+    public void setTargetURI(final URI targetURI)
+    throws IllegalArgumentException {
         checkArgument(
             isNotNull(targetURI),
             "Illegal argument targetURI: '" + targetURI + "'.  Argument cannot be null."
         );
-        putAttribute(TARGET_URI, targetURI.toString());
+        setTargetUri(targetURI, Category.GLOBAL);
+    }
+
+    public void setTargetUri(final URI targetURI, final Category category)
+    throws IllegalArgumentException {
+        checkArgument(
+            isNotNull(targetURI),
+            "Illegal argument targetURI: '" + targetURI + "'.  Argument cannot be null."
+        );
+        Map<String, String> _map;
+        if (containsAttributeKey(TARGET_URI)) {
+            _map = (Map<String, String>)getAttribute(TARGET_URI);
+        } else {
+            _map = new HashMap<String, String>();
+            putAttribute(TARGET_URI, _map);
+        }
+        _map.put(category != null ? category.value() : Category.GLOBAL.value(), targetURI.toString());
     }
 
     @Override

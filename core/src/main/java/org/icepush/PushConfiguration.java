@@ -15,7 +15,7 @@
  */
 package org.icepush;
 
-import static org.icesoft.util.ObjectUtilities.*;
+import static org.icesoft.util.ObjectUtilities.isNotNull;
 import static org.icesoft.util.PreCondition.checkArgument;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
@@ -122,27 +122,146 @@ implements Serializable {
          * For now put subject, detail and targetURI in the Push Configuration's attribute map instead of making these
          * 'first class' attributes like at, delay and duration.
          */
-        String _subject = request.getParameter("subject");
-        if (isNotNullAndIsNotEmpty(_subject)) {
-            if (_pushConfiguration == null) {
-                _pushConfiguration = new PushConfiguration();
-            }
-            _pushConfiguration.putAttribute("subject", _subject);
-        }
-        String _detail = request.getParameter("detail");
-        if (isNotNullAndIsNotEmpty(_detail)) {
-            if (_pushConfiguration == null) {
-                _pushConfiguration = new PushConfiguration();
-            }
-            _pushConfiguration.putAttribute("detail", _detail);
-        }
-        String _targetURI = request.getParameter("targetURI");
-        if (isNotNullAndIsNotEmpty(_detail)) {
-            if (_pushConfiguration == null) {
-                _pushConfiguration = new PushConfiguration();
-            }
-            _pushConfiguration.putAttribute("targetURI", _targetURI);
-        }
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "detail", request.getParameter("global.detail"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "expireTime", request.getParameter("global.expireTime"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "icon", request.getParameter("global.icon"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "payload", request.getParameter("global.payload"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "priority", request.getParameter("global.priority"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "subject", request.getParameter("global.subject"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "targetURI", request.getParameter("global.targetURI"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "cloud", "detail", request.getParameter("cloud.detail"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "cloud", "expireTime", request.getParameter("cloud.expireTime"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "cloud", "icon", request.getParameter("cloud.icon"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "cloud", "payload", request.getParameter("cloud.payload"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "cloud", "priority", request.getParameter("cloud.priority"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "cloud", "subject", request.getParameter("cloud.subject"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "cloud", "targetURI", request.getParameter("cloud.targetURI"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "email", "detail", request.getParameter("email.detail"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "email", "expireTime", request.getParameter("email.expireTime"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "email", "icon", request.getParameter("email.icon"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "email", "payload", request.getParameter("email.payload"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "email", "priority", request.getParameter("email.priority"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "email", "subject", request.getParameter("email.subject"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "email", "targetURI", request.getParameter("email.targetURI"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "sms", "detail", request.getParameter("sms.detail"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "sms", "expireTime", request.getParameter("sms.expireTime"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "sms", "icon", request.getParameter("sms.icon"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "sms", "payload", request.getParameter("sms.payload"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "sms", "priority", request.getParameter("sms.priority"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "sms", "subject", request.getParameter("sms.subject"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "sms", "targetURI", request.getParameter("sms.targetURI"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "detail", request.getParameter("detail"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "expireTime", request.getParameter("expireTime"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "icon", request.getParameter("icon"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "payload", request.getParameter("payload"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "priority", request.getParameter("priority"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "subject", request.getParameter("subject"), _pushConfiguration
+            );
+        _pushConfiguration =
+            putPushNotificationAttribute(
+                "global", "targetURI", request.getParameter("targetURI"), _pushConfiguration
+            );
         String _forced = request.getParameter("forced");
         if (isNotNullAndIsNotEmpty(_forced)) {
             if (_pushConfiguration == null) {
@@ -250,5 +369,18 @@ implements Serializable {
             _modified = false;
         }
         return _modified;
+    }
+
+    private static PushConfiguration putPushNotificationAttribute(
+        final String category, final String name, final String value, final PushConfiguration pushConfiguration) {
+
+        PushConfiguration _pushConfiguration = pushConfiguration;
+        if (isNotNullAndIsNotEmpty(value)) {
+            if (_pushConfiguration == null) {
+                _pushConfiguration = new PushConfiguration();
+            }
+            _pushConfiguration.putAttribute(category + "$" + name, value);
+        }
+        return _pushConfiguration;
     }
 }

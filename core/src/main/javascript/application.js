@@ -315,12 +315,76 @@ if (!window.ice.icepush) {
                                     parameter(q, 'at', value);
                                 } else if (name == 'duration') {
                                     parameter(q, 'duration', value);
-                                } else if (name == 'subject') {
-                                    parameter(q, 'subject', value);
                                 } else if (name == 'detail') {
                                     parameter(q, 'detail', value);
+                                } else if (name == 'global.detail') {
+                                    parameter(q, 'global.detail', value);
+                                } else if (name == 'cloud.detail') {
+                                    parameter(q, 'cloud.detail', value);
+                                } else if (name == 'email.detail') {
+                                    parameter(q, 'email.detail', value);
+                                } else if (name == 'sms.detail') {
+                                    parameter(q, 'sms.detail', value);
+                                } else if (name == 'expireTime') {
+                                    parameter(q, 'expireTime', value);
+                                } else if (name == 'global.expireTime') {
+                                    parameter(q, 'global.expireTime', value);
+                                } else if (name == 'cloud.expireTime') {
+                                    parameter(q, 'cloud.expireTime', value);
+                                } else if (name == 'email.expireTime') {
+                                    parameter(q, 'email.expireTime', value);
+                                } else if (name == 'sms.expireTime') {
+                                    parameter(q, 'sms.expireTime', value);
+                                } else if (name == 'icon') {
+                                    parameter(q, 'icon', value);
+                                } else if (name == 'global.icon') {
+                                    parameter(q, 'global.icon', value);
+                                } else if (name == 'cloud.icon') {
+                                    parameter(q, 'cloud.icon', value);
+                                } else if (name == 'email.icon') {
+                                    parameter(q, 'email.icon', value);
+                                } else if (name == 'sms.icon') {
+                                    parameter(q, 'sms.icon', value);
+                                } else if (name == 'payload') {
+                                    parameter(q, 'payload', value);
+                                } else if (name == 'global.payload') {
+                                    parameter(q, 'global.payload', value);
+                                } else if (name == 'cloud.payload') {
+                                    parameter(q, 'cloud.payload', value);
+                                } else if (name == 'email.payload') {
+                                    parameter(q, 'email.payload', value);
+                                } else if (name == 'sms.payload') {
+                                    parameter(q, 'sms.payload', value);
+                                } else if (name == 'priority') {
+                                    parameter(q, 'priority', value);
+                                } else if (name == 'global.priority') {
+                                    parameter(q, 'global.priority', value);
+                                } else if (name == 'cloud.priority') {
+                                    parameter(q, 'cloud.priority', value);
+                                } else if (name == 'email.priority') {
+                                    parameter(q, 'email.priority', value);
+                                } else if (name == 'sms.priority') {
+                                    parameter(q, 'sms.priority', value);
+                                } else if (name == 'subject') {
+                                    parameter(q, 'subject', value);
+                                } else if (name == 'global.subject') {
+                                    parameter(q, 'global.subject', value);
+                                } else if (name == 'cloud.subject') {
+                                    parameter(q, 'cloud.subject', value);
+                                } else if (name == 'email.subject') {
+                                    parameter(q, 'email.subject', value);
+                                } else if (name == 'sms.subject') {
+                                    parameter(q, 'sms.subject', value);
                                 } else if (name == 'targetURI') {
                                     parameter(q, 'targetURI', value);
+                                } else if (name == 'global.targetURI') {
+                                    parameter(q, 'global.targetURI', value);
+                                } else if (name == 'cloud.targetURI') {
+                                    parameter(q, 'cloud.targetURI', value);
+                                } else if (name == 'email.targetURI') {
+                                    parameter(q, 'email.targetURI', value);
+                                } else if (name == 'sms.targetURI') {
+                                    parameter(q, 'sms.targetURI', value);
                                 } else if (name == 'forced') {
                                     parameter(q, 'forced', value);
                                 } else {

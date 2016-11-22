@@ -519,6 +519,34 @@ implements DatabaseEntity, Serializable {
                         toString();
         }
 
+        protected Map<Category, Map<String, String>> convertPropertyMap(final Map<String, String> propertyMap) {
+            Map<Category, Map<String, String>> _categoryToPropertyMap = new HashMap<Category, Map<String, String>>();
+            for (final Map.Entry<String, String> _mapEntry : propertyMap.entrySet()) {
+                String _key = _mapEntry.getKey();
+                String _value = _mapEntry.getValue();
+                if (_key.contains("$")) {
+                    Category _category =
+                        Category.fromValue(_key.substring(0, _key.indexOf("$")).toUpperCase());
+                    Map<String, String> _propertyMap;
+                    if (_categoryToPropertyMap.containsKey(_category)) {
+                        _propertyMap = _categoryToPropertyMap.get(_category);
+                    } else {
+                        _propertyMap = new HashMap<String, String>();
+                        _categoryToPropertyMap.put(_category, _propertyMap);
+                    }
+                    _propertyMap.put(_key.substring(_key.indexOf("$") + 1), _value);
+                } else {
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(
+                            Level.FINE,
+                            "Ignoring Property Map entry with Name '" + _key + "' and Value '" + _value + "'."
+                        );
+                    }
+                }
+            }
+            return _categoryToPropertyMap;
+        }
+
         protected void execute(
             final ConfirmationTimeout confirmationTimeout, final InternalPushGroupManager internalPushGroupManager) {
 
@@ -557,10 +585,9 @@ implements DatabaseEntity, Serializable {
                         if (getPropertyMap().containsKey("targetURI")) {
                             getModifiablePropertyMap().put("url", getModifiablePropertyMap().remove("targetURI"));
                         }
-                        Map<Category, Map<String, String>> _categoryToPropertyMap =
-                            new HashMap<Category, Map<String, String>>();
-                        _categoryToPropertyMap.put(Category.GLOBAL, getPropertyMap());
-                        _cloudNotificationService.pushToNotifyBackURI(_notifyBackURI.getURI(), _categoryToPropertyMap);
+                        _cloudNotificationService.pushToNotifyBackURI(
+                            _notifyBackURI.getURI(), convertPropertyMap(getPropertyMap())
+                        );
                     } else {
                         if (LOGGER.isLoggable(Level.FINE)) {
                             LOGGER.log(Level.FINE, "Cloud Notification Service not found.");

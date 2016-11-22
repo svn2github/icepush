@@ -15,6 +15,9 @@
  */
 package org.icepush;
 
+import static org.icesoft.util.MapUtilities.isNotNullAndIsNotEmpty;
+import static org.icesoft.util.ObjectUtilities.isNotNull;
+import static org.icesoft.util.StringUtilities.containsEndingWith;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
 import java.net.URI;
@@ -1424,11 +1427,15 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected boolean isOutOfBandNotification(final Map<String, String> propertyMap) {
-        return propertyMap != null && propertyMap.containsKey("subject");
+        return
+            isNotNullAndIsNotEmpty(propertyMap) &&
+            containsEndingWith(propertyMap.keySet(), "$subject");
     }
 
     protected boolean isOutOfBandNotification(final PushConfiguration pushConfiguration) {
-        return pushConfiguration != null && pushConfiguration.containsAttributeKey("subject");
+        return
+            isNotNull(pushConfiguration) &&
+            containsEndingWith(pushConfiguration.getAttributeMap().keySet(), "$subject");
     }
 
     protected Browser newBrowser(final String browserID) {
