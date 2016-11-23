@@ -757,10 +757,13 @@ implements InternalPushGroupManager, PushGroupManager {
         } else {
             _modified = false;
         }
-
         _notifyBackURI.setBrowserID(browserID);
         browserMap.get(browserID).setNotifyBackURI(_notifyBackURI.getURI(), true);
-
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(
+                Level.FINE,
+                "Added Notify-Back-URI '" + notifyBackURI + "' to Browser '" + browserID + "'.");
+        }
         return _modified;
     }
 
@@ -1638,6 +1641,11 @@ implements InternalPushGroupManager, PushGroupManager {
                     notifyBackURIMap.remove(_notifyBackURI);
                 }
                 _modified = true;
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Removed Notify-Back-URI '" + _notifyBackURI + "' from Browser '" + browserID + "'.");
+                }
             } else {
                 _modified = false;
             }

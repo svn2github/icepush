@@ -15,6 +15,7 @@
  */
 package org.icepush;
 
+import static org.icesoft.util.ObjectUtilities.isEqualToAny;
 import static org.icesoft.util.ObjectUtilities.isNotNull;
 import static org.icesoft.util.PreCondition.checkArgument;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
@@ -35,6 +36,7 @@ implements Serializable {
 
     public static enum Category {
         GLOBAL("global"),
+        BROWSER("browser"),
         CLOUD("cloud"),
         EMAIL("email"),
         SMS("sms");
@@ -97,7 +99,7 @@ implements Serializable {
      */
     public PushNotification(final Map<String, Object> attributeMap)
     throws IllegalArgumentException {
-        super(attributeMap);
+        super(convertAttributeMap(attributeMap));
     }
 
     /**
@@ -210,11 +212,7 @@ implements Serializable {
     }
 
     public String getDetail(final Category category) {
-        if (containsAttributeKey(DETAIL)) {
-            return (String)((Map)getAttribute(DETAIL)).get(category.value());
-        } else {
-            return null;
-        }
+        return (String)getAttribute(getPrefixedKey(category, DETAIL));
     }
 
     /**
@@ -229,11 +227,7 @@ implements Serializable {
     }
 
     public String getExpireTime(final Category category) {
-        if (containsAttributeKey(EXPIRE_TIME)) {
-            return (String)((Map)getAttribute(EXPIRE_TIME)).get(category.value());
-        } else {
-            return null;
-        }
+        return (String)getAttribute(getPrefixedKey(category, EXPIRE_TIME));
     }
 
     /**
@@ -248,11 +242,7 @@ implements Serializable {
     }
 
     public String getIcon(final Category category) {
-        if (containsAttributeKey(ICON)) {
-            return (String)((Map)getAttribute(ICON)).get(category.value());
-        } else {
-            return null;
-        }
+        return (String)getAttribute(getPrefixedKey(category, ICON));
     }
 
     /**
@@ -267,11 +257,7 @@ implements Serializable {
     }
 
     public String getPayload(final Category category) {
-        if (containsAttributeKey(PAYLOAD)) {
-            return (String)((Map)getAttribute(PAYLOAD)).get(category.value());
-        } else {
-            return null;
-        }
+        return (String)getAttribute(getPrefixedKey(category, PAYLOAD));
     }
 
     /**
@@ -286,11 +272,7 @@ implements Serializable {
     }
 
     public String getPriority(final Category category) {
-        if (containsAttributeKey(PRIORITY)) {
-            return (String)((Map)getAttribute(PRIORITY)).get(category.value());
-        } else {
-            return null;
-        }
+        return (String)getAttribute(getPrefixedKey(category, PRIORITY));
     }
 
     /**
@@ -305,11 +287,7 @@ implements Serializable {
     }
 
     public String getSubject(final Category category) {
-        if (containsAttributeKey(SUBJECT)) {
-            return (String)((Map)getAttribute(SUBJECT)).get(category.value());
-        } else {
-            return null;
-        }
+        return (String)getAttribute(getPrefixedKey(category, SUBJECT));
     }
 
     /**
@@ -324,11 +302,7 @@ implements Serializable {
     }
 
     public String getTargetUri(final Category category) {
-        if (containsAttributeKey(TARGET_URI)) {
-            return (String)((Map)getAttribute(TARGET_URI)).get(category.value());
-        } else {
-            return null;
-        }
+        return (String)getAttribute(getPrefixedKey(category, TARGET_URI));
     }
 
     public boolean isForced() {
@@ -350,14 +324,7 @@ implements Serializable {
             isNotNullAndIsNotEmpty(detail),
             "Illegal argument detail: '" + detail + "'.  Argument cannot be null or empty."
         );
-        Map<String, String> _map;
-        if (containsAttributeKey(DETAIL)) {
-            _map = (Map<String, String>)getAttribute(DETAIL);
-        } else {
-            _map = new HashMap<String, String>();
-            putAttribute(DETAIL, _map);
-        }
-        _map.put(category != null ? category.value() : Category.GLOBAL.value(), detail);
+        putAttribute(category, DETAIL, detail);
     }
 
     public void setExpireTime(final String expireTime)
@@ -375,14 +342,7 @@ implements Serializable {
             isNotNullAndIsNotEmpty(expireTime),
             "Illegal argument expireTime: '" + expireTime + "'.  Argument cannot be null or empty."
         );
-        Map<String, String> _map;
-        if (containsAttributeKey(EXPIRE_TIME)) {
-            _map = (Map<String, String>)getAttribute(EXPIRE_TIME);
-        } else {
-            _map = new HashMap<String, String>();
-            putAttribute(EXPIRE_TIME, _map);
-        }
-        _map.put(category != null ? category.value() : Category.GLOBAL.value(), expireTime);
+        putAttribute(category, EXPIRE_TIME, expireTime);
     }
 
     public void setForced(final boolean forced) {
@@ -404,14 +364,7 @@ implements Serializable {
             isNotNullAndIsNotEmpty(icon),
             "Illegal argument icon: '" + icon + "'.  Argument cannot be null or empty."
         );
-        Map<String, String> _map;
-        if (containsAttributeKey(ICON)) {
-            _map = (Map<String, String>)getAttribute(ICON);
-        } else {
-            _map = new HashMap<String, String>();
-            putAttribute(ICON, _map);
-        }
-        _map.put(category != null ? category.value() : Category.GLOBAL.value(), icon);
+        putAttribute(category, ICON, icon);
     }
 
     public void setPayload(final String payload)
@@ -429,14 +382,7 @@ implements Serializable {
             isNotNullAndIsNotEmpty(payload),
             "Illegal argument payload: '" + payload + "'.  Argument cannot be null or empty."
         );
-        Map<String, String> _map;
-        if (containsAttributeKey(PAYLOAD)) {
-            _map = (Map<String, String>)getAttribute(PAYLOAD);
-        } else {
-            _map = new HashMap<String, String>();
-            putAttribute(PAYLOAD, _map);
-        }
-        _map.put(category != null ? category.value() : Category.GLOBAL.value(), payload);
+        putAttribute(category, PAYLOAD, payload);
     }
 
     public void setPriority(final String priority)
@@ -454,14 +400,7 @@ implements Serializable {
             isNotNullAndIsNotEmpty(priority),
             "Illegal argument priority: '" + priority + "'.  Argument cannot be null or empty."
         );
-        Map<String, String> _map;
-        if (containsAttributeKey(PRIORITY)) {
-            _map = (Map<String, String>)getAttribute(PRIORITY);
-        } else {
-            _map = new HashMap<String, String>();
-            putAttribute(PRIORITY, _map);
-        }
-        _map.put(category != null ? category.value() : Category.GLOBAL.value(), priority);
+        putAttribute(category, PRIORITY, priority);
     }
 
     public void setSubject(final String subject)
@@ -479,14 +418,7 @@ implements Serializable {
             isNotNullAndIsNotEmpty(subject),
             "Illegal argument subject: '" + subject + "'.  Argument cannot be null or empty."
         );
-        Map<String, String> _map;
-        if (containsAttributeKey(SUBJECT)) {
-            _map = (Map<String, String>)getAttribute(SUBJECT);
-        } else {
-            _map = new HashMap<String, String>();
-            putAttribute(SUBJECT, _map);
-        }
-        _map.put(category != null ? category.value() : Category.GLOBAL.value(), subject);
+        putAttribute(category, SUBJECT, subject);
     }
 
     public void setTargetURI(final URI targetURI)
@@ -504,14 +436,7 @@ implements Serializable {
             isNotNull(targetURI),
             "Illegal argument targetURI: '" + targetURI + "'.  Argument cannot be null."
         );
-        Map<String, String> _map;
-        if (containsAttributeKey(TARGET_URI)) {
-            _map = (Map<String, String>)getAttribute(TARGET_URI);
-        } else {
-            _map = new HashMap<String, String>();
-            putAttribute(TARGET_URI, _map);
-        }
-        _map.put(category != null ? category.value() : Category.GLOBAL.value(), targetURI.toString());
+        putAttribute(category, TARGET_URI, targetURI);
     }
 
     @Override
@@ -522,5 +447,38 @@ implements Serializable {
                     append(classMembersToString()).
                 append("]").
                     toString();
+    }
+
+    private static Map<String, Object> convertAttributeMap(final Map<String, Object> attributeMap) {
+        Map<String, Object> _attributeMap;
+        if (isNotNull(attributeMap)) {
+            _attributeMap = new HashMap<String, Object>();
+            for (final Map.Entry<String, Object> _mapEntry : attributeMap.entrySet()) {
+                String _key = _mapEntry.getKey();
+                if (isEqualToAny(_key, DETAIL, EXPIRE_TIME, FORCED, ICON, PAYLOAD, PRIORITY, SUBJECT, TARGET_URI)) {
+                    _attributeMap.put(Category.GLOBAL.value() + "$" + _key, _mapEntry.getValue());
+                } else {
+                    _attributeMap.put(_key, _mapEntry.getValue());
+                }
+            }
+        } else {
+            _attributeMap = null;
+        }
+        return _attributeMap;
+    }
+
+    private Object getAttribute(final Category category, final String key) {
+        return getAttribute(getPrefixedKey(category, key));
+    }
+
+    private String getPrefixedKey(final Category category, final String key) {
+        return
+            new StringBuilder().
+                append(category != null ? category.value() : Category.GLOBAL.value()).append("$").append(key).
+                    toString();
+    }
+
+    private Object putAttribute(final Category category, final String key, final Object value) {
+        return putAttribute(getPrefixedKey(category, key), value);
     }
 }
