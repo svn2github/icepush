@@ -17,6 +17,7 @@
 package org.icepush;
 
 import static org.icesoft.notify.cloud.core.NotificationProvider.Category;
+import static org.icesoft.util.StringUtilities.containsEndingWith;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -582,8 +583,17 @@ implements DatabaseEntity, Serializable {
                     CloudNotificationService _cloudNotificationService =
                         internalPushGroupManager.getCloudNotificationService();
                     if (_cloudNotificationService != null) {
-                        if (getPropertyMap().containsKey("targetURI")) {
-                            getModifiablePropertyMap().put("url", getModifiablePropertyMap().remove("targetURI"));
+                        if (containsEndingWith(getModifiablePropertyMap().keySet(), "$targetURI")) {
+                            Set<String> _keySet = new HashSet<String>(getModifiablePropertyMap().keySet());
+                            for (final String _key : _keySet) {
+                                if (_key.endsWith("$targetURI")) {
+                                    getModifiablePropertyMap().
+                                        put(
+                                            _key.substring(0, _key.lastIndexOf("$targetURI")) + "$url",
+                                            getModifiablePropertyMap().remove(_key)
+                                        );
+                                }
+                            }
                         }
                         _cloudNotificationService.pushToNotifyBackURI(
                             _notifyBackURI.getURI(), convertPropertyMap(getPropertyMap())
