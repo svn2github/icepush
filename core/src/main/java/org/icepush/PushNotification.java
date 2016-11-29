@@ -455,7 +455,7 @@ implements Serializable {
             _attributeMap = new HashMap<String, Object>();
             for (final Map.Entry<String, Object> _mapEntry : attributeMap.entrySet()) {
                 String _key = _mapEntry.getKey();
-                if (isEqualToAny(_key, DETAIL, EXPIRE_TIME, FORCED, ICON, PAYLOAD, PRIORITY, SUBJECT, TARGET_URI)) {
+                if (isEqualToAny(_key, DETAIL, EXPIRE_TIME, ICON, PAYLOAD, PRIORITY, SUBJECT, TARGET_URI)) {
                     _attributeMap.put(Category.GLOBAL.value() + "$" + _key, _mapEntry.getValue());
                 } else {
                     _attributeMap.put(_key, _mapEntry.getValue());
