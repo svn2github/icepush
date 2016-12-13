@@ -49,6 +49,8 @@ if (!window.ice.icepush) {
                 try {
                     window.localStorage[key] = value;
                     workingLocalStorage = window.localStorage[key] == value;
+                } catch (ex) {
+                    return false;
                 } finally {
                     window.localStorage.removeItem(key);
                 }
