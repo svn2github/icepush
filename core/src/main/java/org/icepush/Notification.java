@@ -18,6 +18,7 @@ import org.mongodb.morphia.annotations.Id;
 
 @Entity(value = "notifications")
 public class Notification
+extends AbstractNotification
 implements DatabaseEntity, Runnable, Serializable {
     private static final long serialVersionUID = 6628467057491983399L;
 
@@ -140,6 +141,7 @@ implements DatabaseEntity, Runnable, Serializable {
         try {
             Group _group = getInternalPushGroupManager().getGroup(getGroupName());
             if (_group != null) {
+                fireOnBeforeExecution(new NotificationEvent(this));
                 Set<String> _pushIDSet = new HashSet<String>(Arrays.asList(_group.getPushIDs()));
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
@@ -169,7 +171,7 @@ implements DatabaseEntity, Runnable, Serializable {
                     );
                 }
                 getInternalPushGroupManager().addAllNotificationEntries(_notificationEntrySet);
-                beforeBroadcast(_notificationEntrySet);
+                fireOnBeforeBroadcast(new NotificationEvent(this, _notificationEntrySet));
                 getInternalPushGroupManager().
                     broadcastNotificationEntries(_notificationEntrySet, getDuration(), getGroupName());
             }
@@ -201,9 +203,6 @@ implements DatabaseEntity, Runnable, Serializable {
                     toString();
     }
 
-    protected void beforeBroadcast(final Set<NotificationEntry> notificationEntrySet) {
-    }
-
     protected String classMembersToString() {
         return
             new StringBuilder().
@@ -216,6 +215,18 @@ implements DatabaseEntity, Runnable, Serializable {
     }
 
     protected void filterNotificationEntrySet(final Set<NotificationEntry> notificationEntrySet) {
+    }
+
+    protected void fireOnBeforeBroadcast(final NotificationEvent event) {
+        for (final NotificationListener _notificationListener : getModifiableNotificationListenerList()) {
+            _notificationListener.onBeforeBroadcast(event);
+        }
+    }
+
+    protected void fireOnBeforeExecution(final NotificationEvent event) {
+        for (final NotificationListener _notificationListener : getModifiableNotificationListenerList()) {
+            _notificationListener.onBeforeExecution(event);
+        }
     }
 
     protected static InternalPushGroupManager getInternalPushGroupManager() {

@@ -1,5 +1,7 @@
 package org.icepush;
 
+import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
+
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
@@ -95,12 +97,42 @@ implements DatabaseEntity, Runnable, Serializable {
                 super.equals(object);
     }
 
+    public String getProperty(final String key) {
+        String _value;
+        if (isNotNullAndIsNotEmpty(key)) {
+            _value = getModifiablePropertyMap().get(key);
+        } else {
+            _value = null;
+        }
+        return _value;
+    }
+
     public final Map<String, String> getPropertyMap() {
         return Collections.unmodifiableMap(getModifiablePropertyMap());
     }
 
     public final boolean isForced() {
         return forced;
+    }
+
+    public String putProperty(final String key, final String value) {
+        String _previousValue;
+        if (isNotNullAndIsNotEmpty(key) && isNotNullAndIsNotEmpty(value)) {
+            _previousValue = getModifiablePropertyMap().put(key, value);
+        } else {
+            _previousValue = null;
+        }
+        return _previousValue;
+    }
+
+    public String removeProperty(final String key) {
+        String _previousValue;
+        if (isNotNullAndIsNotEmpty(key)) {
+            _previousValue = getModifiablePropertyMap().remove(key);
+        } else {
+            _previousValue = null;
+        }
+        return _previousValue;
     }
 
     @Override
@@ -111,20 +143,6 @@ implements DatabaseEntity, Runnable, Serializable {
                     append(classMembersToString()).
                 append("]").
                     toString();
-    }
-
-    @Override
-    protected void beforeBroadcast(final Set<NotificationEntry> notificationEntrySet) {
-        // Only needed for Cloud Push
-        Set<String> _browserIDSet = new HashSet<String>();
-        Set<NotificationEntry> _notificationEntrySet = new HashSet<NotificationEntry>();
-        for (final NotificationEntry _notificationEntry : notificationEntrySet) {
-            String _browserID = getInternalPushGroupManager().getPushID(_notificationEntry.getPushID()).getBrowserID();
-            if (_browserIDSet.add(_browserID)) {
-                _notificationEntrySet.add(_notificationEntry);
-            }
-        }
-        getInternalPushGroupManager().startConfirmationTimeouts(_notificationEntrySet);
     }
 
     @Override

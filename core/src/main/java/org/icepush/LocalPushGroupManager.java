@@ -1476,7 +1476,31 @@ implements InternalPushGroupManager, PushGroupManager {
     protected OutOfBandNotification newOutOfBandNotification(
         final String groupName, final String payload, final PushConfiguration pushConfiguration) {
 
-        return new OutOfBandNotification(groupName, payload, pushConfiguration);
+        OutOfBandNotification _outOfBandNotification = new OutOfBandNotification(groupName, payload, pushConfiguration);
+        _outOfBandNotification.addNotificationListener(
+            new NotificationListener() {
+                public void onBeforeBroadcast(final NotificationEvent event) {
+                    // Only needed for Cloud Push
+                    Set<String> _browserIDSet = new HashSet<String>();
+                    Set<NotificationEntry> _notificationEntrySet = new HashSet<NotificationEntry>();
+                    for (final NotificationEntry _notificationEntry : event.getNotificationEntrySet()) {
+                        String _browserID =
+                            OutOfBandNotification.
+                                getInternalPushGroupManager().getPushID(_notificationEntry.getPushID()).getBrowserID();
+                        if (_browserIDSet.add(_browserID)) {
+                            _notificationEntrySet.add(_notificationEntry);
+                        }
+                    }
+                    OutOfBandNotification.
+                        getInternalPushGroupManager().startConfirmationTimeouts(_notificationEntrySet);
+                }
+
+                public void onBeforeExecution(final NotificationEvent event) {
+                    // Do nothing.
+                }
+            }
+        );
+        return _outOfBandNotification;
     }
 
     protected PushConfiguration newPushConfiguration() {
