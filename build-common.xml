@@ -51,34 +51,10 @@
 		<clean/>
 	</target>
 
-	<target name="pre.compile" description="prepare for compilation" depends="clean, check.iceutil.jar, build.iceutil.jar, check.icenotify.jar, build.icenotify.jar">
+	<target name="pre.compile" description="prepare for compilation" depends="clean">
 		<mkdir dir="${build.dir}" />
 		<mkdir dir="${build.dir}/classes" />
 		<mkdir dir="${dist.dir}" />
-	</target>
-
-	<target name="check.icenotify.jar">
-		<available file="${root.offset}/${cloud.dir}/${dist.dir}/icenotify.jar" property="icenotify.jar.present" />
-	</target>
-
-	<target name="check.iceutil.jar">
-		<available file="${root.offset}/${util.dir}/${dist.dir}/iceutil.jar" property="iceutil.jar.present" />
-	</target>
-
-	<target name="build.icenotify.jar" unless="icenotify.jar.present">
-		<subant failonerror="true">
-			<fileset dir="${root.offset}/${cloud.dir}" includes="build.xml" />
-			<target name="clean" />
-			<target name="jar" />
-		</subant>
-	</target>
-
-	<target name="build.iceutil.jar" unless="iceutil.jar.present">
-		<subant failonerror="true">
-			<fileset dir="${root.offset}/${util.dir}" includes="build.xml" />
-			<target name="clean" />
-			<target name="jar" />
-		</subant>
 	</target>
 
 	<target name="compile" depends="pre.compile">
@@ -199,16 +175,10 @@
 	            </manifest>
 			</jar>			
 			<move file="${dist.dir}/@{jar.file.name}" tofile="${dist.dir}/@{temp.jar.file.name}" />
-                        <echo message="iceutil.jar: ${root.offset}/${lib.dir}/iceutil.jar" />
-                        <echo message="icenotify.jar: ${root.offset}/${lib.dir}/icenotify.jar" />
 			<zip destfile="${dist.dir}/@{jar.file.name}">
-				<zipfileset src="${root.offset}/${lib.dir}/iceutil.jar" includes="org/**" />
-				<zipfileset src="${root.offset}/${lib.dir}/icenotify.jar" includes="org/**" />
 				<zipfileset src="${dist.dir}/@{temp.jar.file.name}" includes="org/**,META-INF/resources/**,META-INF/MANIFEST.MF,META-INF/*.tld,META-INF/*.xml" />
 			</zip>
 			<delete file="${dist.dir}/@{temp.jar.file.name}"/>
-			<delete file="${root.offset}/${lib.dir}/icenotify.jar"/>
-			<delete file="${root.offset}/${lib.dir}/iceutil.jar"/>
 		</sequential>
 	</macrodef>
 

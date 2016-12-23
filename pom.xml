@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright 2004-2014 ICEsoft Technologies Canada Corp.
+  ~ Copyright 2004-2016 ICEsoft Technologies Canada Corp.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the
@@ -34,8 +34,6 @@
     <description>${icepush.product.name} Library</description>
 
     <modules>
-        <module>util</module>
-        <module>cloud</module>
         <module>core</module>
         <!--<module>samples</module>-->
     </modules>

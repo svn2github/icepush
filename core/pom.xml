@@ -190,16 +190,6 @@
     <dependencies>
 
         <dependency>
-            <groupId>org.icesoft.util</groupId>
-            <artifactId>${iceutil.lib.name}</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.icesoft.notify</groupId>
-            <artifactId>${icenotify.lib.name}</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
         </dependency>
