@@ -226,10 +226,10 @@
         <!-- Not sure why but when I tried to put this in the top-level parent pom, it would sign all the artifacts
              but would only deploy the signatures for the main .jar and not the the sources and javadoc jars. It
              apparently works fine if the profile is defined in each project so that's what I've done for now. -->
-     <!-- old signer profile 
-      <profile>
+        <profile>
             <id>sign-artifacts</id>
             <activation>
+                <!--<activeByDefault>true</activeByDefault>-->
                 <property>
                     <name>signArtifacts</name>
                 </property>
@@ -239,24 +239,24 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.4</version>
-
+                        <version>1.6</version>
                         <executions>
-
                             <execution>
                                 <id>sign-library</id>
                                 <phase>verify</phase>
                                 <goals>
                                     <goal>sign</goal>
                                 </goals>
-                            </execution>
-
+ 								<configuration>
+				    				<keyname>${gpg.keyname}</keyname>
+        							<passphraseServerId>${gpg.keyname}</passphraseServerId>
+            					</configuration> 
+            				</execution>
                         </executions>
-
                     </plugin>
                 </plugins>
             </build>
-        </profile>  -->
+        </profile>
 
     </profiles>
 
