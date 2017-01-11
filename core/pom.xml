@@ -130,6 +130,27 @@
                 </executions>
             </plugin>
 
+            <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>prepare-package</phase>
+                        <configuration>
+                            <tasks>
+                                <replace token="@main.servlet@" value="${main.servlet}" dir="${basedir}/target/classes">
+                                    <include name="**/icepush.tld" />
+                                </replace>
+                                <replace token="@push.group.manager@" value="${push.group.manager}" dir="${basedir}/target/classes">
+                                    <include name="**/icepush.tld" />
+                                </replace>
+                            </tasks>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
 
             <plugin>
 
@@ -259,5 +280,10 @@
         </profile>
 
     </profiles>
+
+    <properties>
+        <main.servlet>org.icepush.servlet.MainServlet</main.servlet>
+        <push.group.manager>org.icepush.LocalPushGroupManager</push.group.manager>
+    </properties>
 
 </project>
