@@ -16,6 +16,9 @@
 
 package org.icepush;
 
+import static org.icesoft.util.MapUtilities.isNotNullAndIsNotEmpty;
+import static org.icesoft.util.ObjectUtilities.isNotEqual;
+
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,7 +40,7 @@ implements /*DatabaseEntity, */Serializable {
 
     private static final Logger LOGGER = Logger.getLogger(NotificationEntry.class.getName());
 
-    private Map<String, String> propertyMap = new HashMap<String, String>();
+    private final Map<String, Object> propertyMap = new HashMap<String, Object>();
 
     private boolean forced;
 
@@ -59,13 +62,13 @@ implements /*DatabaseEntity, */Serializable {
     }
 
     public NotificationEntry(
-        final String pushID, final String groupName, final String payload, final Map<String, String> propertyMap) {
+        final String pushID, final String groupName, final String payload, final Map<String, Object> propertyMap) {
 
         this(pushID, groupName, payload, propertyMap, false);
     }
 
     public NotificationEntry(
-        final String pushID, final String groupName, final String payload, final Map<String, String> propertyMap,
+        final String pushID, final String groupName, final String payload, final Map<String, Object> propertyMap,
         final boolean forced) {
 
         setPushID(pushID);
@@ -88,8 +91,8 @@ implements /*DatabaseEntity, */Serializable {
                         ((NotificationEntry)object).getPayload().equals(getPayload())
                     )
                 ) &&
-                ((NotificationEntry)object).getPropertyMap().entrySet().containsAll(getPropertyMap().entrySet()) &&
-                ((NotificationEntry)object).getPropertyMap().size() == getPropertyMap().size() &&
+                ((NotificationEntry)object).getModifiablePropertyMap().entrySet().containsAll(getModifiablePropertyMap().entrySet()) &&
+                ((NotificationEntry)object).getModifiablePropertyMap().size() == getModifiablePropertyMap().size() &&
                 ((NotificationEntry)object).isForced() == isForced();
     }
 
@@ -109,7 +112,7 @@ implements /*DatabaseEntity, */Serializable {
         return payload;
     }
 
-    public Map<String, String> getPropertyMap() {
+    public Map<String, Object> getPropertyMap() {
         return Collections.unmodifiableMap(getModifiablePropertyMap());
     }
 
@@ -154,18 +157,18 @@ implements /*DatabaseEntity, */Serializable {
                 append("forced: '").append(isForced()).append("', ").
                 append("groupName: '").append(getGroupName()).append("', ").
                 append("payload: '").append(getPayload()).append("', ").
-                append("propertyMap: '").append(getPropertyMap()).append("', ").
+                append("propertyMap: '").append(getModifiablePropertyMap()).append("', ").
                 append("pushID: '").append(getPushID()).append("'").
                     toString();
     }
 
-    protected Map<String, String> getModifiablePropertyMap() {
+    protected Map<String, Object> getModifiablePropertyMap() {
         return propertyMap;
     }
 
     protected boolean setForced(final boolean forced) {
         boolean _modified;
-        if (this.forced != forced) {
+        if (isNotEqual(isForced(), forced)) {
             this.forced = forced;
             _modified = true;
 //            save();
@@ -177,9 +180,7 @@ implements /*DatabaseEntity, */Serializable {
 
     protected boolean setGroupName(final String groupName) {
         boolean _modified;
-        if ((this.groupName == null && groupName != null) ||
-            (this.groupName != null && !this.groupName.equals(groupName))) {
-
+        if (isNotEqual(getGroupName(), groupName)) {
             this.groupName = groupName;
             _modified = true;
 //            save();
@@ -191,9 +192,7 @@ implements /*DatabaseEntity, */Serializable {
 
     protected boolean setPayload(final String payload) {
         boolean _modified;
-        if ((this.payload == null && payload != null) ||
-            (this.payload != null && !this.payload.equals(payload))) {
-
+        if (isNotEqual(getPayload(), payload)) {
             this.payload = payload;
             _modified = true;
 //            save();
@@ -203,14 +202,13 @@ implements /*DatabaseEntity, */Serializable {
         return _modified;
     }
 
-    protected boolean setPropertyMap(final Map<String, String> propertyMap) {
+    protected boolean setPropertyMap(final Map<String, Object> propertyMap) {
         boolean _modified;
-        if (!this.propertyMap.isEmpty() && propertyMap == null) {
-            this.propertyMap.clear();
-            _modified = true;
-//            save();
-        } else if (!this.propertyMap.equals(propertyMap) && propertyMap != null) {
-            this.propertyMap = propertyMap;
+        if (isNotEqual(getModifiablePropertyMap(), propertyMap)) {
+            getModifiablePropertyMap().clear();
+            if (isNotNullAndIsNotEmpty(propertyMap)) {
+                getModifiablePropertyMap().putAll(propertyMap);
+            }
             _modified = true;
 //            save();
         } else {
@@ -221,9 +219,7 @@ implements /*DatabaseEntity, */Serializable {
 
     protected boolean setPushID(final String pushID) {
         boolean _modified;
-        if ((this.pushID == null && pushID != null) ||
-            (this.pushID != null && !this.pushID.equals(pushID))) {
-
+        if (isNotEqual(getPushID(), pushID)) {
             this.pushID = pushID;
             _modified = true;
 //            save();

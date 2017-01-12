@@ -17,6 +17,7 @@
 package org.icepush;
 
 import static org.icesoft.notify.cloud.core.NotificationProvider.Category;
+import static org.icesoft.util.ObjectUtilities.isNotEqual;
 import static org.icesoft.util.StringUtilities.containsEndingWith;
 
 import java.io.Serializable;
@@ -125,7 +126,7 @@ implements DatabaseEntity, Serializable {
     }
 
     public void schedule(
-        final String pushID, final Map<String, String> propertyMap, final boolean forced, final long timeout) {
+        final String pushID, final Map<String, Object> propertyMap, final boolean forced, final long timeout) {
 
         CloudPushNotification _cloudPushNotification =
             newCloudPushNotification(getBrowserID(), pushID, propertyMap, forced, timeout);
@@ -269,7 +270,7 @@ implements DatabaseEntity, Serializable {
     }
 
     protected CloudPushNotification newCloudPushNotification(
-        final String browserID, final String pushID, final Map<String, String> propertyMap, final boolean forced,
+        final String browserID, final String pushID, final Map<String, Object> propertyMap, final boolean forced,
         final long timeout) {
 
         return new CloudPushNotification(browserID, pushID, propertyMap, forced, timeout);
@@ -377,7 +378,7 @@ implements DatabaseEntity, Serializable {
     implements Serializable {
         private static final long serialVersionUID = 2592022163953943399L;
 
-        private final Map<String, String> propertyMap = new HashMap<String, String>();
+        private final Map<String, Object> propertyMap = new HashMap<String, Object>();
 
         private String browserID;
         private boolean forced;
@@ -403,14 +404,14 @@ implements DatabaseEntity, Serializable {
         }
 
         public CloudPushNotification(
-            final String browserID, final String pushID, final Map<String, String> propertyMap, final boolean forced,
+            final String browserID, final String pushID, final Map<String, Object> propertyMap, final boolean forced,
             final long timeout) {
 
             this(browserID, pushID, propertyMap, forced, timeout, true);
         }
 
         protected CloudPushNotification(
-            final String browserID, final String pushID, final Map<String, String> propertyMap, final boolean forced,
+            final String browserID, final String pushID, final Map<String, Object> propertyMap, final boolean forced,
             final long timeout, final boolean save) {
 
             setBrowserID(browserID, false);
@@ -439,7 +440,7 @@ implements DatabaseEntity, Serializable {
             return browserID;
         }
 
-        public final Map<String, String> getPropertyMap() {
+        public final Map<String, Object> getPropertyMap() {
             return Collections.unmodifiableMap(getModifiablePropertyMap());
         }
 
@@ -520,19 +521,19 @@ implements DatabaseEntity, Serializable {
                         toString();
         }
 
-        protected Map<Category, Map<String, String>> convertPropertyMap(final Map<String, String> propertyMap) {
-            Map<Category, Map<String, String>> _categoryToPropertyMap = new HashMap<Category, Map<String, String>>();
-            for (final Map.Entry<String, String> _mapEntry : propertyMap.entrySet()) {
+        protected Map<Category, Map<String, Object>> convertPropertyMap(final Map<String, Object> propertyMap) {
+            Map<Category, Map<String, Object>> _categoryToPropertyMap = new HashMap<Category, Map<String, Object>>();
+            for (final Map.Entry<String, Object> _mapEntry : propertyMap.entrySet()) {
                 String _key = _mapEntry.getKey();
-                String _value = _mapEntry.getValue();
+                Object _value = _mapEntry.getValue();
                 if (_key.contains("$")) {
                     Category _category =
                         Category.fromValue(_key.substring(0, _key.indexOf("$")).toUpperCase());
-                    Map<String, String> _propertyMap;
+                    Map<String, Object> _propertyMap;
                     if (_categoryToPropertyMap.containsKey(_category)) {
                         _propertyMap = _categoryToPropertyMap.get(_category);
                     } else {
-                        _propertyMap = new HashMap<String, String>();
+                        _propertyMap = new HashMap<String, Object>();
                         _categoryToPropertyMap.put(_category, _propertyMap);
                     }
                     _propertyMap.put(_key.substring(_key.indexOf("$") + 1), _value);
@@ -650,7 +651,7 @@ implements DatabaseEntity, Serializable {
                     PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
         }
 
-        protected final Map<String, String> getModifiablePropertyMap() {
+        protected final Map<String, Object> getModifiablePropertyMap() {
             return propertyMap;
         }
 
@@ -689,7 +690,7 @@ implements DatabaseEntity, Serializable {
             return setForced(forced, true);
         }
 
-        protected final boolean setPropertyMap(final Map<String, String> propertyMap) {
+        protected final boolean setPropertyMap(final Map<String, Object> propertyMap) {
             return setPropertyMap(propertyMap, true);
         }
 
@@ -740,7 +741,7 @@ implements DatabaseEntity, Serializable {
             return _modified;
         }
 
-        private boolean setPropertyMap(final Map<String, String> propertyMap, final boolean save) {
+        private boolean setPropertyMap(final Map<String, Object> propertyMap, final boolean save) {
             boolean _modified;
             if (!this.propertyMap.isEmpty() && propertyMap == null) {
                 this.propertyMap.clear();

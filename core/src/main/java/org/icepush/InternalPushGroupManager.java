@@ -51,7 +51,7 @@ extends PushGroupManager {
         String pushID, String groupName, String payload);
 
     NotificationEntry newNotificationEntry(
-        String pushID, String groupName, String payload, Map<String, String> propertyMap, boolean forced);
+        String pushID, String groupName, String payload, Map<String, Object> propertyMap, boolean forced);
 
     boolean removeConfirmationTimeout(ConfirmationTimeout confirmationTimeout);
 
@@ -68,14 +68,14 @@ extends PushGroupManager {
     void scanForExpiry();
 
     boolean startConfirmationTimeout(
-        String browserID, String pushID, String groupName, Map<String, String> propertyMap, boolean forced);
+        String browserID, String pushID, String groupName, Map<String, Object> propertyMap, boolean forced);
 
     boolean startConfirmationTimeout(
-        String browserID, String pushID, String groupName, Map<String, String> propertyMap, boolean forced,
+        String browserID, String pushID, String groupName, Map<String, Object> propertyMap, boolean forced,
         long sequenceNumber);
 
     boolean startConfirmationTimeout(
-        String browserID, String pushID, String groupName, Map<String, String> propertyMap, boolean forced,
+        String browserID, String pushID, String groupName, Map<String, Object> propertyMap, boolean forced,
         long sequenceNumber, long timeout);
 
     void startConfirmationTimeouts(Set<NotificationEntry> notificationEntrySet);

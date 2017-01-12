@@ -1,5 +1,6 @@
 package org.icepush;
 
+import static org.icesoft.util.ObjectUtilities.isNotNull;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
 import java.io.Serializable;
@@ -22,7 +23,7 @@ implements DatabaseEntity, Runnable, Serializable {
 
     private static final Logger LOGGER = Logger.getLogger(OutOfBandNotification.class.getName());
 
-    private Map<String, String> propertyMap = new HashMap<String, String>();
+    private Map<String, Object> propertyMap = new HashMap<String, Object>();
 
     private boolean forced;
 
@@ -32,14 +33,14 @@ implements DatabaseEntity, Runnable, Serializable {
     }
 
     public OutOfBandNotification(
-        final String groupName, final String payload, final Map<String, String> propertyMap, final long duration,
+        final String groupName, final String payload, final Map<String, Object> propertyMap, final long duration,
         final long scheduledAt, final Set<String> exemptPushIDSet) {
 
         this(groupName, payload, propertyMap, false, duration, scheduledAt, exemptPushIDSet, true);
     }
 
     public OutOfBandNotification(
-        final String groupName, final String payload, final Map<String, String> propertyMap, final boolean forced,
+        final String groupName, final String payload, final Map<String, Object> propertyMap, final boolean forced,
         final long duration, final long scheduledAt, final Set<String> exemptPushIDSet) {
 
         this(groupName, payload, propertyMap, forced, duration, scheduledAt, exemptPushIDSet, true);
@@ -52,7 +53,7 @@ implements DatabaseEntity, Runnable, Serializable {
     }
 
     protected OutOfBandNotification(
-        final String groupName, final String payload, final Map<String, String> propertyMap, final boolean forced,
+        final String groupName, final String payload, final Map<String, Object> propertyMap, final boolean forced,
         final long duration, final long scheduledAt, final Set<String> exemptPushIDSet, final boolean save) {
 
         super(groupName, payload, duration, scheduledAt, exemptPushIDSet, false);
@@ -67,7 +68,7 @@ implements DatabaseEntity, Runnable, Serializable {
         final String groupName, final String payload, final PushConfiguration pushConfiguration, final boolean save) {
 
         super(groupName, payload, pushConfiguration, false);
-        Map<String, String> _propertyMap = new HashMap<String, String>();
+        Map<String, Object> _propertyMap = new HashMap<String, Object>();
         Boolean _forced = false;
         for (final Map.Entry<String, Object> _attributeEntry : pushConfiguration.getAttributeMap().entrySet()) {
             // TODO: Actually filter the properties supported by the Cloud Notification Service.
@@ -75,8 +76,8 @@ implements DatabaseEntity, Runnable, Serializable {
                 if (_attributeEntry.getKey().equals("forced")) {
                     _forced = (Boolean)_attributeEntry.getValue();
                 }
-            } else if (_attributeEntry.getValue() instanceof String) {
-                _propertyMap.put(_attributeEntry.getKey(), (String)_attributeEntry.getValue());
+            } else {
+                _propertyMap.put(_attributeEntry.getKey(), _attributeEntry.getValue());
             }
         }
         setPropertyMap(_propertyMap, false);
@@ -92,13 +93,13 @@ implements DatabaseEntity, Runnable, Serializable {
     public boolean equals(final Object object) {
         return
             object instanceof OutOfBandNotification &&
-                ((OutOfBandNotification)object).getPropertyMap().entrySet().containsAll(getPropertyMap().entrySet()) &&
-                ((OutOfBandNotification)object).getPropertyMap().size() == getPropertyMap().size() &&
+                ((OutOfBandNotification)object).getModifiablePropertyMap().entrySet().containsAll(getModifiablePropertyMap().entrySet()) &&
+                ((OutOfBandNotification)object).getModifiablePropertyMap().size() == getModifiablePropertyMap().size() &&
                 super.equals(object);
     }
 
-    public String getProperty(final String key) {
-        String _value;
+    public Object getProperty(final String key) {
+        Object _value;
         if (isNotNullAndIsNotEmpty(key)) {
             _value = getModifiablePropertyMap().get(key);
         } else {
@@ -107,7 +108,7 @@ implements DatabaseEntity, Runnable, Serializable {
         return _value;
     }
 
-    public final Map<String, String> getPropertyMap() {
+    public final Map<String, Object> getPropertyMap() {
         return Collections.unmodifiableMap(getModifiablePropertyMap());
     }
 
@@ -115,9 +116,9 @@ implements DatabaseEntity, Runnable, Serializable {
         return forced;
     }
 
-    public String putProperty(final String key, final String value) {
-        String _previousValue;
-        if (isNotNullAndIsNotEmpty(key) && isNotNullAndIsNotEmpty(value)) {
+    public Object putProperty(final String key, final Object value) {
+        Object _previousValue;
+        if (isNotNullAndIsNotEmpty(key) && isNotNull(value)) {
             _previousValue = getModifiablePropertyMap().put(key, value);
         } else {
             _previousValue = null;
@@ -125,8 +126,8 @@ implements DatabaseEntity, Runnable, Serializable {
         return _previousValue;
     }
 
-    public String removeProperty(final String key) {
-        String _previousValue;
+    public Object removeProperty(final String key) {
+        Object _previousValue;
         if (isNotNullAndIsNotEmpty(key)) {
             _previousValue = getModifiablePropertyMap().remove(key);
         } else {
@@ -150,12 +151,12 @@ implements DatabaseEntity, Runnable, Serializable {
         return
             new StringBuilder().
                 append("forced: '").append(isForced()).append("', ").
-                append("propertyMap: '").append(getPropertyMap()).append("', ").
+                append("propertyMap: '").append(getModifiablePropertyMap()).append("', ").
                 append(super.classMembersToString()).
                     toString();
     }
 
-    protected final Map<String, String> getModifiablePropertyMap() {
+    protected final Map<String, Object> getModifiablePropertyMap() {
         return propertyMap;
     }
 
@@ -172,7 +173,7 @@ implements DatabaseEntity, Runnable, Serializable {
         return setForced(forced, true);
     }
 
-    protected final boolean setPropertyMap(final Map<String, String> propertyMap) {
+    protected final boolean setPropertyMap(final Map<String, Object> propertyMap) {
         return setPropertyMap(propertyMap, true);
     }
 
@@ -190,7 +191,7 @@ implements DatabaseEntity, Runnable, Serializable {
         return _modified;
     }
 
-    private boolean setPropertyMap(final Map<String, String> propertyMap, final boolean save) {
+    private boolean setPropertyMap(final Map<String, Object> propertyMap, final boolean save) {
         boolean _modified;
         if (!this.propertyMap.isEmpty() && propertyMap == null) {
             this.propertyMap.clear();

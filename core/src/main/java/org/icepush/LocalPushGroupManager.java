@@ -419,7 +419,7 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public NotificationEntry newNotificationEntry(
-        final String pushID, final String groupName, final String payload, final Map<String, String> propertyMap,
+        final String pushID, final String groupName, final String payload, final Map<String, Object> propertyMap,
         final boolean forced) {
 
         return new NotificationEntry(pushID, groupName, payload, propertyMap, forced);
@@ -549,7 +549,7 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public boolean startConfirmationTimeout(
-        final String browserID, final String pushID, final String groupName, final Map<String, String> propertyMap,
+        final String browserID, final String pushID, final String groupName, final Map<String, Object> propertyMap,
         final boolean forced) {
 
         return
@@ -559,7 +559,7 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public boolean startConfirmationTimeout(
-        final String browserID, final String pushID, final String groupName, final Map<String, String> propertyMap,
+        final String browserID, final String pushID, final String groupName, final Map<String, Object> propertyMap,
         final boolean forced, final long sequenceNumber) {
 
         Browser browser = getBrowser(browserID);
@@ -579,7 +579,7 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public boolean startConfirmationTimeout(
-        final String browserID, final String pushID, final String groupName, final Map<String, String> propertyMap,
+        final String browserID, final String pushID, final String groupName, final Map<String, Object> propertyMap,
         final boolean forced, final long sequenceNumber, final long timeout) {
 
         Browser browser = getBrowser(browserID);
@@ -1429,7 +1429,7 @@ implements InternalPushGroupManager, PushGroupManager {
         return browserMap.containsKey(browserID) && browserMap.get(browserID).hasNotifyBackURI();
     }
 
-    protected boolean isOutOfBandNotification(final Map<String, String> propertyMap) {
+    protected boolean isOutOfBandNotification(final Map<String, Object> propertyMap) {
         return
             isNotNullAndIsNotEmpty(propertyMap) &&
             containsEndingWith(propertyMap.keySet(), "$subject");
