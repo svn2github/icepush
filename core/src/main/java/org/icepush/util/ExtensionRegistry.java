@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 ICEsoft Technologies Canada Corp.
+ * Copyright 2004-2017 ICEsoft Technologies Canada Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the
@@ -65,10 +65,8 @@ public class ExtensionRegistry implements ServletContextListener {
      *     Return the extension of the specified name with the highest "quality".
      * </p>
      *
-     * @param      context
-     *                 The Servlet context.
-     * @param      name
-     *                 The name of the extension to be retrieved.
+     * @param      context	The Servlet context.
+     * @param      name		The name of the extension to be retrieved.
      * @return     The best extension mapped to the specified <code>name</code> based on the highest quality or
      *             <code>null</code> if no extension could be found.
      */
@@ -84,10 +82,8 @@ public class ExtensionRegistry implements ServletContextListener {
      *     Return an array of extensions ordered by the "quality" attribute.
      * </p>
      *
-     * @param      context
-     *                 The Servlet context.
-     * @param      name
-     *                 The name of the extension to be retrieved.
+     * @param      context	The Servlet context.
+     * @param      name		The name of the extension to be retrieved.
      * @return     The extensions mapped to the specified <code>name</code>.
      */
     public static Object[] getExtensions(ServletContext context, String name) {
