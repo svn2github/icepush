@@ -25,20 +25,23 @@ var whenReEstablished = operator();
 var startConnection = operator();
 var resumeConnection = operator();
 var pauseConnection = operator();
-var controlRequest = operator();
 var reconfigure = operator();
-var changeHeartbeatInterval = operator();
 var shutdown = operator();
 var AsyncConnection;
 
 (function() {
-    var HeartbeatInterval = 'ice.push.heartbeat';
     var SequenceNumber = 'ice.push.sequence';
     var ConnectionRunning = 'ice.connection.running';
     var ConnectionLease = 'ice.connection.lease';
     var ConnectionContextPath = 'ice.connection.contextpath';
     var AcquiredMarker = ':acquired';
     var NetworkDelay = 5000;//5s of delay, possibly introduced by network
+    var DefaultConfiguration = {
+        heartbeat_interval: 1500,
+        network_error_retry_timeouts: [1, 1, 1, 2, 2, 3],
+        server_error_retry_timeouts: [1000, 2000, 4000],
+        empty_response_retries: 3
+    };
 
     //build up retry actions
     function timedRetryAbort(retryAction, abortAction, timeouts) {
@@ -54,7 +57,7 @@ var AsyncConnection;
         };
     }
 
-    AsyncConnection = function(logger, windowID, configuration) {
+    AsyncConnection = function(logger, windowID) {
         var logger = childLogger(logger, 'async-connection');
         var channel = Client(false);
         var onSendListeners = [];
@@ -65,6 +68,8 @@ var AsyncConnection;
         var connectionStoppedListeners = [];
         var connectionReEstablished = [];
         var sequenceNo = Slot(SequenceNumber);
+        var configuration = DefaultConfiguration;
+        var heartbeatTimestamp;
 
         var listener = object(function(method) {
             method(close, noop);
@@ -81,17 +86,6 @@ var AsyncConnection;
             return namespace.push.configuration.contextPath;
         }
 
-        function askForConfiguration(query) {
-            //request configuration once, but only after ice.push.browser cookie is set
-            try {
-                lookupCookieValue(BrowserIDName);
-                parameter(query, 'ice.sendConfiguration', '');
-                askForConfiguration = noop;
-            } catch (ex) {
-                //ice.push.browser cookie not set yet
-            }
-        }
-
         function requestForBlockingResponse() {
             try {
                 debug(logger, "closing previous connection...");
@@ -104,32 +98,49 @@ var AsyncConnection;
                     broadcast(connectionStoppedListeners, ['connection stopped, no pushIDs registered']);
                 } else {
                     debug(logger, 'connect...');
-                    var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
-                    listener = postAsynchronously(channel, uri, function(q) {
-                        parameter(q, BrowserIDName, lookupCookieValue(BrowserIDName));
-                        parameter(q, WindowID, namespace.windowID);
-                        parameter(q, Account, ice.push.configuration.account);
-                        parameter(q, Realm, ice.push.configuration.realm);
-                        parameter(q, AccessToken, ice.push.configuration.access_token);
-                        parameter(q, HeartbeatInterval, heartbeatTimeout - NetworkDelay);
-                        parameter(q, SequenceNumber, getValue(sequenceNo));
-                        each(lastSentPushIds, curry(parameter, q, PushID));
-                        broadcast(onSendListeners, [q]);
-                        askForConfiguration(q);
-                    }, FormPost, $witch(function (condition) {
-                        condition(OK, function(response) {
-                            var sequenceNoValue = Number(getHeader(response, SequenceNumber));
-                            if (sequenceNoValue) {
-                                //update sequence number incremented by the server
-                                setValue(sequenceNo, sequenceNoValue);
-                            }
+                    var uri = 'http\:\/\/localhost/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/push-ids?access_token=' + encodeURIComponent(ice.push.configuration.access_token) + '&op=listen';
+                    var body = JSON.stringify({
+                        'access_token': ice.push.configuration.access_token,
+                        "expires_in": 3600000,
+                        'browser': {
+                            'id': lookupCookieValue(BrowserIDName)
+                        },
+                        // 'heartbeat': {
+                        //     'timestamp': 345634563454,
+                        //     'interval': configuration.heartbeat_interval + 'l'
+                        // },
+                        'op': 'listen',
+                        'sequence_number': {
+                            'value': Number(getValue(sequenceNo))
+                        },
+                        'window': {
+                            'id': namespace.windowID
+                        },
+                        'push_ids': collect(lastSentPushIds, function(id) {
+                            return { 'id': id };
+                        })
+                    });
+                    listener = postAsynchronously(channel, uri, body, JSONRequest, $witch(function (condition) {
+                        condition(OK, function (response) {
+                            var content = contentAsText(response);
                             var reconnect = getHeader(response, 'X-Connection') != 'close';
-                            var nonEmptyResponse = notEmpty(contentAsText(response));
+                            var nonEmptyResponse = notEmpty(content);
 
                             if (reconnect) {
                                 if (nonEmptyResponse) {
-                                    broadcast(onReceiveListeners, [response]);
-                                    resetEmptyResponseRetries();
+                                    try {
+                                        var result = JSON.parse(content);
+                                        if (result.sequence_number) {
+                                            //update sequence number incremented by the server
+                                            setValue(sequenceNo, result.sequence_number);
+                                        }
+                                        if (result.heartbeat && result.heartbeat.timestamp) {
+                                            heartbeatTimestamp = result.heartbeat.timestamp;
+                                        }
+                                    } finally {
+                                        broadcast(onReceiveListeners, [response]);
+                                        resetEmptyResponseRetries();
+                                    }
                                 } else {
                                     warn(logger, 'empty response received');
                                     decrementEmptyResponseRetries();
@@ -165,24 +176,25 @@ var AsyncConnection;
         //build callbacks only after 'connection' function was defined
         var heartbeatTimeout;
         var networkErrorRetryTimeouts;
-        function setupNetworkErrorRetries() {
-            heartbeatTimeout = attributeAsNumber(configuration, 'heartbeatTimeout', 15000);
-            networkErrorRetryTimeouts = collect(split(attributeAsString(configuration, 'networkErrorRetryTimeouts', '1 1 1 2 2 3'), ' '), Number);
+        function setupNetworkErrorRetries(cfg) {
+            heartbeatTimeout = cfg.heartbeat_interval || DefaultConfiguration.heartbeat_interval;
+            networkErrorRetryTimeouts = cfg.network_error_retry_timeouts || DefaultConfiguration.network_error_retry_timeouts;
+            emptyResponseRetries = cfg.empty_response_retries || DefaultConfiguration.empty_response_retries;
         }
-        setupNetworkErrorRetries();
+        setupNetworkErrorRetries(configuration);
 
         var serverErrorRetryTimeouts;
         var retryOnServerError;
-        function setupServerErrorRetries() {
-            serverErrorRetryTimeouts = collect(split(attributeAsString(configuration, 'serverErrorRetryTimeouts', '1000 2000 4000'), ' '), Number);
+        function setupServerErrorRetries(cfg) {
+            serverErrorRetryTimeouts = cfg.server_error_retry_timeouts || DefaultConfiguration.server_error_retry_timeouts;
             retryOnServerError = timedRetryAbort(connect, broadcaster(onServerErrorListeners), serverErrorRetryTimeouts);
         }
-        setupServerErrorRetries();
+        setupServerErrorRetries(configuration);
 
         //count the number of consecutive empty responses
         var emptyResponseRetries;
         function resetEmptyResponseRetries() {
-            emptyResponseRetries = attributeAsNumber(configuration, 'emptyResponseRetries', 3);
+            emptyResponseRetries = configuration.empty_response_retries || DefaultConfiguration.empty_response_retries;
         }
         function decrementEmptyResponseRetries() {
             --emptyResponseRetries;
@@ -430,40 +442,10 @@ var AsyncConnection;
                 }
             });
 
-            method(controlRequest, function(self, parameterCallback, headerCallback, responseCallback) {
-                if (paused) {
-                    var uri = resolveURI(namespace.push.configuration.blockingConnectionURI);
-                    postAsynchronously(channel, uri, function(q) {
-                        parameter(q, WindowID, namespace.windowID);
-                        each(lastSentPushIds, curry(parameter, q, PushID));
-                        parameterCallback(curry(parameter, q));
-                    }, function(request) {
-                        FormPost(request);
-                        headerCallback(curry(setHeader, request));
-                    }, $witch(function (condition) {
-                        condition(OK, function(response) {
-                            responseCallback(curry(getHeader, response), contentAsText(response), contentAsDOM(response));
-                        });
-                        condition(ServerInternalError, function() {
-                            throw statusText(response);
-                        });
-                    }));
-                } else {
-                    throw 'Cannot make a request while the blocking connection is running.';
-                }
-            });
-
-            method(changeHeartbeatInterval, function(self, interval) {
-                setupNetworkErrorRetries();
-                heartbeatTimeout = interval;
-                info(logger, 'heartbeat timeout changed to ' + interval + ' ms');
+            method(reconfigure, function(self, configuration) {
+                setupNetworkErrorRetries(configuration);
                 adjustTimeoutBombIntervals();
-            });
-
-            method(reconfigure, function(self) {
-                setupNetworkErrorRetries();
-                adjustTimeoutBombIntervals();
-                setupServerErrorRetries();
+                setupServerErrorRetries(configuration);
             });
 
             method(shutdown, function(self) {

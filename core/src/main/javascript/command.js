@@ -20,6 +20,15 @@ var deserializeAndExecute = operator();
 function CommandDispatcher() {
     var commands = [];
 
+    function executeCommand(name, parameter) {
+        var found = detect(commands, function(cell) {
+            return key(cell) == name;
+        });
+        if (found) {
+            value(found)(parameter);
+        }
+    }
+
     return object(function(method) {
         method(register, function(self, messageName, command) {
             commands = reject(commands, function(cell) {
@@ -28,14 +37,17 @@ function CommandDispatcher() {
             append(commands, Cell(messageName, command));
         });
 
-        method(deserializeAndExecute, function(self, message) {
-            var messageName = message.nodeName;
-            var found = detect(commands, function(cell) {
-                return key(cell) == messageName;
-            }, function() {
-                throw 'Unknown message received: ' + messageName;
-            });
-            value(found)(message);
+        method(deserializeAndExecute, function(self, content) {
+            try {
+                var result = JSON.parse(content);
+                for (var commandName in result) {
+                    if (result.hasOwnProperty(commandName)) {
+                        executeCommand(commandName, result[commandName])
+                    }
+                }
+            } catch (e) {
+                executeCommand('parsererror', e);
+            }
         });
     });
 }
@@ -44,16 +56,7 @@ function NoopCommand() {
     debug(namespace.logger, 'received noop');
 }
 
-function ParsingError(message) {
+function ParsingError(err) {
     logger.error('Parsing error');
-    var errorNode = message.firstChild;
-    logger.error(errorNode.data);
-    var sourceNode = errorNode.firstChild;
-    logger.error(sourceNode.data);
-}
-
-function Macro(dispatcher) {
-    return function(message) {
-        each(message.childNodes, curry(deserializeAndExecute, dispatcher));
-    };
+    logger.error(err);
 }

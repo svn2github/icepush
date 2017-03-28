@@ -120,9 +120,6 @@ if (!window.ice.icepush) {
         var PushIDs = 'ice.pushids';
         var BrowserIDName = 'ice.push.browser';
         var WindowID = 'ice.push.window';
-        var Account = "ice.push.account";
-        var Realm = "ice.push.realm";
-        var AccessToken = "ice.push.access_token";
         var NotifiedPushIDs = 'ice.notified.pushids';
         var HeartbeatTimestamp = 'ice.push.heartbeatTimestamp';
 
@@ -182,68 +179,33 @@ if (!window.ice.icepush) {
             throw 'Server internal error: ' + contentAsText(response);
         }
 
-        function resolveURI(path) {
-            ///just use the path if it is an absolute URL
-            if (contains(path, "http://") || contains(path, "https://")) {
-                return path;
-            }
-
-            var contextPath = namespace.push.configuration.contextPath;
-
-            if (startsWith(path, contextPath)) {
-                return path;
-            }
-
-            if (contextPath) {
-                if (endsWith(contextPath, '/')) {
-                    contextPath = substring(contextPath, 0, size(contextPath) - 1);
-                }
-            } else {
-                var pathName = window.location.pathname;
-                try {
-                    var i = lastIndexOf(pathName, '/');
-                    contextPath = substring(pathName, 0, i);
-                } catch (e) {
-                    contextPath = pathName;
-                }
-            }
-
-            return contextPath + '/' + path;
-        }
-
-        function isXMLResponse(response) {
+        function isJSONResponse(response) {
             var mimeType = getHeader(response, 'Content-Type');
-            return mimeType && startsWith(mimeType, 'text/xml');
+            return mimeType && startsWith(mimeType, 'application/json');
         }
 
-        function parameter(query, name, value) {
-            var prefix = namespace.push.configuration.parameterPrefix;
-            if (prefix) {
-                name = prefix + name;
+        function JSONRequest(request) {
+            setHeader(request, 'Content-Type', 'application/json');
+        }
+
+        function browserID() {
+            try {
+                return lookupCookieValue(BrowserIDName);
+            } catch (e) {
+                //skip sending browser ID when not yet defined
+                return null;
             }
-            addNameValue(query, name, value);
         }
 
         var commandDispatcher = CommandDispatcher();
         register(commandDispatcher, 'parsererror', ParsingError);
-        register(commandDispatcher, 'macro', Macro(commandDispatcher));
-
         register(commandDispatcher, 'browser', function(message) {
-            Cookie(BrowserIDName, message.getAttribute('id'));
+            Cookie(BrowserIDName, message.browser.id);
         });
 
         var currentNotifications = [];
         var apiChannel = Client(true);
-        function commonParameters(query) {
-            try {
-                parameter(query, BrowserIDName, lookupCookieValue(BrowserIDName));
-            } catch (e) {
-                //skip sending browser ID when not yet defined
-            }
-            parameter(query, Account, ice.push.configuration.account);
-            parameter(query, Realm, ice.push.configuration.realm);
-            parameter(query, AccessToken, ice.push.configuration.access_token);
-        }
+
         //public API
         namespace.uriextension = '';
         namespace.push = {
@@ -267,20 +229,21 @@ if (!window.ice.icepush) {
 
             deregister: delistPushIDsWithWindow,
 
-            getCurrentNotifications: function() {
-                return currentNotifications;
-            },
-
-            createPushId: function(retries, callback) {
-                var uri = resolveURI(namespace.push.configuration.createPushIdURI || 'create-push-id.icepush');
-                postAsynchronously(apiChannel, uri, commonParameters, FormPost, $witch(function (condition) {
-                    condition(OK, function(response) {
-                        if (isXMLResponse(response)) {
+            createPushId: function (retries, callback) {
+                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/push-ids';
+                var body = JSON.stringify({
+                    'access_token': ice.push.configuration.access_token,
+                    'browser': browserID(),
+                    'op': 'create'
+                });
+                postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
+                    condition(OK, function (response) {
+                        if (isJSONResponse(response)) {
                             if (retries && retries > 1) {
                                 error(namespace.logger, 'failed to set ice.push.browser cookie');
                                 return;
                             }
-                            deserializeAndExecute(commandDispatcher, contentAsDOM(response).documentElement);
+                            deserializeAndExecute(commandDispatcher, response);
                             retries = retries ? retries + 1 : 1;
                             namespace.push.createPushId(retries, callback);
                         } else {
@@ -292,152 +255,53 @@ if (!window.ice.icepush) {
                 }));
             },
 
-            notify: function(group, payload, options) {
-                var uri = resolveURI(namespace.push.configuration.notifyURI || 'notify.icepush');
-                postAsynchronously(apiChannel, uri, function(q) {
-                    commonParameters(q);
-                    parameter(q, 'group', group);
-                    if (payload) {
-                        parameter(q, 'payload', payload);
-                    }
-                    if (options) {
-                        //provide default values if missing
-                        if (!options.duration) {
-                            options.duration = 0;
-                        }
-                        if (!options.delay) {
-                            options.delay = 0;
-                        }
-                        for (var name in options) {
-                            if (options.hasOwnProperty(name)) {
-                                var value = options[name];
-                                if (name == 'delay') {
-                                    parameter(q, 'delay', value);
-                                } else if (name == 'at') {
-                                    parameter(q, 'at', value);
-                                } else if (name == 'duration') {
-                                    parameter(q, 'duration', value);
-                                } else if (name == 'detail') {
-                                    parameter(q, 'detail', value);
-                                } else if (name == 'global.detail') {
-                                    parameter(q, 'global.detail', value);
-                                } else if (name == 'cloud.detail') {
-                                    parameter(q, 'cloud.detail', value);
-                                } else if (name == 'email.detail') {
-                                    parameter(q, 'email.detail', value);
-                                } else if (name == 'sms.detail') {
-                                    parameter(q, 'sms.detail', value);
-                                } else if (name == 'expireTime') {
-                                    parameter(q, 'expireTime', value);
-                                } else if (name == 'global.expireTime') {
-                                    parameter(q, 'global.expireTime', value);
-                                } else if (name == 'cloud.expireTime') {
-                                    parameter(q, 'cloud.expireTime', value);
-                                } else if (name == 'email.expireTime') {
-                                    parameter(q, 'email.expireTime', value);
-                                } else if (name == 'sms.expireTime') {
-                                    parameter(q, 'sms.expireTime', value);
-                                } else if (name == 'icon') {
-                                    parameter(q, 'icon', value);
-                                } else if (name == 'global.icon') {
-                                    parameter(q, 'global.icon', value);
-                                } else if (name == 'cloud.icon') {
-                                    parameter(q, 'cloud.icon', value);
-                                } else if (name == 'email.icon') {
-                                    parameter(q, 'email.icon', value);
-                                } else if (name == 'sms.icon') {
-                                    parameter(q, 'sms.icon', value);
-                                } else if (name == 'payload') {
-                                    parameter(q, 'payload', value);
-                                } else if (name == 'global.payload') {
-                                    parameter(q, 'global.payload', value);
-                                } else if (name == 'cloud.payload') {
-                                    parameter(q, 'cloud.payload', value);
-                                } else if (name == 'email.payload') {
-                                    parameter(q, 'email.payload', value);
-                                } else if (name == 'sms.payload') {
-                                    parameter(q, 'sms.payload', value);
-                                } else if (name == 'priority') {
-                                    parameter(q, 'priority', value);
-                                } else if (name == 'global.priority') {
-                                    parameter(q, 'global.priority', value);
-                                } else if (name == 'cloud.priority') {
-                                    parameter(q, 'cloud.priority', value);
-                                } else if (name == 'email.priority') {
-                                    parameter(q, 'email.priority', value);
-                                } else if (name == 'sms.priority') {
-                                    parameter(q, 'sms.priority', value);
-                                } else if (name == 'subject') {
-                                    parameter(q, 'subject', value);
-                                } else if (name == 'global.subject') {
-                                    parameter(q, 'global.subject', value);
-                                } else if (name == 'cloud.subject') {
-                                    parameter(q, 'cloud.subject', value);
-                                } else if (name == 'email.subject') {
-                                    parameter(q, 'email.subject', value);
-                                } else if (name == 'sms.subject') {
-                                    parameter(q, 'sms.subject', value);
-                                } else if (name == 'targetURI') {
-                                    parameter(q, 'targetURI', value);
-                                } else if (name == 'global.targetURI') {
-                                    parameter(q, 'global.targetURI', value);
-                                } else if (name == 'cloud.targetURI') {
-                                    parameter(q, 'cloud.targetURI', value);
-                                } else if (name == 'email.targetURI') {
-                                    parameter(q, 'email.targetURI', value);
-                                } else if (name == 'sms.targetURI') {
-                                    parameter(q, 'sms.targetURI', value);
-                                } else if (name == 'forced') {
-                                    parameter(q, 'forced', value);
-                                } else {
-                                    parameter(q, 'option', name + '=' + value);
-                                }
-                            }
-                        }
-                    }
-                }, FormPost, $witch(function(condition) {
+            notify: function(group, options) {
+                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/push-ids';
+                var body = JSON.stringify({
+                    'access_token': ice.push.configuration.access_token,
+                    'browser': browserID(),
+                    'op': 'push',
+                    'push-ids': registeredPushIds(),
+                    'push_configuration': options
+                });
+                postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function(condition) {
                     condition(ServerInternalError, throwServerError);
                 }));
             },
 
-            addGroupMember: function(group, id, options) {
-                var uri = resolveURI(namespace.push.configuration.addGroupMemberURI || 'add-group-member.icepush');
-                postAsynchronously(apiChannel, uri, function(q) {
-                    commonParameters(q);
-                    parameter(q, 'group', group);
-                    parameter(q, 'id', id);
-                    if (options) {
-                        for (var name in options) {
-                            if (options.hasOwnProperty(name)) {
-                                parameter(q, name, options[name]);
-                            }
-                        }
-                    }
-                }, FormPost, $witch(function(condition) {
+            addGroupMember: function (group, id, options) {
+                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/groups/' + group + '/push-ids/' + id;
+                var body = JSON.stringify({
+                    'access_token': ice.push.configuration.access_token,
+                    'browser': browserID(),
+                    'op': 'add',
+                    'push_configuration': options
+                });
+                postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
                     condition(ServerInternalError, throwServerError);
                 }));
             },
 
-            removeGroupMember: function(group, id) {
-                var uri = resolveURI(namespace.push.configuration.removeGroupMemberURI || 'remove-group-member.icepush');
-                postAsynchronously(apiChannel, uri, function(q) {
-                    commonParameters(q);
-                    parameter(q, 'group', group);
-                    parameter(q, 'id', id);
-                }, FormPost, $witch(function(condition) {
+            removeGroupMember: function (group, id) {
+                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/groups/' + group + '/push-ids/' + id;
+                deleteAsynchronously(apiChannel, uri, function(query) {
+                    parameter(query, "op", "delete");
+                }, FormPost, $witch(function (condition) {
                     condition(ServerInternalError, throwServerError);
                 }));
             },
 
-            addNotifyBackURI: function(notifyBackURI) {
-                var uri = resolveURI(namespace.push.configuration.addNotifyBackURIURI || 'add-notify-back-uri.icepush');
-                postAsynchronously(apiChannel, uri, function(q) {
-                    commonParameters(q);
-                    parameter(q, 'notifyBackURI', notifyBackURI);
-                }, FormPost, $witch(function(condition) {
-                    condition(OK, function(response) {
-                        if (isXMLResponse(response)) {
-                            deserializeAndExecute(commandDispatcher, contentAsDOM(response).documentElement);
+            addNotifyBackURI: function (notifyBackURI) {
+                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID() + '/notify-back-uris/' + notifyBackURI;
+                var body = JSON.stringify({
+                    'access_token': ice.push.configuration.access_token,
+                    'browser': browserID(),
+                    'op': 'add'
+                });
+                postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
+                    condition(OK, function (response) {
+                        if (isJSONResponse(response)) {
+                            deserializeAndExecute(response);
                             namespace.push.addNotifyBackURI(notifyBackURI);
                         }
                     });
@@ -445,110 +309,44 @@ if (!window.ice.icepush) {
                 }));
             },
 
-            removeNotifyBackURI: function() {
-                var uri = resolveURI(namespace.push.configuration.removeNotifyBackURIURI || 'remove-notify-back-uri.icepush');
-                postAsynchronously(apiChannel, uri, commonParameters, FormPost, $witch(function(condition) {
+            removeNotifyBackURI: function () {
+                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID();
+                deleteAsynchronously(apiChannel, uri, function(query) {
+                    parameter(query, "op", "remove");
+                }, JSONRequest, $witch(function (condition) {
                     condition(ServerInternalError, throwServerError);
                 }));
             },
 
-            hasNotifyBackURI: function(resultCallback) {
-                var uri = resolveURI(namespace.push.configuration.hasNotifyBackURIURI || 'has-notify-back-uri.icepush');
-                postAsynchronously(apiChannel, uri, commonParameters, FormPost, $witch(function(condition) {
+            hasNotifyBackURI: function (resultCallback) {
+                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID();
+                getAsynchronously(apiChannel, uri, function(query) {
+                    parameter(query, "op", "has");
+                }, JSONRequest, $witch(function (condition) {
                     condition(OK, function(response) {
-                        if (isXMLResponse(response)) {
-                            deserializeAndExecute(commandDispatcher, contentAsDOM(response).documentElement);
-                            namespace.push.hasNotifyBackURI(resultCallback);
-                        } else {
-                            var content = contentAsText(response);
-                            resultCallback(content ? toLowerCase(content) == 'true' : false);
+                        try {
+                            var result = JSON.parse(contentAsText(response));
+                            resultCallback(!!result.notify_back_enabled);
+                        } catch (ex) {
+                            resultCallback(false);
                         }
                     });
                     condition(ServerInternalError, throwServerError);
                 }));
             },
 
-            get: function(uri, parameters, responseCallback) {
-                getAsynchronously(apiChannel, uri, function(query) {
-                    commonParameters(query);
-                    parameters(curry(parameter, query));
-                }, noop, $witch(function(condition) {
-                    condition(OK, function(response) {
-                        responseCallback(statusCode(response), contentAsText(response), contentAsDOM(response));
-                    });
-                    condition(ServerInternalError, throwServerError);
-                }));
-            },
-
-            post: function(uri, parameters, responseCallback) {
-                postAsynchronously(apiChannel, uri, function(query) {
-                    commonParameters(query);
-                    parameters(curry(parameter, query));
-                }, FormPost, $witch(function(condition) {
-                    condition(OK, function(response) {
-                        responseCallback(statusCode(response), contentAsText(response), contentAsDOM(response));
-                    });
-                    condition(ServerInternalError, throwServerError);
-                }));
-            },
-
-            //todo: move this utility function into the JSP integration project
-            searchAndEvaluateScripts: function(element) {
-                each(element.getElementsByTagName('script'), function(script) {
-                    var newScript = document.createElement('script');
-                    newScript.setAttribute('type', 'text/javascript');
-
-                    if (script.src) {
-                        newScript.src = script.src;
-                    } else {
-                        newScript.text = script.text;
-                    }
-
-                    element.appendChild(newScript);
-                });
-            },
-
             configuration: {
-                contextPath: '.',
-                blockingConnectionURI: 'listen.icepush',
-                account: '',
-                realm: '',
-                access_token: ''
+                account: 'icesoft_technologies',
+                realm: 'icesoft.com',
+                access_token: '271c401b-3cb9-41b2-96a5-ccb99eee9a0a'
             }
         };
 
         function Bridge() {
             var windowID = namespace.windowID;
             var logger = childLogger(namespace.logger, windowID);
-            var heartbeatTimestamp;
-
-            var publicConfiguration = namespace.push.configuration;
-            var configurationElement = document.documentElement;//documentElement is used as a noop config. element
-            var configuration = XMLDynamicConfiguration(function() {
-                return configurationElement;
-            });
             var pushIdExpiryMonitor = PushIDExpiryMonitor(logger);
-            var asyncConnection = AsyncConnection(logger, windowID, configuration);
-
-            register(commandDispatcher, 'configuration', function(message) {
-                configurationElement = message;
-                //update public values
-                publicConfiguration.contextPath = attributeAsString(configuration, 'contextPath', publicConfiguration.contextPath);
-                publicConfiguration.blockingConnectionURI = attributeAsString(configuration, 'blockingConnectionURI', publicConfiguration.blockingConnectionURI || 'listen.icepush');
-                reconfigure(asyncConnection);
-            });
-            register(commandDispatcher, 'back-off', function(message) {
-                debug(logger, 'received back-off');
-                var delay = asNumber(message.getAttribute('delay'));
-                try {
-                    pauseConnection(asyncConnection);
-                } finally {
-                    runOnce(Delay(function() {
-                        resumeConnection(asyncConnection);
-                    }, delay));
-                }
-            });
-
+            var asyncConnection = AsyncConnection(logger, windowID);
 
             //purge discarded pushIDs from the notification list
             function purgeNonRegisteredPushIDs(ids) {
@@ -580,38 +378,28 @@ if (!window.ice.icepush) {
             var notificationBroadcaster = useLocalStorage() ?
                 LocalStorageNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications) : CookieBasedNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications);
 
+            //register command that handles the notifications message
+            register(commandDispatcher, 'notifications', function(notifications) {
+                for (var i = 0; i < notifications.childNodes.length; i++) {
+                    var notification = notifications[i];
+                    notifyWindows(notificationBroadcaster, purgeNonRegisteredPushIDs(asSet(notification['push-ids'])), notification['payload']);
+                }
+            });
             //register command that handles the noop message
             register(commandDispatcher, 'noop', noop);
-            //register command that handles the notifications message
-            register(commandDispatcher, 'notifications', function(message) {
-                if (message.nodeName == "notifications") {
-                    var notifications = message;
-                    for (var i = 0; i < notifications.childNodes.length; i++) {
-                        if (notifications.childNodes[i].nodeName == "notification") {
-                            var notification = notifications.childNodes[i];
-                            if (notification.getAttribute("push-ids")) {
-                                var pushIDs = split(notification.getAttribute("push-ids"), ' ');
-                                var payload;
-                                if (notification.firstChild) {
-                                    payload = notification.firstChild.data;
-                                } else {
-                                    payload = '';
-                                }
-                                if (payload) {
-                                    debug(logger, "received notification with payload '" + payload + "' for the push IDs: " + pushIDs);
-                                } else {
-                                    debug(logger, "received notification for the push IDs: " + pushIDs);
-                                }
-                                notifyWindows(notificationBroadcaster, purgeNonRegisteredPushIDs(asSet(pushIDs)), payload);
-                            } else {
-                                warn(logger, "attribute push-ids not found in <notification>");
-                            }
-                        } else {
-                            warn(logger, "unknown child node of <notifications>: <" + notifications.childNodes[i].nodeName + ">");
-                        }
-                    }
-                } else {
-                    warn(logger, "Unknown root node: <" + message.nodeName + ">");
+
+            register(commandDispatcher, 'configuration', function(configuration) {
+                reconfigure(asyncConnection, configuration);
+            });
+
+            register(commandDispatcher, 'back-off', function(delay) {
+                debug(logger, 'received back-off');
+                try {
+                    pauseConnection(asyncConnection);
+                } finally {
+                    runOnce(Delay(function() {
+                        resumeConnection(asyncConnection);
+                    }, delay));
                 }
             });
 
@@ -637,25 +425,21 @@ if (!window.ice.icepush) {
             });
 
             onReceive(asyncConnection, function(response) {
-                if (isXMLResponse(response)) {
-                    var message = contentAsDOM(response).documentElement;
-                    deserializeAndExecute(commandDispatcher, message);
-                    broadcast(receiveListeners, [ message ]);
+                if (isJSONResponse(response)) {
+                    var content = contentAsText(response);
+                    deserializeAndExecute(commandDispatcher, content);
+                    broadcast(receiveListeners, [ content ]);
                 } else {
                     var mimeType = getHeader(response, 'Content-Type');
                     warn(logger, 'unknown content in response - ' + mimeType + ', expected text/xml');
                     dispose();
-                }
-
-                if (hasHeader(response, HeartbeatTimestamp)) {
-                    heartbeatTimestamp = Number(getHeader(response, HeartbeatTimestamp));
                 }
             });
 
             onServerError(asyncConnection, function(response) {
                 try {
                     warn(logger, 'server side error');
-                    broadcast(serverErrorListeners, [ statusCode(response), contentAsText(response), contentAsDOM(response) ]);
+                    broadcast(serverErrorListeners, [ statusCode(response), contentAsText(response)]);
                 } finally {
                     dispose();
                 }
@@ -699,10 +483,6 @@ if (!window.ice.icepush) {
                     pauseConnection(asyncConnection);
                 },
 
-                changeHeartbeatInterval: function(interval) {
-                    changeHeartbeatInterval(asyncConnection, interval);
-                },
-
                 onSend: function(callback) {
                     onSend(asyncConnection, function(query) {
                         //the callback parameters: function(addParameter) {...; addParameter('A', '123'); ...}
@@ -719,16 +499,7 @@ if (!window.ice.icepush) {
                             return getHeader(response, name);
                         }, contentAsText(response), contentAsDOM(response));
                     });
-                },
-
-                controlRequest: function(addParameter, addHeader, responseCallback) {
-                    controlRequest(asyncConnection, addParameter, addHeader, responseCallback);
                 }
-            };
-
-            //make public park push ID feature
-            namespace.push.parkInactivePushIds = function(url) {
-                namespace.push.addNotifyBackURI(url);
             };
 
             info(logger, 'bridge loaded!');

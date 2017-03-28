@@ -24,6 +24,12 @@
 	<target name="war" depends="compile">
 		
 		<build.war>
+            <add.libs>
+                <fileset dir="../../lib">
+                    <include name="mongo*.jar"/>
+                    <include name="morphia*.jar"/>
+                </fileset>
+            </add.libs>
 		</build.war>
         		
     </target>
