@@ -57,6 +57,6 @@ function NoopCommand() {
 }
 
 function ParsingError(err) {
-    logger.error('Parsing error');
-    logger.error(err);
+    namespace.logger.error('Parsing error');
+    namespace.logger.error(err);
 }

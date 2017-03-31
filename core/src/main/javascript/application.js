@@ -59,7 +59,7 @@ if (!window.ice.icepush) {
         }
 
         function detectByReference(ref) {
-            return function(o) {
+            return function (o) {
                 return o == ref;
             };
         }
@@ -72,6 +72,11 @@ if (!window.ice.icepush) {
             }
         }
 
+        function CREATED(response) {
+            return statusCode(response) == 201;
+        }
+
+
         //include configuration.js
         //include command.js
         //include slot.js
@@ -80,37 +85,37 @@ if (!window.ice.icepush) {
         //include pushid.expiry.js
 
         var notificationListeners = [];
-        namespace.onNotification = function(callback) {
+        namespace.onNotification = function (callback) {
             append(notificationListeners, callback);
             return removeCallbackCallback(notificationListeners, detectByReference(callback));
         };
 
         var receiveListeners = [];
-        namespace.onBlockingConnectionReceive = function(callback) {
+        namespace.onBlockingConnectionReceive = function (callback) {
             append(receiveListeners, callback);
             return removeCallbackCallback(receiveListeners, detectByReference(callback));
         };
 
         var serverErrorListeners = [];
-        namespace.onBlockingConnectionServerError = function(callback) {
+        namespace.onBlockingConnectionServerError = function (callback) {
             append(serverErrorListeners, callback);
             return removeCallbackCallback(serverErrorListeners, detectByReference(callback));
         };
 
         var blockingConnectionUnstableListeners = [];
-        namespace.onBlockingConnectionUnstable = function(callback) {
+        namespace.onBlockingConnectionUnstable = function (callback) {
             append(blockingConnectionUnstableListeners, callback);
             return removeCallbackCallback(blockingConnectionUnstableListeners, detectByReference(callback));
         };
 
         var blockingConnectionLostListeners = [];
-        namespace.onBlockingConnectionLost = function(callback) {
+        namespace.onBlockingConnectionLost = function (callback) {
             append(blockingConnectionLostListeners, callback);
             return removeCallbackCallback(blockingConnectionLostListeners, detectByReference(callback));
         };
 
         var blockingConnectionReEstablishedListeners = [];
-        namespace.onBlockingConnectionReEstablished = function(callback) {
+        namespace.onBlockingConnectionReEstablished = function (callback) {
             append(blockingConnectionReEstablishedListeners, callback);
             return removeCallbackCallback(blockingConnectionReEstablishedListeners, detectByReference(callback));
         };
@@ -125,7 +130,7 @@ if (!window.ice.icepush) {
 
         var handler = LocalStorageLogHandler(window.console ? ConsoleLogHandler(debug) : WindowLogHandler(debug, window.location.href));
         namespace.windowID = namespace.windowID || substring(Math.random().toString(16), 2, 7);
-        namespace.logger = Logger([ 'icepush' ], handler);
+        namespace.logger = Logger(['icepush'], handler);
         namespace.info = info;
         var pushIdentifiers = [];
 
@@ -134,6 +139,7 @@ if (!window.ice.icepush) {
         }
 
         var pushIDsSlot = Slot(PushIDs);
+
         function registeredPushIds() {
             try {
                 return split(getValue(pushIDsSlot), ' ');
@@ -199,154 +205,157 @@ if (!window.ice.icepush) {
 
         var commandDispatcher = CommandDispatcher();
         register(commandDispatcher, 'parsererror', ParsingError);
-        register(commandDispatcher, 'browser', function(message) {
+        register(commandDispatcher, 'browser', function (message) {
             Cookie(BrowserIDName, message.browser.id);
         });
 
-        var currentNotifications = [];
-        var apiChannel = Client(true);
-
         //public API
-        namespace.uriextension = '';
-        namespace.push = {
-            register: function(pushIds, callback) {
-                if ((typeof callback) == 'function') {
-                    enlistPushIDsWithWindow(pushIds);
-                    namespace.onNotification(function(ids, payload) {
-                        currentNotifications = asArray(intersect(ids, pushIds));
-                        if (notEmpty(currentNotifications)) {
+        namespace.setupPush = function(configuration) {
+            Bridge(configuration);
+
+            onKeyPress(document, function(ev) {
+                var e = $event(ev);
+                if (isEscKey(e)) cancelDefaultAction(e);
+            });
+
+            var apiChannel = Client(true);
+            return {
+                register: function (pushIds, callback) {
+                    if ((typeof callback) == 'function') {
+                        enlistPushIDsWithWindow(pushIds);
+                        namespace.onNotification(function (ids, payload) {
+                            var currentNotifications = asArray(intersect(ids, pushIds));
+                            if (notEmpty(currentNotifications)) {
+                                try {
+                                    callback(currentNotifications, payload);
+                                } catch (e) {
+                                    error(namespace.logger, 'error thrown by push notification callback', e);
+                                }
+                            }
+                        });
+                    } else {
+                        throw 'the callback is not a function';
+                    }
+                },
+
+                deregister: delistPushIDsWithWindow,
+
+                createPushId: function createPushId(retries, callback) {
+                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/push-ids?access_token=' + encodeURIComponent(configuration.access_token);
+                    var body = JSON.stringify({
+                        'access_token': configuration.access_token,
+                        'browser':  {
+                            id: browserID()
+                        },
+                        'op': 'create'
+                    });
+                    postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
+                        condition(CREATED, function (response) {
+                            if (isJSONResponse(response)) {
+                                var content = contentAsText(response);
+                                var result = JSON.parse(content)
+                                callback(result.push_id.id);
+                            } else {
+                                if (retries && retries > 1) {
+                                    error(namespace.logger, 'failed to set ice.push.browser cookie');
+                                    return;
+                                }
+                                deserializeAndExecute(commandDispatcher, response);
+                                retries = retries ? retries + 1 : 1;
+                                createPushId(retries, callback);
+                            }
+                        });
+                        condition(ServerInternalError, throwServerError);
+                    }));
+                },
+
+                notify: function (group, options) {
+                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/push-ids';
+                    var body = JSON.stringify({
+                        'access_token': ice.push.configuration.access_token,
+                        'browser': browserID(),
+                        'op': 'push',
+                        'push-ids': registeredPushIds(),
+                        'push_configuration': options
+                    });
+                    postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
+                        condition(ServerInternalError, throwServerError);
+                    }));
+                },
+
+                addGroupMember: function (group, id, options) {
+                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/groups/' + group + '/push-ids/' + id;
+                    var body = JSON.stringify({
+                        'access_token': ice.push.configuration.access_token,
+                        'browser': browserID(),
+                        'op': 'add',
+                        'push_configuration': options
+                    });
+                    postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
+                        condition(ServerInternalError, throwServerError);
+                    }));
+                },
+
+                removeGroupMember: function (group, id) {
+                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/groups/' + group + '/push-ids/' + id;
+                    deleteAsynchronously(apiChannel, uri, function (query) {
+                        parameter(query, "op", "delete");
+                    }, FormPost, $witch(function (condition) {
+                        condition(ServerInternalError, throwServerError);
+                    }));
+                },
+
+                addNotifyBackURI: function (notifyBackURI) {
+                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID() + '/notify-back-uris/' + notifyBackURI;
+                    var body = JSON.stringify({
+                        'access_token': ice.push.configuration.access_token,
+                        'browser': browserID(),
+                        'op': 'add'
+                    });
+                    postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
+                        condition(OK, function (response) {
+                            if (isJSONResponse(response)) {
+                                deserializeAndExecute(response);
+                                namespace.push.addNotifyBackURI(notifyBackURI);
+                            }
+                        });
+                        condition(ServerInternalError, throwServerError);
+                    }));
+                },
+
+                removeNotifyBackURI: function () {
+                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID();
+                    deleteAsynchronously(apiChannel, uri, function (query) {
+                        parameter(query, "op", "remove");
+                    }, JSONRequest, $witch(function (condition) {
+                        condition(ServerInternalError, throwServerError);
+                    }));
+                },
+
+                hasNotifyBackURI: function (resultCallback) {
+                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID();
+                    getAsynchronously(apiChannel, uri, function (query) {
+                        parameter(query, "op", "has");
+                    }, JSONRequest, $witch(function (condition) {
+                        condition(OK, function (response) {
                             try {
-                                callback(currentNotifications, payload);
-                            } catch (e) {
-                                error(namespace.logger, 'error thrown by push notification callback', e);
+                                var result = JSON.parse(contentAsText(response));
+                                resultCallback(!!result.notify_back_enabled);
+                            } catch (ex) {
+                                resultCallback(false);
                             }
-                        }
-                    });
-                } else {
-                    throw 'the callback is not a function';
+                        });
+                        condition(ServerInternalError, throwServerError);
+                    }));
                 }
-            },
-
-            deregister: delistPushIDsWithWindow,
-
-            createPushId: function (retries, callback) {
-                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/push-ids';
-                var body = JSON.stringify({
-                    'access_token': ice.push.configuration.access_token,
-                    'browser': browserID(),
-                    'op': 'create'
-                });
-                postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
-                    condition(OK, function (response) {
-                        if (isJSONResponse(response)) {
-                            if (retries && retries > 1) {
-                                error(namespace.logger, 'failed to set ice.push.browser cookie');
-                                return;
-                            }
-                            deserializeAndExecute(commandDispatcher, response);
-                            retries = retries ? retries + 1 : 1;
-                            namespace.push.createPushId(retries, callback);
-                        } else {
-                            var id = contentAsText(response);
-                            callback(id);
-                        }
-                    });
-                    condition(ServerInternalError, throwServerError);
-                }));
-            },
-
-            notify: function(group, options) {
-                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/push-ids';
-                var body = JSON.stringify({
-                    'access_token': ice.push.configuration.access_token,
-                    'browser': browserID(),
-                    'op': 'push',
-                    'push-ids': registeredPushIds(),
-                    'push_configuration': options
-                });
-                postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function(condition) {
-                    condition(ServerInternalError, throwServerError);
-                }));
-            },
-
-            addGroupMember: function (group, id, options) {
-                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/groups/' + group + '/push-ids/' + id;
-                var body = JSON.stringify({
-                    'access_token': ice.push.configuration.access_token,
-                    'browser': browserID(),
-                    'op': 'add',
-                    'push_configuration': options
-                });
-                postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
-                    condition(ServerInternalError, throwServerError);
-                }));
-            },
-
-            removeGroupMember: function (group, id) {
-                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/groups/' + group + '/push-ids/' + id;
-                deleteAsynchronously(apiChannel, uri, function(query) {
-                    parameter(query, "op", "delete");
-                }, FormPost, $witch(function (condition) {
-                    condition(ServerInternalError, throwServerError);
-                }));
-            },
-
-            addNotifyBackURI: function (notifyBackURI) {
-                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID() + '/notify-back-uris/' + notifyBackURI;
-                var body = JSON.stringify({
-                    'access_token': ice.push.configuration.access_token,
-                    'browser': browserID(),
-                    'op': 'add'
-                });
-                postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
-                    condition(OK, function (response) {
-                        if (isJSONResponse(response)) {
-                            deserializeAndExecute(response);
-                            namespace.push.addNotifyBackURI(notifyBackURI);
-                        }
-                    });
-                    condition(ServerInternalError, throwServerError);
-                }));
-            },
-
-            removeNotifyBackURI: function () {
-                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID();
-                deleteAsynchronously(apiChannel, uri, function(query) {
-                    parameter(query, "op", "remove");
-                }, JSONRequest, $witch(function (condition) {
-                    condition(ServerInternalError, throwServerError);
-                }));
-            },
-
-            hasNotifyBackURI: function (resultCallback) {
-                var uri = '/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID();
-                getAsynchronously(apiChannel, uri, function(query) {
-                    parameter(query, "op", "has");
-                }, JSONRequest, $witch(function (condition) {
-                    condition(OK, function(response) {
-                        try {
-                            var result = JSON.parse(contentAsText(response));
-                            resultCallback(!!result.notify_back_enabled);
-                        } catch (ex) {
-                            resultCallback(false);
-                        }
-                    });
-                    condition(ServerInternalError, throwServerError);
-                }));
-            },
-
-            configuration: {
-                account: 'icesoft_technologies',
-                realm: 'icesoft.com',
-                access_token: '271c401b-3cb9-41b2-96a5-ccb99eee9a0a'
             }
         };
 
-        function Bridge() {
+        function Bridge(configuration) {
             var windowID = namespace.windowID;
             var logger = childLogger(namespace.logger, windowID);
             var pushIdExpiryMonitor = PushIDExpiryMonitor(logger);
-            var asyncConnection = AsyncConnection(logger, windowID);
+            var asyncConnection = AsyncConnection(logger, windowID, configuration);
 
             //purge discarded pushIDs from the notification list
             function purgeNonRegisteredPushIDs(ids) {
@@ -378,20 +387,16 @@ if (!window.ice.icepush) {
             var notificationBroadcaster = useLocalStorage() ?
                 LocalStorageNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications) : CookieBasedNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications);
 
-            //register command that handles the notifications message
             register(commandDispatcher, 'notifications', function(notifications) {
                 for (var i = 0; i < notifications.childNodes.length; i++) {
                     var notification = notifications[i];
                     notifyWindows(notificationBroadcaster, purgeNonRegisteredPushIDs(asSet(notification['push-ids'])), notification['payload']);
                 }
             });
-            //register command that handles the noop message
             register(commandDispatcher, 'noop', noop);
-
             register(commandDispatcher, 'configuration', function(configuration) {
                 reconfigure(asyncConnection, configuration);
             });
-
             register(commandDispatcher, 'back-off', function(delay) {
                 debug(logger, 'received back-off');
                 try {
@@ -469,50 +474,12 @@ if (!window.ice.icepush) {
                 broadcast(blockingConnectionUnstableListeners);
             });
 
-            //make some connection functionality public
-            namespace.push.connection = {
-                startConnection: function() {
-                    startConnection(asyncConnection);
-                },
-
-                resumeConnection: function() {
-                    resumeConnection(asyncConnection);
-                },
-
-                pauseConnection: function() {
-                    pauseConnection(asyncConnection);
-                },
-
-                onSend: function(callback) {
-                    onSend(asyncConnection, function(query) {
-                        //the callback parameters: function(addParameter) {...; addParameter('A', '123'); ...}
-                        callback(function(name, value) {
-                            parameter(query, name, value);
-                        });
-                    });
-                },
-
-                onReceive: function(callback) {
-                    onReceive(asyncConnection, function(response) {
-                        //the callback parameters: function(addHeader, contentAsText, contentAsXML) {...}
-                        callback(function(name) {
-                            return getHeader(response, name);
-                        }, contentAsText(response), contentAsDOM(response));
-                    });
-                }
-            };
-
             info(logger, 'bridge loaded!');
 
             //start blocking connection only on document load
-            onLoad(window, namespace.push.connection.startConnection);
+            onLoad(window, function(){
+                startConnection(asyncConnection);
+            });
         }
-
-        Bridge();
-
-        onKeyPress(document, function(ev) {
-            var e = $event(ev);
-            if (isEscKey(e)) cancelDefaultAction(e);
-        });
     })(window.ice);
 }

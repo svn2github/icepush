@@ -53,7 +53,12 @@ public class PageNotifier extends HttpServlet {
         w.write("</head><body>");
 
         w.write("<script type=\"text/javascript\">");
-        w.write("ice.push.register(['" + idA + "'], function(pushIds) { ice.info(ice.logger, ice.push.getCurrentNotifications());document.getElementById('notifications').innerHTML = ice.push.getCurrentNotifications(); });");
+        w.write("var p = ice.setupPush({\n" +
+                "            uri: 'http\\:\\/\\/localhost/notify/',\n" +
+                "            account: 'icesoft_technologies',\n" +
+                "            realm: 'icesoft.com',\n" +
+                "            access_token: '12a18df7-c7a5-429e-98b8-4e23964b149c'\n" +
+                "        }); p.createPushId(1, function(id) {p.register([id], function(pushIds) { ice.info(ice.logger, pushIds);document.getElementById('notifications').innerHTML = ice.push.getCurrentNotifications(); }); });");
         w.write("</script><h2>Basic ICEpush Test</h2><div>Current Push Notifications: <span id='notifications'></span></div>");
         w.write("</body></html>");
         response.setContentType("text/html");

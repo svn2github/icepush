@@ -57,7 +57,7 @@ var AsyncConnection;
         };
     }
 
-    AsyncConnection = function(logger, windowID) {
+    AsyncConnection = function(logger, windowID, mainConfiguration) {
         var logger = childLogger(logger, 'async-connection');
         var channel = Client(false);
         var onSendListeners = [];
@@ -69,7 +69,7 @@ var AsyncConnection;
         var connectionReEstablished = [];
         var sequenceNo = Slot(SequenceNumber);
         var configuration = DefaultConfiguration;
-        var heartbeatTimestamp;
+        var heartbeatTimestamp = String(new Date().getTime());
 
         var listener = object(function(method) {
             method(close, noop);
@@ -83,14 +83,13 @@ var AsyncConnection;
         var lastSentPushIds = registeredPushIds();
 
         function contextPath() {
-            return namespace.push.configuration.contextPath;
+            return configuration.contextPath;
         }
 
         function requestForBlockingResponse() {
             try {
                 debug(logger, "closing previous connection...");
                 close(listener);
-                setValue(contextPathSlot, contextPath());
 
                 lastSentPushIds = registeredPushIds();
                 if (isEmpty(lastSentPushIds)) {
@@ -98,20 +97,19 @@ var AsyncConnection;
                     broadcast(connectionStoppedListeners, ['connection stopped, no pushIDs registered']);
                 } else {
                     debug(logger, 'connect...');
-                    var uri = 'http\:\/\/localhost/notify/' + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/push-ids?access_token=' + encodeURIComponent(ice.push.configuration.access_token) + '&op=listen';
+                    var uri = mainConfiguration.uri + mainConfiguration.account + '/realms/' + mainConfiguration.realm + '/push-ids?access_token=' + encodeURIComponent(mainConfiguration.access_token) + '&op=listen';
                     var body = JSON.stringify({
-                        'access_token': ice.push.configuration.access_token,
+                        'access_token': mainConfiguration.access_token,
                         "expires_in": 3600000,
                         'browser': {
                             'id': lookupCookieValue(BrowserIDName)
                         },
-                        // 'heartbeat': {
-                        //     'timestamp': 345634563454,
-                        //     'interval': configuration.heartbeat_interval + 'l'
-                        // },
+                        'heartbeat': {
+                            'timestamp': { "$numberLong" : heartbeatTimestamp }
+                        },
                         'op': 'listen',
                         'sequence_number': {
-                            'value': Number(getValue(sequenceNo))
+                            'value': { "$numberLong" : getValue(sequenceNo) }
                         },
                         'window': {
                             'id': namespace.windowID
@@ -132,10 +130,10 @@ var AsyncConnection;
                                         var result = JSON.parse(content);
                                         if (result.sequence_number) {
                                             //update sequence number incremented by the server
-                                            setValue(sequenceNo, result.sequence_number);
+                                            setValue(sequenceNo, result.sequence_number.value.$numberLong);
                                         }
                                         if (result.heartbeat && result.heartbeat.timestamp) {
-                                            heartbeatTimestamp = result.heartbeat.timestamp;
+                                            heartbeatTimestamp = result.heartbeat.timestamp.$numberLong;
                                         }
                                     } finally {
                                         broadcast(onReceiveListeners, [response]);
