@@ -76,6 +76,13 @@ if (!window.ice.icepush) {
             return statusCode(response) == 201;
         }
 
+        function NOCONTENT(response) {
+            return statusCode(response) == 204;
+        }
+
+        function NOTFOUND(response) {
+            return statusCode(response) == 404;
+        }
 
         //include configuration.js
         //include command.js
@@ -270,9 +277,9 @@ if (!window.ice.icepush) {
                 },
 
                 notify: function (group, options) {
-                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/push-ids';
+                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/push-ids';
                     var body = JSON.stringify({
-                        'access_token': ice.push.configuration.access_token,
+                        'access_token': configuration.access_token,
                         'browser': browserID(),
                         'op': 'push',
                         'push-ids': registeredPushIds(),
@@ -283,13 +290,17 @@ if (!window.ice.icepush) {
                     }));
                 },
 
-                addGroupMember: function (group, id, options) {
-                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/groups/' + group + '/push-ids/' + id;
+                addGroupMember: function (group, id, option) {
+                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/groups/' + group + '/push-ids/' + id + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=add';
                     var body = JSON.stringify({
-                        'access_token': ice.push.configuration.access_token,
-                        'browser': browserID(),
+                        'access_token': configuration.access_token,
+                        'browser': {
+                            "id": browserID()
+                        },
                         'op': 'add',
-                        'push_configuration': options
+                        'push_configuration': {
+                            'cloud_push': !!option
+                        }
                     });
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
                         condition(ServerInternalError, throwServerError);
@@ -297,53 +308,50 @@ if (!window.ice.icepush) {
                 },
 
                 removeGroupMember: function (group, id) {
-                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/groups/' + group + '/push-ids/' + id;
+                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/groups/' + group + '/push-ids/' + id;
                     deleteAsynchronously(apiChannel, uri, function (query) {
-                        parameter(query, "op", "delete");
-                    }, FormPost, $witch(function (condition) {
+                        addNameValue(query, "access_token", configuration.access_token);
+                        addNameValue(query, "op", "delete");
+                    }, JSONRequest, $witch(function (condition) {
                         condition(ServerInternalError, throwServerError);
                     }));
                 },
 
                 addNotifyBackURI: function (notifyBackURI) {
-                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID() + '/notify-back-uris/' + notifyBackURI;
+                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/browsers/' + browserID() + '/notify-back-uris/' + notifyBackURI + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=add';
                     var body = JSON.stringify({
-                        'access_token': ice.push.configuration.access_token,
-                        'browser': browserID(),
+                        'access_token': configuration.access_token,
+                        'browser': {
+                            'id': browserID()
+                        },
                         'op': 'add'
                     });
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
-                        condition(OK, function (response) {
-                            if (isJSONResponse(response)) {
-                                deserializeAndExecute(response);
-                                namespace.push.addNotifyBackURI(notifyBackURI);
-                            }
-                        });
                         condition(ServerInternalError, throwServerError);
                     }));
                 },
 
                 removeNotifyBackURI: function () {
-                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID();
+                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/browsers/' + browserID() + '/notify-back-uris';
                     deleteAsynchronously(apiChannel, uri, function (query) {
-                        parameter(query, "op", "remove");
+                        addNameValue(query, "access_token", configuration.access_token);
+                        addNameValue(query, "op", "remove");
                     }, JSONRequest, $witch(function (condition) {
                         condition(ServerInternalError, throwServerError);
                     }));
                 },
 
                 hasNotifyBackURI: function (resultCallback) {
-                    var uri = configuration.uri + ice.push.configuration.account + '/realms/' + ice.push.configuration.realm + '/browsers/' + browserID();
+                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/browsers/' + browserID() + '/notify-back-uris';
                     getAsynchronously(apiChannel, uri, function (query) {
-                        parameter(query, "op", "has");
+                        addNameValue(query, "access_token", configuration.access_token);
+                        addNameValue(query, "op", "has");
                     }, JSONRequest, $witch(function (condition) {
-                        condition(OK, function (response) {
-                            try {
-                                var result = JSON.parse(contentAsText(response));
-                                resultCallback(!!result.notify_back_enabled);
-                            } catch (ex) {
-                                resultCallback(false);
-                            }
+                        condition(NOCONTENT, function (response) {
+                            resultCallback(true);
+                        });
+                        condition(NOTFOUND, function (response) {
+                            resultCallback(false);
                         });
                         condition(ServerInternalError, throwServerError);
                     }));
@@ -477,9 +485,9 @@ if (!window.ice.icepush) {
             info(logger, 'bridge loaded!');
 
             //start blocking connection only on document load
-            onLoad(window, function(){
-                startConnection(asyncConnection);
-            });
+            // onLoad(window, function(){
+            //     startConnection(asyncConnection);
+            // });
         }
     })(window.ice);
 }
