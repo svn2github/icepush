@@ -40,10 +40,10 @@ function CommandDispatcher() {
         method(deserializeAndExecute, function(self, content) {
             try {
                 var result = JSON.parse(content);
-                for (var commandName in result) {
-                    if (result.hasOwnProperty(commandName)) {
-                        executeCommand(commandName, result[commandName])
-                    }
+                if (result['noop']) {
+                    executeCommand('noop',[]);
+                } else if (result['notifications']) {
+                    executeCommand('notifications', result.notifications);
                 }
             } catch (e) {
                 executeCommand('parsererror', e);
@@ -57,6 +57,6 @@ function NoopCommand() {
 }
 
 function ParsingError(err) {
-    namespace.logger.error('Parsing error');
-    namespace.logger.error(err);
+    error(namespace.logger, 'Parsing error');
+    error(namespace.logger, err);
 }

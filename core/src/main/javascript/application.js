@@ -277,13 +277,14 @@ if (!window.ice.icepush) {
                 },
 
                 notify: function (group, options) {
-                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/push-ids';
+                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/groups/' + group + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=push';;
                     var body = JSON.stringify({
                         'access_token': configuration.access_token,
-                        'browser': browserID(),
-                        'op': 'push',
-                        'push-ids': registeredPushIds(),
-                        'push_configuration': options
+                        'browser': {
+                            'id': browserID()
+                        },
+                        'op': 'push'//,
+                        //'push_configuration': options
                     });
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
                         condition(ServerInternalError, throwServerError);
@@ -396,10 +397,12 @@ if (!window.ice.icepush) {
                 LocalStorageNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications) : CookieBasedNotificationBroadcaster(NotifiedPushIDs, selectWindowNotifications);
 
             register(commandDispatcher, 'notifications', function(notifications) {
-                for (var i = 0; i < notifications.childNodes.length; i++) {
-                    var notification = notifications[i];
-                    notifyWindows(notificationBroadcaster, purgeNonRegisteredPushIDs(asSet(notification['push-ids'])), notification['payload']);
-                }
+                each(notifications, function(notification) {
+                    var ids = collect(notification['push-ids'], function(i) {
+                        return i.id;
+                    });
+                    notifyWindows(notificationBroadcaster, purgeNonRegisteredPushIDs(asSet(ids)), notification['payload']);
+                });
             });
             register(commandDispatcher, 'noop', noop);
             register(commandDispatcher, 'configuration', function(configuration) {
@@ -485,9 +488,9 @@ if (!window.ice.icepush) {
             info(logger, 'bridge loaded!');
 
             //start blocking connection only on document load
-            // onLoad(window, function(){
-            //     startConnection(asyncConnection);
-            // });
+            onLoad(window, function(){
+                startConnection(asyncConnection);
+            });
         }
     })(window.ice);
 }
