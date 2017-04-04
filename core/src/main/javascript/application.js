@@ -211,7 +211,7 @@ if (!window.ice.icepush) {
         }
 
         var commandDispatcher = CommandDispatcher();
-        register(commandDispatcher, 'parsererror', ParsingError);
+        register(commandDispatcher, 'error', CommandError);
         register(commandDispatcher, 'browser', function (message) {
             Cookie(BrowserIDName, message.browser.id);
         });
@@ -267,7 +267,7 @@ if (!window.ice.icepush) {
                                     error(namespace.logger, 'failed to set ice.push.browser cookie');
                                     return;
                                 }
-                                deserializeAndExecute(commandDispatcher, response);
+                                deserializeAndExecute(commandDispatcher, contentAsText(response));
                                 retries = retries ? retries + 1 : 1;
                                 createPushId(retries, callback);
                             }
@@ -276,8 +276,21 @@ if (!window.ice.icepush) {
                     }));
                 },
 
+                getConfiguration: function () {
+                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/configuration';
+                    getAsynchronously(apiChannel, uri, function (query) {
+                        addNameValue(query, "access_token", configuration.access_token);
+                        addNameValue(query, "op", "get");
+                    }, JSONRequest, $witch(function (condition) {
+                        condition(OK, function (response) {
+                            deserializeAndExecute(commandDispatcher, contentAsText(response));
+                        });
+                        condition(ServerInternalError, throwServerError);
+                    }));
+                },
+
                 notify: function (group, options) {
-                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/groups/' + group + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=push';;
+                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/groups/' + group + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=push';
                     var body = JSON.stringify({
                         'access_token': configuration.access_token,
                         'browser': {
@@ -404,8 +417,11 @@ if (!window.ice.icepush) {
                     notifyWindows(notificationBroadcaster, purgeNonRegisteredPushIDs(asSet(ids)), notification['payload']);
                 });
             });
-            register(commandDispatcher, 'noop', noop);
+            register(commandDispatcher, 'noop', function() {
+                debug(logger, 'noop');
+            });
             register(commandDispatcher, 'configuration', function(configuration) {
+                debug(logger, 'configure');
                 reconfigure(asyncConnection, configuration);
             });
             register(commandDispatcher, 'back-off', function(delay) {
@@ -488,9 +504,9 @@ if (!window.ice.icepush) {
             info(logger, 'bridge loaded!');
 
             //start blocking connection only on document load
-            onLoad(window, function(){
-                startConnection(asyncConnection);
-            });
+//          onLoad(window, function(){
+            startConnection(asyncConnection);
+//          });
         }
     })(window.ice);
 }

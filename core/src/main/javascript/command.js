@@ -40,13 +40,15 @@ function CommandDispatcher() {
         method(deserializeAndExecute, function(self, content) {
             try {
                 var result = JSON.parse(content);
-                if (result['noop']) {
+                if (result.noop) {
                     executeCommand('noop',[]);
-                } else if (result['notifications']) {
+                } else if (result.notifications) {
                     executeCommand('notifications', result.notifications);
+                } else if (result.configuration) {
+                    executeCommand('configuration', result.configuration);
                 }
             } catch (e) {
-                executeCommand('parsererror', e);
+                executeCommand('error', e);
             }
         });
     });
@@ -56,7 +58,7 @@ function NoopCommand() {
     debug(namespace.logger, 'received noop');
 }
 
-function ParsingError(err) {
-    error(namespace.logger, 'Parsing error');
+function CommandError(err) {
+    error(namespace.logger, 'error');
     error(namespace.logger, err);
 }

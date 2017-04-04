@@ -37,10 +37,18 @@ var AsyncConnection;
     var AcquiredMarker = ':acquired';
     var NetworkDelay = 5000;//5s of delay, possibly introduced by network
     var DefaultConfiguration = {
-        heartbeat_interval: 1500,
+        heartbeat:{
+            interval: {
+                $numberLong: 6500
+            }
+        },
         network_error_retry_timeouts: [1, 1, 1, 2, 2, 3],
-        server_error_retry_timeouts: [1000, 2000, 4000],
-        empty_response_retries: 3
+        server_error_handler: {
+            delays: "1000, 2000, 4000"
+        },
+        response_timeout_handler: {
+            retries: 3
+        }
     };
 
     //build up retry actions
@@ -175,16 +183,16 @@ var AsyncConnection;
         var heartbeatTimeout;
         var networkErrorRetryTimeouts;
         function setupNetworkErrorRetries(cfg) {
-            heartbeatTimeout = cfg.heartbeat_interval || DefaultConfiguration.heartbeat_interval;
+            heartbeatTimeout = cfg.heartbeat.interval.$numberLong || DefaultConfiguration.heartbeat.interval.$numberLong;
             networkErrorRetryTimeouts = cfg.network_error_retry_timeouts || DefaultConfiguration.network_error_retry_timeouts;
-            emptyResponseRetries = cfg.empty_response_retries || DefaultConfiguration.empty_response_retries;
+            emptyResponseRetries = cfg.response_timeout_handler.retries || DefaultConfiguration.response_timeout_handler.retries;
         }
         setupNetworkErrorRetries(configuration);
 
         var serverErrorRetryTimeouts;
         var retryOnServerError;
         function setupServerErrorRetries(cfg) {
-            serverErrorRetryTimeouts = cfg.server_error_retry_timeouts || DefaultConfiguration.server_error_retry_timeouts;
+            serverErrorRetryTimeouts = collect(split(cfg.server_error_handler && cfg.server_error_handler.delays ? cfg.server_error_handler.delays : DefaultConfiguration.server_error_retry_timeouts, ' '), Number);
             retryOnServerError = timedRetryAbort(connect, broadcaster(onServerErrorListeners), serverErrorRetryTimeouts);
         }
         setupServerErrorRetries(configuration);
@@ -192,7 +200,7 @@ var AsyncConnection;
         //count the number of consecutive empty responses
         var emptyResponseRetries;
         function resetEmptyResponseRetries() {
-            emptyResponseRetries = configuration.empty_response_retries || DefaultConfiguration.empty_response_retries;
+            emptyResponseRetries = configuration.response_timeout_handler.retries || DefaultConfiguration.response_timeout_handler.retries;
         }
         function decrementEmptyResponseRetries() {
             --emptyResponseRetries;
