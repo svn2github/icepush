@@ -76,7 +76,7 @@ var AsyncConnection;
         var connectionStoppedListeners = [];
         var connectionReEstablished = [];
         var sequenceNo = Slot(SequenceNumber);
-        var configuration = DefaultConfiguration;
+        var configuration = mainConfiguration.configuration || DefaultConfiguration;
         var heartbeatTimestamp = String(new Date().getTime());
 
         var listener = object(function(method) {

@@ -16,7 +16,6 @@
             access_token: token.value
         });
         p.createPushId(1, function (id) {
-            p.getConfiguration();
             var output = document.getElementById('notifications');
             output.innerHTML += '<br/>created pushID : ' + id;
 

@@ -218,15 +218,8 @@ if (!window.ice.icepush) {
 
         //public API
         namespace.setupPush = function(configuration) {
-            Bridge(configuration);
-
-            onKeyPress(document, function(ev) {
-                var e = $event(ev);
-                if (isEscKey(e)) cancelDefaultAction(e);
-            });
-
             var apiChannel = Client(true);
-            return {
+            var API = {
                 register: function (pushIds, callback) {
                     if ((typeof callback) == 'function') {
                         enlistPushIDsWithWindow(pushIds);
@@ -370,14 +363,28 @@ if (!window.ice.icepush) {
                         condition(ServerInternalError, throwServerError);
                     }));
                 }
-            }
+            };
+
+            Bridge(configuration, API);
+
+            onKeyPress(document, function(ev) {
+                var e = $event(ev);
+                if (isEscKey(e)) cancelDefaultAction(e);
+            });
+
+            return API;
         };
 
-        function Bridge(configuration) {
+        function Bridge(configuration, pushAPI) {
             var windowID = namespace.windowID;
             var logger = childLogger(namespace.logger, windowID);
             var pushIdExpiryMonitor = PushIDExpiryMonitor(logger);
             var asyncConnection = AsyncConnection(logger, windowID, configuration);
+
+            if (!configuration.configuration) {
+                //acquire connection configuration from the server
+                pushAPI.getConfiguration();
+            }
 
             //purge discarded pushIDs from the notification list
             function purgeNonRegisteredPushIDs(ids) {
