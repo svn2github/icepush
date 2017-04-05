@@ -51,7 +51,7 @@ public class CustomHeaderFilter implements Filter {
             if ("Access-Control-Allow-Origin".equalsIgnoreCase(headerName)
                 && "*".equals(headerValue))  {
                 String origin = httpRequest.getHeader("Origin");
-                httpResp.addHeader("Access-Control-Allow-Origin", 
+                httpResp.setHeader("Access-Control-Allow-Origin",
                         origin);
             } else {
                 httpResp.addHeader(headerName, headerValue);
