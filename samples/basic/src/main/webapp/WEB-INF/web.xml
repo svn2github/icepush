@@ -48,7 +48,7 @@
     </servlet-mapping>
 
     <welcome-file-list>
-        <welcome-file>test.html</welcome-file>
+        <welcome-file>testStatic.html</welcome-file>
     </welcome-file-list>
 </web-app>
 

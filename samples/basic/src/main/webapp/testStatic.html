@@ -1,0 +1,65 @@
+<html>
+<head><title>1j0wwvvnc:3ztl; 1j0wwvvnc:3ztm</title>
+    <script type="text/javascript" src="code.icepush"></script>
+</head>
+<body>
+<script type="text/javascript">
+    function start() {
+        var token = document.getElementById('token');
+        var start = document.getElementById('start');
+        token.disabled = true;
+        start.disabled = true;
+        var p = ice.setupPush({
+            uri: 'http\:\/\/localhost/notify/',
+            account: 'icesoft_technologies',
+            realm: 'icesoft.com',
+            access_token: token.value
+        });
+        p.createPushId(1, function (id) {
+            p.getConfiguration();
+            var output = document.getElementById('notifications');
+            output.innerHTML += '<br/>created pushID : ' + id;
+
+            p.register([id], function (pushIds) {
+                ice.info(ice.logger, pushIds);
+                output.innerHTML += '<br/>received notification for : ' + pushIds;
+            });
+            output.innerHTML += '<br/>waiting for notifications';
+
+            var group = document.getElementById('group');
+            group.disabled = true;
+            p.addGroupMember(group.value, id);
+        });
+
+        window.p = p;
+    }
+
+    function notify() {
+        var group = document.getElementById('group');
+        var output = document.getElementById('notifications');
+        output.innerHTML += '<br/>issued notification to group ' + group.value;
+        p.notify(group.value);
+    }
+</script>
+<h2>Basic ICEpush Test</h2>
+<table>
+    <tbody>
+    <tr>
+        <td>access token</td>
+        <td><input type="text" name="token" id="token" value="3a978021-2ea8-48d9-b0d5-2ebbb485f3c1"/></td>
+    </tr>
+    <tr>
+        <td>group</td>
+        <td><input type="text" name="group" id="group" value="AAA"/></td>
+    </tr>
+    <tr>
+        <td colspan="2"><button id="start" onclick="start();">start</button></td>
+    </tr>
+    <tr>
+        <td colspan="2"><button onclick="notify();">notify</button></td>
+    </tr>
+    </tbody>
+</table>
+<div>Current Push Notifications: <tt id="notifications"></tt></div>
+</body>
+</html>
