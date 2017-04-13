@@ -7,10 +7,11 @@
     function start() {
         var token = document.getElementById('token');
         var start = document.getElementById('start');
+        var host = document.getElementById('host');
         token.disabled = true;
         start.disabled = true;
         var p = ice.setupPush({
-            uri: 'http\:\/\/localhost/notify/',
+            uri: 'http\:\/\/' + host.value + '/notify/',
             account: 'icesoft_technologies',
             realm: 'icesoft.com',
             access_token: token.value
@@ -43,6 +44,10 @@
 <h2>Basic ICEpush Test</h2>
 <table>
     <tbody>
+    <tr>
+        <td>host</td>
+        <td><input type="text" name="host" id="host" value="localhost"/></td>
+    </tr>
     <tr>
         <td>access token</td>
         <td><input type="text" name="token" id="token" value="3a978021-2ea8-48d9-b0d5-2ebbb485f3c1"/></td>

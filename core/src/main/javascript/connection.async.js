@@ -109,22 +109,16 @@ var AsyncConnection;
                     var body = JSON.stringify({
                         'access_token': mainConfiguration.access_token,
                         "expires_in": 3600000,
-                        'browser': {
-                            'id': lookupCookieValue(BrowserIDName)
-                        },
+                        'browser': lookupCookieValue(BrowserIDName),
                         'heartbeat': {
                             'timestamp': { "$numberLong" : heartbeatTimestamp }
                         },
                         'op': 'listen',
                         'sequence_number': {
-                            'value': { "$numberLong" : getValue(sequenceNo) }
+                            "$numberLong" : getValue(sequenceNo)
                         },
-                        'window': {
-                            'id': namespace.windowID
-                        },
-                        'push_ids': collect(lastSentPushIds, function(id) {
-                            return { 'id': id };
-                        })
+                        'window': namespace.windowID,
+                        'push_ids': lastSentPushIds
                     });
                     listener = postAsynchronously(channel, uri, body, JSONRequest, $witch(function (condition) {
                         condition(OK, function (response) {
@@ -138,7 +132,7 @@ var AsyncConnection;
                                         var result = JSON.parse(content);
                                         if (result.sequence_number) {
                                             //update sequence number incremented by the server
-                                            setValue(sequenceNo, result.sequence_number.value.$numberLong);
+                                            setValue(sequenceNo, result.sequence_number.$numberLong);
                                         }
                                         if (result.heartbeat && result.heartbeat.timestamp) {
                                             heartbeatTimestamp = result.heartbeat.timestamp.$numberLong;

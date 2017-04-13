@@ -244,9 +244,7 @@ if (!window.ice.icepush) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/push-ids?access_token=' + encodeURIComponent(configuration.access_token);
                     var body = JSON.stringify({
                         'access_token': configuration.access_token,
-                        'browser':  {
-                            id: browserID()
-                        },
+                        'browser':  browserID(),
                         'op': 'create'
                     });
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
@@ -254,7 +252,7 @@ if (!window.ice.icepush) {
                             if (isJSONResponse(response)) {
                                 var content = contentAsText(response);
                                 var result = JSON.parse(content)
-                                callback(result.push_id.id);
+                                callback(result.push_id);
                             } else {
                                 if (retries && retries > 1) {
                                     error(namespace.logger, 'failed to set ice.push.browser cookie');
@@ -286,9 +284,7 @@ if (!window.ice.icepush) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/groups/' + group + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=push';
                     var body = JSON.stringify({
                         'access_token': configuration.access_token,
-                        'browser': {
-                            'id': browserID()
-                        },
+                        'browser': browserID(),
                         'op': 'push'//,
                         //'push_configuration': options
                     });
@@ -301,9 +297,7 @@ if (!window.ice.icepush) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/groups/' + group + '/push-ids/' + id + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=add';
                     var body = JSON.stringify({
                         'access_token': configuration.access_token,
-                        'browser': {
-                            "id": browserID()
-                        },
+                        'browser': browserID(),
                         'op': 'add',
                         'push_configuration': {
                             'cloud_push': !!option
@@ -328,9 +322,7 @@ if (!window.ice.icepush) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/browsers/' + browserID() + '/notify-back-uris/' + notifyBackURI + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=add';
                     var body = JSON.stringify({
                         'access_token': configuration.access_token,
-                        'browser': {
-                            'id': browserID()
-                        },
+                        'browser': browserID(),
                         'op': 'add'
                     });
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
@@ -418,9 +410,7 @@ if (!window.ice.icepush) {
 
             register(commandDispatcher, 'notifications', function(notifications) {
                 each(notifications, function(notification) {
-                    var ids = collect(notification['push-ids'], function(i) {
-                        return i.id;
-                    });
+                    var ids = notification['push-ids'];
                     notifyWindows(notificationBroadcaster, purgeNonRegisteredPushIDs(asSet(ids)), notification['payload']);
                 });
             });
