@@ -3,67 +3,193 @@
     <script type="text/javascript" src="code.icepush"></script>
 </head>
 <body>
+<style type="text/css">
+    table, tt {
+        border: 1px solid black;
+        padding: 1em;
+        margin: 1em;
+    }
+    div {
+        padding: 1em;
+        margin: 1em;
+        float: left;
+    }
+    tt {
+        display: inline-block;
+    }
+</style>
 <script type="text/javascript">
-    function start() {
+    function log(message) {
+        var output = document.getElementById('notifications');
+        output.innerHTML += '<br/>' + message;
+    }
+
+    function setup() {
         var token = document.getElementById('token');
-        var start = document.getElementById('start');
         var host = document.getElementById('host');
-        token.disabled = true;
-        start.disabled = true;
-        var p = ice.setupPush({
-            uri: 'http\:\/\/' + host.value + '/notify/',
-            account: 'icesoft_technologies',
-            realm: 'icesoft.com',
-            access_token: token.value
-        });
-        p.createPushId(1, function (id) {
-            var output = document.getElementById('notifications');
-            output.innerHTML += '<br/>created pushID : ' + id;
+        if (token.value) {
+            token.disabled = true;
+            host.disabled = true;
 
-            p.register([id], function (pushIds) {
-                ice.info(ice.logger, pushIds);
-                output.innerHTML += '<br/>received notification for : ' + pushIds;
+            window.p = ice.setupPush({
+                uri: 'http\:\/\/' + host.value + '/notify/',
+                account: 'icesoft_technologies',
+                realm: 'icesoft.com',
+                access_token: token.value
             });
-            output.innerHTML += '<br/>waiting for notifications';
 
+            document.getElementById('start').disabled = false;
+            document.getElementById('setup').disabled = true;
+            log('push is connected to ' + host.value);
+        } else {
+            log('access token required');
+        }
+    }
+
+    function start() {
+        if (window.p) {
+            window.p.createPushId(1, function (id) {
+                log('created pushID : ' + id);
+                document.getElementById('pushID').value = id;
+
+                window.p.register([id], function (pushIds) {
+                    ice.info(ice.logger, pushIds);
+                    log('received notification for ' + pushIds);
+                });
+
+                document.getElementById('start').disabled = true;
+                log('waiting for notifications');
+            });
+        } else {
+            log('push was not setup')
+        }
+    }
+
+    function addToGroup() {
+        var pushID = document.getElementById('pushID');
+        if (pushID.value) {
             var group = document.getElementById('group');
-            group.disabled = true;
-            p.addGroupMember(group.value, id);
-        });
+            window.p.addGroupMember(group.value, pushID.value);
+            log('added ' + pushID.value + ' to group ' + group.value);
+        } else {
+            log('pushID required');
+        }
+    }
 
-        window.p = p;
+    function removeFromGroup() {
+        var pushID = document.getElementById('pushID');
+        if (pushID.value) {
+            var group = document.getElementById('group');
+            window.p.removeGroupMember(group.value, pushID.value);
+            log('removed ' + pushID.value + ' to group ' + group.value);
+        } else {
+            log('pushID required');
+        }
     }
 
     function notify() {
-        var group = document.getElementById('group');
-        var output = document.getElementById('notifications');
-        output.innerHTML += '<br/>issued notification to group ' + group.value;
-        p.notify(group.value);
+        if (window.p) {
+            var group = document.getElementById('group');
+            log('issued notification to group ' + group.value);
+            window.p.notify(group.value);
+        } else {
+            log('push was not setup');
+        }
+    }
+
+    function addNotifyBack() {
+        if (window.p) {
+            var notifyBack = document.getElementById('notifyBack');
+            window.p.addNotifyBackURI(notifyBack.value);
+            log('added notify back URI ' + notifyBack.value);
+        } else {
+            log('push was not setup');
+        }
+    }
+
+    function removeNotifyBack() {
+        if (window.p) {
+            window.p.removeNotifyBackURI();
+            log('removed notify back URI');
+        } else {
+            log('push was not setup');
+        }
+    }
+
+    function hasNotifyBack() {
+        if (window.p) {
+            window.p.hasNotifyBackURI(function (result) {
+                if (result) {
+                    log('browser has notify back URI');
+                } else {
+                    log('browser does not have notify back URI');
+                }
+            });
+        } else {
+            log('push was not setup');
+        }
     }
 </script>
 <h2>Basic ICEpush Test</h2>
-<table>
-    <tbody>
-    <tr>
-        <td>host</td>
-        <td><input type="text" name="host" id="host" value="localhost"/></td>
-    </tr>
-    <tr>
-        <td>access token</td>
-        <td><input type="text" name="token" id="token" value="3a978021-2ea8-48d9-b0d5-2ebbb485f3c1"/></td>
-    </tr>
-    <tr>
-        <td>group</td>
-        <td><input type="text" name="group" id="group" value="AAA"/></td>
-    </tr>
-    <tr>
-        <td colspan="2"><button id="start" onclick="start();">start</button></td>
-    </tr>
-    <tr>
-        <td colspan="2"><button onclick="notify();">notify</button></td>
-    </tr>
-    </tbody>
-</table>
-<div>Current Push Notifications: <tt id="notifications"></tt></div>
+<div>
+    <table>
+        <tbody>
+        <tr>
+            <td>host</td>
+            <td><input type="text" name="host" id="host" value="latest.voyent.cloud"/></td>
+        </tr>
+        <tr>
+            <td>access token</td>
+            <td><input type="text" name="token" id="token" value=""/></td>
+        </tr>
+        <tr>
+            <td><button id="setup" onclick="setup();">connect</button></td>
+            <td><button id="start" onclick="start();" disabled="disabled">create pushID</button></td>
+        </tr>
+        <tr>
+            <td>push ID</td>
+            <td><input type="text" name="pushID" id="pushID" value="" readonly="readonly"/></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <table>
+        <tbody>
+        <tr>
+            <td>group</td>
+            <td><input type="text" name="group" id="group" value="AAA"/></td>
+        </tr>
+        <tr>
+            <td colspan="2"><button onclick="addToGroup();">add to group</button></td>
+        </tr>
+        <tr>
+            <td colspan="2"><button onclick="removeFromGroup();">remove from group</button></td>
+        </tr>
+        <tr>
+            <td colspan="2"><button onclick="notify();">notify group</button></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <table>
+        <tbody>
+        <tr>
+            <td>notify back URI</td>
+            <td><input type="text" name="notifyBack" id="notifyBack" value="mail:"/></td>
+        </tr>
+        <tr>
+            <td colspan="2"><button onclick="addNotifyBack();">add notify back URI</button></td>
+        </tr>
+        <tr>
+            <td colspan="2"><button onclick="removeNotifyBack();">remove notify back URI</button></td>
+        </tr>
+        <tr>
+            <td colspan="2"><button onclick="hasNotifyBack();">has notify back URI</button></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<div>Log<tt id="notifications"></tt></div>
 </body>
 </html>
