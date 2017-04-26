@@ -108,14 +108,14 @@ var AsyncConnection;
                     var uri = mainConfiguration.uri + mainConfiguration.account + '/realms/' + mainConfiguration.realm + '/push-ids?access_token=' + encodeURIComponent(mainConfiguration.access_token) + '&op=listen';
                     var body = JSON.stringify({
                         'access_token': mainConfiguration.access_token,
-                        "expires_in": 3600000,
                         'browser': lookupCookieValue(BrowserIDName),
                         'heartbeat': {
-                            'timestamp': { "$numberLong" : heartbeatTimestamp }
+                            'timestamp': { '$numberLong' : heartbeatTimestamp },
+                            'interval': { '$numberLong': heartbeatInterval }
                         },
                         'op': 'listen',
                         'sequence_number': {
-                            "$numberLong" : getValue(sequenceNo)
+                            '$numberLong' : (getValue(sequenceNo) || '0')
                         },
                         'window': namespace.windowID,
                         'push_ids': lastSentPushIds
@@ -136,6 +136,12 @@ var AsyncConnection;
                                         }
                                         if (result.heartbeat && result.heartbeat.timestamp) {
                                             heartbeatTimestamp = result.heartbeat.timestamp.$numberLong;
+                                        }
+                                        if (result.heartbeat && result.heartbeat.interval) {
+                                            if (heartbeatInterval != result.heartbeat.interval.$numberLong) {
+                                                heartbeatInterval = result.heartbeat.interval.$numberLong;
+                                                adjustTimeoutBombIntervals();
+                                            }
                                         }
                                     } finally {
                                         broadcast(onReceiveListeners, [response]);
@@ -174,10 +180,10 @@ var AsyncConnection;
         var connect = requestForBlockingResponse;
 
         //build callbacks only after 'connection' function was defined
-        var heartbeatTimeout;
+        var heartbeatInterval;
         var networkErrorRetryTimeouts;
         function setupNetworkErrorRetries(cfg) {
-            heartbeatTimeout = cfg.heartbeat.interval.$numberLong || DefaultConfiguration.heartbeat.interval.$numberLong;
+            heartbeatInterval = cfg.heartbeat.interval.$numberLong || DefaultConfiguration.heartbeat.interval.$numberLong;
             networkErrorRetryTimeouts = cfg.network_error_retry_timeouts || DefaultConfiguration.network_error_retry_timeouts;
             emptyResponseRetries = cfg.response_timeout_handler.retries || DefaultConfiguration.response_timeout_handler.retries;
         }
@@ -243,7 +249,7 @@ var AsyncConnection;
 
         function recalculateRetryIntervals() {
             return asArray(collect(networkErrorRetryTimeouts, function (factor) {
-                return factor * heartbeatTimeout + NetworkDelay;
+                return factor * heartbeatInterval + NetworkDelay;
             }));
         }
 
