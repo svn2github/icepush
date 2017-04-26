@@ -373,6 +373,16 @@ if (!window.ice.icepush) {
             var pushIdExpiryMonitor = PushIDExpiryMonitor(logger);
             var asyncConnection = AsyncConnection(logger, windowID, configuration);
 
+            //allow for the managing of the listen connection
+            pushAPI.connection = {
+                pauseConnection: function() {
+                    pauseConnection(asyncConnection);
+                },
+                resumeConnection: function() {
+                    resumeConnection(asyncConnection);
+                }
+            };
+
             if (!configuration.configuration) {
                 //acquire connection configuration from the server
                 pushAPI.getConfiguration();
