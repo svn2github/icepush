@@ -54,22 +54,20 @@ implements DatabaseEntity, Serializable {
     }
 
     private String pushID;
-    private boolean cloudPushID;
     private long scheduledTime;
 
     public ExpiryTimeout() {
         // Do nothing.
     }
 
-    public ExpiryTimeout(final String pushID, final boolean cloudPushID) {
+    public ExpiryTimeout(final String pushID) {
         this(
-            pushID, cloudPushID, true
+            pushID, true
         );
     }
 
-    protected ExpiryTimeout(final String pushID, final boolean cloudPushID, final boolean save) {
+    protected ExpiryTimeout(final String pushID, final boolean save) {
         setPushID(pushID, false);
-        setCloudPushID(cloudPushID, false);
         // Expiry Timeout is tied to a Push-ID.  Therefore, let the databaseID be the pushID.
         this.databaseID = getPushID();
         if (save) {
@@ -152,7 +150,6 @@ implements DatabaseEntity, Serializable {
         return
             new StringBuilder().
                 append("pushID: '").append(getPushID()).append("', ").
-                append("isCloudPushID: '").append(isCloudPushID()).append("'").
                 append("scheduledTime: '").append(new Date(getScheduledTime())).append("'").
                     toString();
     }
@@ -202,10 +199,6 @@ implements DatabaseEntity, Serializable {
         return timerTask;
     }
 
-    protected final boolean isCloudPushID() {
-        return cloudPushID;
-    }
-
     protected void scheduleOrExecute(final InternalPushGroupManager pushGroupManager) {
         if (System.currentTimeMillis() < getScheduledTime()) {
             if (LOGGER.isLoggable(Level.FINE)) {
@@ -230,10 +223,6 @@ implements DatabaseEntity, Serializable {
         }
     }
 
-    protected final boolean setCloudPushID(final boolean cloudPushID) {
-        return setCloudPushID(cloudPushID, true);
-    }
-
     protected final boolean setPushID(final String pushID) {
         return setPushID(pushID, true);
     }
@@ -245,20 +234,6 @@ implements DatabaseEntity, Serializable {
     // Must not be persisted!
     protected final void setTimerTask(final TimerTask timerTask) {
         this.timerTask = timerTask;
-    }
-
-    private boolean setCloudPushID(final boolean cloudPushID, final boolean save) {
-        boolean _modified;
-        if (this.cloudPushID != cloudPushID) {
-            this.cloudPushID = cloudPushID;
-            _modified = true;
-            if (save) {
-                save();
-            }
-        } else {
-            _modified = false;
-        }
-        return _modified;
     }
 
     private boolean setPushID(final String pushID, final boolean save) {

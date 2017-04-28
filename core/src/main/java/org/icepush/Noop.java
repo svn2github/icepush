@@ -38,7 +38,7 @@ implements PushResponseHandler {
 
     public void respond(final PushResponse pushResponse)
     throws Exception {
-        pushResponse.setHeader("X-Connection-reason", reason);
+        pushResponse.setHeader("X-Connection-reason", getReason());
         super.respond(pushResponse);
     }
 
@@ -49,5 +49,26 @@ implements PushResponseHandler {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(Level.FINE, "Sending NoOp.");
         }
+    }
+
+    @Override
+    public String toString() {
+        return
+            new StringBuilder().
+                append("Noop[").
+                    append(classMembersToString()).
+                append("]").
+                    toString();
+    }
+
+    protected String classMembersToString() {
+        return
+            new StringBuilder().
+                append("reason: '").append(getReason()).append("'").
+                    toString();
+    }
+
+    protected String getReason() {
+        return reason;
     }
 }

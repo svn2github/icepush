@@ -16,6 +16,7 @@
 package org.icepush;
 
 import static org.icesoft.util.MapUtilities.isNotNullAndIsNotEmpty;
+import static org.icesoft.util.ObjectUtilities.isEqual;
 import static org.icesoft.util.ObjectUtilities.isNotNull;
 import static org.icesoft.util.StringUtilities.containsEndingWith;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
@@ -71,7 +72,8 @@ implements InternalPushGroupManager, PushGroupManager {
     private final Set<NotificationEntry> pendingNotificationEntrySet;
 
     static final int DEFAULT_NOTIFICATIONQUEUE_SIZE = 1000;
-    static final int DEFAULT_CLOUDPUSHID_TIMEOUT = 30 * 60 * 1000;
+    static final int DEFAULT_CLOUD_PUSHID_TIMEOUT = 30 * 60 * 1000;
+    static final int DEFAULT_INITIAL_PUSHID_TIMEOUT = 1 * 60 * 1000;
     static final int DEFAULT_PUSHID_TIMEOUT = 2 * 60 * 1000;
     static final int DEFAULT_GROUP_TIMEOUT = 2 * 60 * 1000;
     private static final int GROUP_SCANNING_TIME_RESOLUTION = 3000; // ms
@@ -97,8 +99,9 @@ implements InternalPushGroupManager, PushGroupManager {
     private final Condition notificationAvailableCondition = getNotificationQueueLock().newCondition();
     private final Queue<Notification> notificationQueue;
     private final long groupTimeout;
-    private final long cloudPushIDTimeout;
-    private final long pushIDTimeout;
+    private final long initialPushIDTimeout;
+    private final long defaultPushIDTimeout;
+    private final long defaultCloudPushIDTimeout;
     private final ServletContext servletContext;
 
     private long lastTouchScan = System.currentTimeMillis();
@@ -127,9 +130,14 @@ implements InternalPushGroupManager, PushGroupManager {
             CloudNotificationService.class.getName(), newCloudNotificationService(getServletContext())
         );
         Configuration configuration = new ServletContextConfiguration("org.icepush", getServletContext());
-        this.groupTimeout = configuration.getAttributeAsLong("groupTimeout", DEFAULT_GROUP_TIMEOUT);
-        this.pushIDTimeout = configuration.getAttributeAsLong("pushIdTimeout", DEFAULT_PUSHID_TIMEOUT);
-        this.cloudPushIDTimeout = configuration.getAttributeAsLong("cloudPushIdTimeout", DEFAULT_CLOUDPUSHID_TIMEOUT);
+        this.groupTimeout =
+            configuration.getAttributeAsLong("groupTimeout", DEFAULT_GROUP_TIMEOUT);
+        this.initialPushIDTimeout =
+            configuration.getAttributeAsLong("initialPushIDTimeout", DEFAULT_INITIAL_PUSHID_TIMEOUT);
+        this.defaultPushIDTimeout =
+            configuration.getAttributeAsLong("pushIdTimeout", DEFAULT_PUSHID_TIMEOUT);
+        this.defaultCloudPushIDTimeout =
+            configuration.getAttributeAsLong("cloudPushIdTimeout", DEFAULT_CLOUD_PUSHID_TIMEOUT);
         PushInternalContext.getInstance().
             setAttribute(Timer.class.getName() + "$expiry", new Timer("Expiry Timeout timer", true));
         PushInternalContext.getInstance().
@@ -241,11 +249,19 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public boolean addNotifyBackURI(final NotifyBackURI notifyBackURI) {
-        return addNotifyBackURI(getModifiableNotifyBackURIMap(), notifyBackURI);
+        return
+            addNotifyBackURI(
+                getModifiableNotifyBackURIMap(),
+                notifyBackURI
+            );
     }
 
     public boolean addNotifyBackURI(final String browserID, final URI notifyBackURI) {
-        return addNotifyBackURI(getModifiableBrowserMap(), getModifiableNotifyBackURIMap(), browserID, notifyBackURI);
+        return
+            addNotifyBackURI(
+                getModifiableBrowserMap(), getModifiableNotifyBackURIMap(), getModifiablePushIDMap(),
+                browserID, notifyBackURI
+            );
     }
 
     public void backOff(final String browserID, final long delay) {
@@ -298,7 +314,7 @@ implements InternalPushGroupManager, PushGroupManager {
         for (final String pushIDString : browser.getPushIDSet()) {
             PushID pushID = getPushIDMap().get(pushIDString);
             if (pushID != null) {
-                pushID.cancelExpiryTimeout();
+                pushID.cancelExpiryTimeout(this);
             }
         }
     }
@@ -319,6 +335,20 @@ implements InternalPushGroupManager, PushGroupManager {
         } finally {
             getPendingNotifiedPushIDSetLock().unlock();
         }
+    }
+
+    public boolean createPushID(final String pushID) {
+        return
+            createPushID(getModifiablePushIDMap(), pushID, getDefaultPushIDTimeout(), getDefaultCloudPushIDTimeout());
+    }
+
+    public boolean createPushID(final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
+        return
+            createPushID(getModifiablePushIDMap(), pushID, pushIDTimeout, cloudPushIDTimeout);
+    }
+
+    public boolean deletePushID(final String pushID) {
+        return deletePushID(getModifiablePushIDMap(), pushID);
     }
 
     public Browser getBrowser(final String browserID) {
@@ -504,7 +534,11 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public boolean removeNotifyBackURI(final String browserID) {
-        return removeNotifyBackURI(getModifiableBrowserMap(), getModifiableNotifyBackURIMap(), browserID);
+        return
+            removeNotifyBackURI(
+                getModifiableBrowserMap(), getModifiableNotifyBackURIMap(), getModifiablePushIDMap(),
+                browserID
+            );
     }
 
     public void removePendingNotification(final String pushID) {
@@ -620,13 +654,15 @@ implements InternalPushGroupManager, PushGroupManager {
         }
     }
 
-    public boolean startExpiryTimeout(final String pushID) {
+    public boolean startExpiryTimeout(
+        final String pushID) {
+
         PushID _pushID = getPushID(pushID);
         if (_pushID != null) {
             String _browserID = _pushID.getBrowserID();
             return
                 startExpiryTimeout(
-                    pushID, (String)null, _browserID != null ? getBrowser(_browserID).getSequenceNumber() : -1
+                    pushID, _browserID, _browserID != null ? getBrowser(_browserID).getSequenceNumber() : -1
                 );
         } else {
             return
@@ -636,10 +672,68 @@ implements InternalPushGroupManager, PushGroupManager {
         }
     }
 
-    public boolean startExpiryTimeout(final String pushID, final String browserID, final long sequenceNumber) {
+    public boolean startExpiryTimeout(
+        final String pushID, final long timeout) {
+
+        PushID _pushID = getPushID(pushID);
+        if (_pushID != null) {
+            String _browserID = _pushID.getBrowserID();
+            return
+                startExpiryTimeout(
+                    pushID, timeout, _browserID != null ? getBrowser(_browserID).getSequenceNumber() : -1
+                );
+        } else {
+            return
+                startExpiryTimeout(
+                    pushID, timeout, -1
+                );
+        }
+    }
+
+    public boolean startExpiryTimeout(
+        final String pushID, final long timeout, final long sequenceNumber) {
+
+        PushID _pushID = getPushID(pushID);
+        if (timeout > 0 && !getExpiryTimeoutMap().containsKey(pushID)) {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(
+                    Level.FINE,
+                    "Start expiry timeout for PushID '" + pushID + "'.  " +
+                        "(" +
+                            "timeout: '" + timeout + "', " +
+                            "sequence number: '" + sequenceNumber + "'" +
+                        ")");
+            }
+            try {
+                ExpiryTimeout _expiryTimeout = newExpiryTimeout(pushID);
+                _expiryTimeout.schedule(System.currentTimeMillis() + timeout);
+                getExpiryTimeoutMap().put(pushID, _expiryTimeout);
+                return true;
+            } catch (final IllegalStateException exception) {
+                // timeoutTimer was cancelled or its timer thread terminated.
+                return false;
+            }
+        }
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(
+                Level.FINE,
+                "Expiry timeout already scheduled for PushID '" + pushID + "'.  " +
+                    "(timeout: '" + timeout + "')");
+        }
+        return false;
+    }
+
+    public boolean startExpiryTimeout(
+        final String pushID, final String browserID, final long sequenceNumber) {
+
         PushID _pushID = getPushID(pushID);
         boolean _isCloudPushID = browserID != null && getBrowser(browserID).getNotifyBackURI() != null;
-        if (!getExpiryTimeoutMap().containsKey(pushID)) {
+        if ((
+                (!_isCloudPushID && _pushID.getPushIDTimeout() > 0) ||
+                (_isCloudPushID && _pushID.getCloudPushIDTimeout() > 0)
+            ) &&
+            !getExpiryTimeoutMap().containsKey(pushID)) {
+
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE,
@@ -651,9 +745,10 @@ implements InternalPushGroupManager, PushGroupManager {
                     ").");
             }
             try {
-                ExpiryTimeout _expiryTimeout = newExpiryTimeout(pushID, _isCloudPushID);
+                ExpiryTimeout _expiryTimeout = newExpiryTimeout(pushID);
                 _expiryTimeout.schedule(
-                    System.currentTimeMillis() + (!_isCloudPushID ? pushIDTimeout : cloudPushIDTimeout)
+                    System.currentTimeMillis() +
+                        (!_isCloudPushID ? _pushID.getPushIDTimeout() : _pushID.getCloudPushIDTimeout())
                 );
                 getExpiryTimeoutMap().put(pushID, _expiryTimeout);
                 return true;
@@ -685,10 +780,12 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected boolean addBrowser(final ConcurrentMap<String, Browser> browserMap, final Browser browser) {
-        boolean _modified = false;
+        boolean _modified;
         if (!browserMap.containsKey(browser.getID())) {
             browserMap.put(browser.getID(), browser);
             _modified = true;
+        } else {
+            _modified = false;
         }
         return _modified;
     }
@@ -708,24 +805,19 @@ implements InternalPushGroupManager, PushGroupManager {
         if (groupMap != null && pushIDMap != null &&
             isNotNullAndIsNotEmpty(groupName) && isNotNullAndIsNotEmpty(pushID)) {
 
-            PushID _pushID;
             if (pushIDMap.containsKey(pushID)) {
-                _pushID = pushIDMap.get(pushID);
-            } else {
-                _pushID = newPushID(pushID);
-                pushIDMap.put(pushID, _pushID);
-                addBrowser(newBrowser(_pushID.getBrowserID()));
-                _pushID.startExpiryTimeout();
-                _modified = true;
-            }
-            _modified |= _pushID.addToGroup(groupName, pushConfiguration);
-            _modified |= addToGroup(groupMap, groupName, pushID);
-            memberAdded(groupName, pushID);
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Added Push-ID '" + pushID + "' to Group '" + groupName + "' with " +
-                        "Push Configuration '" + pushConfiguration + "'.");
+                PushID _pushID = pushIDMap.get(pushID);
+                _modified = _pushID.addToGroup(groupName, pushConfiguration);
+                _modified |= addToGroup(groupMap, groupName, pushID);
+                cancelExpiryTimeout(pushID);
+                startExpiryTimeout(pushID);
+                memberAdded(groupName, pushID);
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Added Push-ID '" + pushID + "' to Group '" + groupName + "' with " +
+                            "Push Configuration '" + pushConfiguration + "'.");
+                }
             }
         }
         return _modified;
@@ -746,7 +838,7 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected boolean addNotifyBackURI(
         final ConcurrentMap<String, Browser> browserMap, final ConcurrentMap<String, NotifyBackURI> notifyBackURIMap,
-        final String browserID, final URI notifyBackURI) {
+        final ConcurrentMap<String, PushID> pushIDMap, final String browserID, final URI notifyBackURI) {
 
         boolean _modified;
         NotifyBackURI _notifyBackURI = notifyBackURIMap.get(notifyBackURI.toString());
@@ -759,6 +851,12 @@ implements InternalPushGroupManager, PushGroupManager {
         }
         _notifyBackURI.setBrowserID(browserID);
         browserMap.get(browserID).setNotifyBackURI(_notifyBackURI.getURI(), true);
+        for (final String _pushID : pushIDMap.keySet()) {
+            if (isEqual(pushIDMap.get(_pushID).getBrowserID(), browserID)) {
+                cancelExpiryTimeout(_pushID);
+                startExpiryTimeout(_pushID);
+            }
+        }
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
                 Level.FINE,
@@ -819,8 +917,32 @@ implements InternalPushGroupManager, PushGroupManager {
         }
     }
 
-    protected long getCloudPushIDTimeout() {
-        return cloudPushIDTimeout;
+    protected boolean createPushID(
+        final ConcurrentMap<String, PushID> pushIDMap, final String pushID, final long pushIDTimeout,
+        final long cloudPushIDTimeout) {
+
+        boolean _modified;
+        if (!pushIDMap.containsKey(pushID)) {
+            PushID _pushID = newPushID(pushID, pushIDTimeout, cloudPushIDTimeout);
+            pushIDMap.put(pushID, _pushID);
+            addBrowser(newBrowser(_pushID.getBrowserID()));
+            _pushID.startExpiryTimeout(getInitialPushIDTimeout());
+            _modified = true;
+        } else {
+            _modified = false;
+        }
+        return _modified;
+    }
+
+    protected boolean deletePushID(final ConcurrentMap<String, PushID> pushIDMap, final String pushID) {
+        boolean _modified = false;
+        if (pushIDMap != null && isNotNullAndIsNotEmpty(pushID)) {
+            PushID _pushID = pushIDMap.get(pushID);
+            if (_pushID != null) {
+                _pushID.discard();
+            }
+        }
+        return _modified;
     }
 
     protected Map<String, ConfirmationTimeout> getConfirmationTimeoutMap() {
@@ -910,6 +1032,14 @@ implements InternalPushGroupManager, PushGroupManager {
                     throw new UnsupportedOperationException();
                 }
             };
+    }
+
+    protected long getDefaultCloudPushIDTimeout() {
+        return defaultCloudPushIDTimeout;
+    }
+
+    protected long getDefaultPushIDTimeout() {
+        return defaultPushIDTimeout;
     }
 
     protected Map<String, ExpiryTimeout> getExpiryTimeoutMap() {
@@ -1012,6 +1142,10 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected long getGroupTimeout() {
         return groupTimeout;
+    }
+
+    protected long getInitialPushIDTimeout() {
+        return initialPushIDTimeout;
     }
 
     protected ConcurrentMap<String, Browser> getModifiableBrowserMap() {
@@ -1417,10 +1551,6 @@ implements InternalPushGroupManager, PushGroupManager {
         return pendingNotifiedPushIDSetLock;
     }
 
-    protected long getPushIDTimeout() {
-        return pushIDTimeout;
-    }
-
     protected ServletContext getServletContext() {
         return servletContext;
     }
@@ -1453,8 +1583,8 @@ implements InternalPushGroupManager, PushGroupManager {
         return new ConfirmationTimeout(browserID);
     }
 
-    protected ExpiryTimeout newExpiryTimeout(final String pushID, final boolean isCloudPushID) {
-        return new ExpiryTimeout(pushID, isCloudPushID);
+    protected ExpiryTimeout newExpiryTimeout(final String pushID) {
+        return new ExpiryTimeout(pushID);
     }
 
     protected Group newGroup(final String name) {
@@ -1507,8 +1637,8 @@ implements InternalPushGroupManager, PushGroupManager {
         return new PushConfiguration();
     }
 
-    protected PushID newPushID(final String id) {
-        return new PushID(id, getPushIDTimeout(), getCloudPushIDTimeout());
+    protected PushID newPushID(final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
+        return new PushID(pushID, pushIDTimeout, cloudPushIDTimeout);
     }
 
     protected QueueConsumerTask newQueueConsumerTask() {
@@ -1654,7 +1784,7 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected boolean removeNotifyBackURI(
         final ConcurrentMap<String, Browser> browserMap, final ConcurrentMap<String, NotifyBackURI> notifyBackURIMap,
-        final String browserID) {
+        final ConcurrentMap<String, PushID> pushIDMap, final String browserID) {
 
         boolean _modified;
         if (browserMap.containsKey(browserID)) {
@@ -1665,6 +1795,12 @@ implements InternalPushGroupManager, PushGroupManager {
                     notifyBackURIMap.remove(_notifyBackURI);
                 }
                 _modified = true;
+                for (final String _pushID : pushIDMap.keySet()) {
+                    if (isEqual(pushIDMap.get(_pushID).getBrowserID(), browserID)) {
+                        cancelExpiryTimeout(_pushID);
+                        startExpiryTimeout(_pushID);
+                    }
+                }
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,

@@ -177,11 +177,54 @@ public class PushContext {
                 browserID = currentBrowserID;
             }
         }
-        String id = browserID + ":" + generateSubID();
+        String _pushID = browserID + ":" + generateSubID();
         if (LOGGER.isLoggable(Level.FINEST)) {
-            LOGGER.finest("Created new pushId '" + id + "'.");
+            LOGGER.finest("Created new Push-ID '" + _pushID + "'.");
         }
-        return id;
+        getPushGroupManager().createPushID(_pushID);
+        return _pushID;
+    }
+
+    public synchronized String createPushId(
+        final HttpServletRequest request, final HttpServletResponse response, final long pushIDTimeout,
+        final long cloudPushIDTimeout) {
+
+        checkArgument(
+            isNotNull(request),
+            "Illegal argument request: '" + request + "'.  Argument cannot be null."
+        );
+        checkArgument(
+            isNotNull(response),
+            "Illegal argument response: '" + response + "'.  Argument cannot be null."
+        );
+        String browserID = Browser.getBrowserID(request);
+        if (browserID == null) {
+            String currentBrowserID = (String)request.getAttribute(Browser.BROWSER_ID_NAME);
+            if (null == currentBrowserID) {
+                browserID = Browser.generateBrowserID();
+                Cookie cookie = new Cookie(Browser.BROWSER_ID_NAME, browserID);
+                cookie.setMaxAge((int)(Browser.getTimeout(getServletContext()) / 1000));
+                cookie.setPath("/");
+                response.addCookie(cookie);
+                request.setAttribute(Browser.BROWSER_ID_NAME, browserID);
+            } else {
+                browserID = currentBrowserID;
+            }
+        }
+        String _pushID = browserID + ":" + generateSubID();
+        if (LOGGER.isLoggable(Level.FINEST)) {
+            LOGGER.finest("Created new Push-ID '" + _pushID + "'.");
+        }
+        getPushGroupManager().createPushID(_pushID, pushIDTimeout, cloudPushIDTimeout);
+        return _pushID;
+    }
+
+    public void deletePushID(final String pushID) {
+        checkArgument(
+            isNotNullAndIsNotEmpty(pushID),
+            "Illegal argument pushID: '" + pushID + "'.  Argument cannot be null or empty."
+        );
+        getPushGroupManager().deletePushID(pushID);
     }
 
     public boolean hasNotifyBackURI(final String browserID) {

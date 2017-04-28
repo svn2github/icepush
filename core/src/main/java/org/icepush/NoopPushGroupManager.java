@@ -74,6 +74,18 @@ implements PushGroupManager {
     public void clearPendingNotifications(final Set<String> pushIDSet) {
     }
 
+    public boolean createPushID(final String pushID) {
+        return false;
+    }
+
+    public boolean createPushID(final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
+        return false;
+    }
+
+    public boolean deletePushID(final String pushID) {
+        return false;
+    }
+
     public Browser getBrowser(final String browserID) {
         return null;
     }

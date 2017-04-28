@@ -20,7 +20,7 @@ import java.io.Writer;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
-import static org.icepush.LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT;
+import static org.icepush.LocalPushGroupManager.DEFAULT_CLOUD_PUSHID_TIMEOUT;
 
 import org.icepush.http.*;
 import org.icepush.http.standard.FixedXMLContentHandler;
@@ -57,7 +57,7 @@ public class ConfigurationServer implements PushServer {
         //Log ICEpush Configuration
         if (!pushConfigLogged) {
 				StringBuilder info = new StringBuilder();
-			configuration.logLong("org.icepush.cloudPushIdTimeout", configuration.getAttributeAsLong("cloudPushIdTimeout", LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_CLOUDPUSHID_TIMEOUT, info);
+			configuration.logLong("org.icepush.cloudPushIdTimeout", configuration.getAttributeAsLong("cloudPushIdTimeout", LocalPushGroupManager.DEFAULT_CLOUD_PUSHID_TIMEOUT), LocalPushGroupManager.DEFAULT_CLOUD_PUSHID_TIMEOUT, info);
 				configuration.logString("org.icepush.contextPath", contextPath, null, info);
 				configuration.logBoolean("org.icepush.disableRemoteHostLookup", configuration.getAttributeAsBoolean("disableRemoteHostLookup", false), false, info);
 				configuration.logLong("org.icepush.emptyResponseRetries", emptyResponseRetries, defaultEmptyResponseRetries, info);

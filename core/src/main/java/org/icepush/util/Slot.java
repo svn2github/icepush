@@ -20,6 +20,10 @@ import java.util.Observable;
 public class Slot extends Observable {
     private Object value;
 
+    public Slot() {
+        // Do nothing.
+    }
+
     public Slot(Object value) {
         this.value = value;
     }

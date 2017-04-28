@@ -46,6 +46,12 @@ public interface PushGroupManager {
 
     void clearPendingNotifications(Set<String> pushIDSet);
 
+    boolean createPushID(String pushID);
+
+    boolean createPushID(String pushID, long pushIDTimeout, long cloudPushIDTimeout);
+
+    boolean deletePushID(String pushID);
+
     Browser getBrowser(String browserID);
 
     CloudNotificationService getCloudNotificationService();

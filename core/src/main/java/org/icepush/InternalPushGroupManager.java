@@ -82,5 +82,7 @@ extends PushGroupManager {
 
     boolean startExpiryTimeout(String pushID);
 
+    boolean startExpiryTimeout(String pushID, long timeout);
+
     boolean startExpiryTimeout(String pushID, String browserID, long timeout);
 }

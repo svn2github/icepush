@@ -36,11 +36,32 @@ implements PushResponseHandler {
     throws Exception {
         //let the bridge know that this blocking connection should not be re-initialized
         pushResponse.setHeader("X-Connection", "close");
-        pushResponse.setHeader("X-Connection-reason", reason);
+        pushResponse.setHeader("X-Connection-reason", getReason());
         pushResponse.setHeader("Content-Length", 0);
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(Level.FINE, "Close current blocking connection.");
         }
         pushResponse.writeBody().close();
+    }
+
+    @Override
+    public String toString() {
+        return
+            new StringBuilder().
+                append("ConnectionClose[").
+                    append(classMembersToString()).
+                append("]").
+                    toString();
+    }
+
+    protected String classMembersToString() {
+        return
+            new StringBuilder().
+                append("reason: '").append(getReason()).append("'").
+                    toString();
+    }
+
+    protected String getReason() {
+        return reason;
     }
 }

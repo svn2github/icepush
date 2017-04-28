@@ -147,6 +147,10 @@ implements DatabaseEntity, Serializable {
         return browserID;
     }
 
+    public long getCloudPushIDTimeout() {
+        return cloudPushIDTimeout;
+    }
+
     public String getDatabaseID() {
         return databaseID;
     }
@@ -157,6 +161,10 @@ implements DatabaseEntity, Serializable {
 
     public String getKey() {
         return getID();
+    }
+
+    public long getPushIDTimeout() {
+        return pushIDTimeout;
     }
 
     public String getSubID() {
@@ -225,6 +233,10 @@ implements DatabaseEntity, Serializable {
         return startExpiryTimeout(getInternalPushGroupManager());
     }
 
+    public boolean startExpiryTimeout(final long timeout) {
+        return startExpiryTimeout(getInternalPushGroupManager(), timeout);
+    }
+
     public boolean startExpiryTimeout(final String browserID, final long sequenceNumber) {
         return startExpiryTimeout(getInternalPushGroupManager(), browserID, sequenceNumber);
     }
@@ -256,8 +268,7 @@ implements DatabaseEntity, Serializable {
     }
 
     protected void discard(final InternalPushGroupManager internalPushGroupManager) {
-        if (!
-            internalPushGroupManager.isParked(getID())) {
+        if (!internalPushGroupManager.isParked(getID())) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(Level.FINE, "PushID '" + getID() + "' discarded.");
             }
@@ -273,10 +284,6 @@ implements DatabaseEntity, Serializable {
         }
     }
 
-    protected long getCloudPushIDTimeout() {
-        return cloudPushIDTimeout;
-    }
-
     protected Map<String, Boolean> getGroupMembershipMap() {
         return groupMembershipMap;
     }
@@ -284,10 +291,6 @@ implements DatabaseEntity, Serializable {
     protected static InternalPushGroupManager getInternalPushGroupManager() {
         return
             (InternalPushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName());
-    }
-
-    protected long getPushIDTimeout() {
-        return pushIDTimeout;
     }
 
     protected boolean setBrowserID(final String browserID) {
@@ -310,6 +313,12 @@ implements DatabaseEntity, Serializable {
         final InternalPushGroupManager internalPushGroupManager) {
 
         return internalPushGroupManager.startExpiryTimeout(getID());
+    }
+
+    protected boolean startExpiryTimeout(
+        final InternalPushGroupManager internalPushGroupManager, final long timeout) {
+
+        return internalPushGroupManager.startExpiryTimeout(getID(), timeout);
     }
 
     protected boolean startExpiryTimeout(
