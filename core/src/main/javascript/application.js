@@ -240,8 +240,9 @@ if (!window.ice.icepush) {
 
                 deregister: delistPushIDsWithWindow,
 
-                createPushId: function createPushId(retries, callback) {
+                createPushId: function createPushId(callback, retries) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/push-ids?access_token=' + encodeURIComponent(configuration.access_token);
+                    retries = retries == null ? 3 : retries;
                     var body = JSON.stringify({
                         'access_token': configuration.access_token,
                         'browser':  browserID(),
@@ -251,7 +252,7 @@ if (!window.ice.icepush) {
                         condition(CREATED, function (response) {
                             if (isJSONResponse(response)) {
                                 var content = contentAsText(response);
-                                var result = JSON.parse(content)
+                                var result = JSON.parse(content);
                                 callback(result.push_id);
                             } else {
                                 if (retries && retries > 1) {

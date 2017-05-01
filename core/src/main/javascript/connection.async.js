@@ -110,8 +110,8 @@ var AsyncConnection;
                         'access_token': mainConfiguration.access_token,
                         'browser': lookupCookieValue(BrowserIDName),
                         'heartbeat': {
-                            'timestamp': { '$numberLong' : heartbeatTimestamp },
-                            'interval': { '$numberLong': heartbeatInterval }
+                            'timestamp': { '$numberLong' : String(heartbeatTimestamp) },
+                            'interval': { '$numberLong': String(heartbeatInterval) }
                         },
                         'op': 'listen',
                         'sequence_number': {
