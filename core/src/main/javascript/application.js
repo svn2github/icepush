@@ -240,14 +240,25 @@ if (!window.ice.icepush) {
 
                 deregister: delistPushIDsWithWindow,
 
-                createPushId: function createPushId(callback, retries) {
+                createPushId: function createPushId(callback, pushIdTimeout, cloudPushIdTimeout, retries) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/push-ids?access_token=' + encodeURIComponent(configuration.access_token);
                     retries = retries == null ? 3 : retries;
-                    var body = JSON.stringify({
+                    var parameters = {
                         'access_token': configuration.access_token,
                         'browser':  browserID(),
                         'op': 'create'
-                    });
+                    };
+                    if (pushIdTimeout) {
+                        parameters.push_id_timeout = {
+                            '$numberLong': String(pushIdTimeout)
+                        };
+                    }
+                    if (cloudPushIdTimeout) {
+                        parameters.cloud_push_id_timeout = {
+                            '$numberLong': String(cloudPushIdTimeout)
+                        };
+                    }
+                    var body = JSON.stringify(parameters);
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
                         condition(CREATED, function (response) {
                             if (isJSONResponse(response)) {
@@ -264,6 +275,15 @@ if (!window.ice.icepush) {
                                 createPushId(retries, callback);
                             }
                         });
+                        condition(ServerInternalError, throwServerError);
+                    }));
+                },
+
+                deletePushId: function (id) {
+                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/push-ids/' + encodeURIComponent(id);
+                    deleteAsynchronously(apiChannel, uri, function (query) {
+                        addNameValue(query, "access_token", configuration.access_token);
+                    }, JSONRequest, $witch(function (condition) {
                         condition(ServerInternalError, throwServerError);
                     }));
                 },
