@@ -54,6 +54,16 @@ implements PushResponseHandler {
     }
 
     @Override
+    public String toString() {
+        return
+            new StringBuilder().
+                append("NotifiedPushIDs[").
+                    append(classMembersToString()).
+                append("]").
+                    toString();
+    }
+
+    @Override
     public void writeTo(final Writer writer)
     throws IOException {
         Map<String, Set<String>> _payloadPushIDSetMap = new HashMap<String, Set<String>>();
@@ -111,6 +121,14 @@ implements PushResponseHandler {
         _notifications.
             append("</notifications>");
         writer.write(_notifications.toString());
+    }
+
+    protected String classMembersToString() {
+        return
+            new StringBuilder().
+                append("browserID: '").append(getBrowserID()).append("', ").
+                append("notificationEntrySet: '").append(getModifiableNotificationEntrySet()).append("'").
+                    toString();
     }
 
     protected final String getBrowserID() {
