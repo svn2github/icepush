@@ -306,8 +306,8 @@ if (!window.ice.icepush) {
                     var body = JSON.stringify({
                         'access_token': configuration.access_token,
                         'browser': browserID(),
-                        'op': 'push'//,
-                        //'push_configuration': options
+                        'op': 'push',
+                        'push_configuration': options
                     });
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
                         condition(ServerInternalError, throwServerError);
