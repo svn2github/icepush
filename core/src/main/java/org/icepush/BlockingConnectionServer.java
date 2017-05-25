@@ -286,6 +286,9 @@ implements NotificationBroadcaster.Receiver, PushServer {
     private void respondTo(final PushRequest pushRequest, final PushResponseHandler handler) {
         try {
             recordResponseTime();
+            if (LOGGER.isLoggable(Level.INFO)) {
+                LOGGER.log(Level.INFO, "Sending response using Handler '" + handler + "'...");
+            }
             pushRequest.respondWith(handler);
         } catch (final IOException exception) {
             if (LOGGER.isLoggable(Level.FINE)) {
