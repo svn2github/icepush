@@ -850,6 +850,9 @@ implements InternalPushGroupManager, PushGroupManager {
             _modified = false;
         }
         _notifyBackURI.setBrowserID(browserID);
+        if (!browserMap.containsKey(browserID)) {
+            addBrowser(newBrowser(browserID));
+        }
         browserMap.get(browserID).setNotifyBackURI(_notifyBackURI.getURI(), true);
         for (final String _pushID : pushIDMap.keySet()) {
             if (isEqual(pushIDMap.get(_pushID).getBrowserID(), browserID)) {
