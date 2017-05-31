@@ -46,6 +46,8 @@ function CommandDispatcher() {
                     executeCommand('notifications', result.notifications);
                 } else if (result.configuration) {
                     executeCommand('configuration', result.configuration);
+                } else if (result.browser) {
+                    executeCommand('browser', result.browser);
                 }
             } catch (e) {
                 executeCommand('error', e);

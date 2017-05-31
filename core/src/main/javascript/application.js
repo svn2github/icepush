@@ -446,11 +446,15 @@ if (!window.ice.icepush) {
                 });
             });
             register(commandDispatcher, 'noop', function() {
-                debug(logger, 'noop');
+                debug(logger, 'received noop');
             });
             register(commandDispatcher, 'configuration', function(configuration) {
-                debug(logger, 'configure');
+                debug(logger, 'received configuration');
                 reconfigure(asyncConnection, configuration);
+            });
+            register(commandDispatcher, 'browser', function(browserID) {
+                debug(logger, 'received browser ID');
+                Cookie(BrowserIDName, browserID);
             });
             register(commandDispatcher, 'back-off', function(delay) {
                 debug(logger, 'received back-off');
