@@ -48,7 +48,7 @@
 
     function start() {
         if (window.p) {
-            window.p.createPushId(1, function (id) {
+            window.p.createPushId(function (id) {
                 log('created pushID : ' + id);
                 document.getElementById('pushID').value = id;
 
