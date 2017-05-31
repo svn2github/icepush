@@ -33,7 +33,6 @@ var AsyncConnection;
     var SequenceNumber = 'ice.push.sequence';
     var ConnectionRunning = 'ice.connection.running';
     var ConnectionLease = 'ice.connection.lease';
-    var ConnectionContextPath = 'ice.connection.contextpath';
     var AcquiredMarker = ':acquired';
     var NetworkDelay = 5000;//5s of delay, possibly introduced by network
     var DefaultConfiguration = {
@@ -89,10 +88,6 @@ var AsyncConnection;
             connectionDownListeners = [];
         });
         var lastSentPushIds = registeredPushIds();
-
-        function contextPath() {
-            return configuration.contextPath;
-        }
 
         function requestForBlockingResponse() {
             try {
@@ -283,7 +278,6 @@ var AsyncConnection;
 
         var leaseSlot = Slot(ConnectionLease, asString((new Date).getTime()));
         var connectionSlot = Slot(ConnectionRunning);
-        var contextPathSlot;
 
         function updateLease() {
             setValue(leaseSlot, (new Date).getTime() + pollingPeriod * 3);
@@ -323,25 +317,12 @@ var AsyncConnection;
             return i > -1 ? substring(owner, 0, i) : owner;
         }
 
-        function nonMatchingContextPath() {
-            return getValue(contextPathSlot) != contextPath();
-        }
-
         var lastOwningWindow = '';
         var paused = false;
         var blockingConnectionMonitor = object(function(method) {
             method(stop, noop);
         });
         function createBlockingConnectionMonitor() {
-            //initialize slot only after the context path was setup during page load
-            contextPathSlot = Slot(ConnectionContextPath, contextPath());
-
-            //force candidancy so that last opened window belonging to a different servlet context will own the blocking connection
-            if (nonMatchingContextPath()) {
-                offerCandidature();
-                info(logger, 'Blocking connection cannot be shared among multiple web-contexts.\nInitiating blocking connection for "' + contextPath() + '"  web-context...');
-            }
-
             blockingConnectionMonitor = run(Delay(function() {
                 if (shouldEstablishBlockingConnection()) {
                     offerCandidature();
