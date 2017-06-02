@@ -37,9 +37,7 @@ var AsyncConnection;
     var NetworkDelay = 5000;//5s of delay, possibly introduced by network
     var DefaultConfiguration = {
         heartbeat:{
-            interval: {
-                $numberLong: 6500
-            }
+            interval: 6500
         },
         network_error_retry_timeouts: [1, 1, 1, 2, 2, 3],
         server_error_handler: {
@@ -76,7 +74,7 @@ var AsyncConnection;
         var connectionReEstablished = [];
         var sequenceNo = Slot(SequenceNumber);
         var configuration = mainConfiguration.configuration || DefaultConfiguration;
-        var heartbeatTimestamp = String(new Date().getTime());
+        var heartbeatTimestamp = (new Date()).getTime();
 
         var listener = object(function(method) {
             method(close, noop);
@@ -105,13 +103,11 @@ var AsyncConnection;
                         'access_token': mainConfiguration.access_token,
                         'browser': lookupCookieValue(BrowserIDName),
                         'heartbeat': {
-                            'timestamp': { '$numberLong' : String(heartbeatTimestamp) },
-                            'interval': { '$numberLong': String(heartbeatInterval) }
+                            'timestamp': heartbeatTimestamp,
+                            'interval': heartbeatInterval
                         },
                         'op': 'listen',
-                        'sequence_number': {
-                            '$numberLong' : (getValue(sequenceNo) || '0')
-                        },
+                        'sequence_number': Number(getValue(sequenceNo) || '0'),
                         'window': namespace.windowID,
                         'push_ids': lastSentPushIds
                     });
@@ -127,14 +123,14 @@ var AsyncConnection;
                                         var result = JSON.parse(content);
                                         if (result.sequence_number) {
                                             //update sequence number incremented by the server
-                                            setValue(sequenceNo, result.sequence_number.$numberLong);
+                                            setValue(sequenceNo, result.sequence_number);
                                         }
                                         if (result.heartbeat && result.heartbeat.timestamp) {
-                                            heartbeatTimestamp = result.heartbeat.timestamp.$numberLong;
+                                            heartbeatTimestamp = result.heartbeat.timestamp;
                                         }
                                         if (result.heartbeat && result.heartbeat.interval) {
-                                            if (heartbeatInterval != result.heartbeat.interval.$numberLong) {
-                                                heartbeatInterval = result.heartbeat.interval.$numberLong;
+                                            if (heartbeatInterval != result.heartbeat.interval) {
+                                                heartbeatInterval = result.heartbeat.interval;
                                                 adjustTimeoutBombIntervals();
                                             }
                                         }
@@ -178,7 +174,7 @@ var AsyncConnection;
         var heartbeatInterval;
         var networkErrorRetryTimeouts;
         function setupNetworkErrorRetries(cfg) {
-            heartbeatInterval = cfg.heartbeat.interval.$numberLong || DefaultConfiguration.heartbeat.interval.$numberLong;
+            heartbeatInterval = cfg.heartbeat.interval || DefaultConfiguration.heartbeat.interval;
             networkErrorRetryTimeouts = cfg.network_error_retry_timeouts || DefaultConfiguration.network_error_retry_timeouts;
             emptyResponseRetries = cfg.response_timeout_handler.retries || DefaultConfiguration.response_timeout_handler.retries;
         }

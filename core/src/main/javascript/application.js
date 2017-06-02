@@ -249,14 +249,10 @@ if (!window.ice.icepush) {
                         'op': 'create'
                     };
                     if (pushIdTimeout) {
-                        parameters.push_id_timeout = {
-                            '$numberLong': String(pushIdTimeout)
-                        };
+                        parameters.push_id_timeout = pushIdTimeout
                     }
                     if (cloudPushIdTimeout) {
-                        parameters.cloud_push_id_timeout = {
-                            '$numberLong': String(cloudPushIdTimeout)
-                        };
+                        parameters.cloud_push_id_timeout = cloudPushIdTimeout
                     }
                     var body = JSON.stringify(parameters);
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
