@@ -214,7 +214,7 @@ if (!window.ice.icepush) {
         register(commandDispatcher, 'error', CommandError);
 
         //public API
-        namespace.setupPush = function(configuration) {
+        namespace.setupPush = function(configuration, onStartup, onShutdown) {
             var apiChannel = Client(true);
             var API = {
                 register: function (pushIds, callback) {
@@ -281,14 +281,18 @@ if (!window.ice.icepush) {
                     }));
                 },
 
-                getConfiguration: function () {
+                getConfiguration: function (callback) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/configuration';
                     getAsynchronously(apiChannel, uri, function (query) {
                         addNameValue(query, "access_token", configuration.access_token);
                         addNameValue(query, "op", "get");
                     }, JSONRequest, $witch(function (condition) {
                         condition(OK, function (response) {
-                            deserializeAndExecute(commandDispatcher, contentAsText(response));
+                            try {
+                                deserializeAndExecute(commandDispatcher, contentAsText(response));
+                            } finally {
+                                callback();
+                            }
                         });
                         condition(ServerInternalError, throwServerError);
                     }));
@@ -371,7 +375,7 @@ if (!window.ice.icepush) {
                 }
             };
 
-            Bridge(configuration, API);
+            Bridge(configuration, API, onStartup, onShutdown);
 
             onKeyPress(document, function(ev) {
                 var e = $event(ev);
@@ -381,7 +385,7 @@ if (!window.ice.icepush) {
             return API;
         };
 
-        function Bridge(configuration, pushAPI) {
+        function Bridge(configuration, pushAPI, onStartup, onShutdown) {
             var windowID = namespace.windowID;
             var logger = childLogger(namespace.logger, windowID);
             var pushIdExpiryMonitor = PushIDExpiryMonitor(logger);
@@ -396,11 +400,6 @@ if (!window.ice.icepush) {
                     resumeConnection(asyncConnection);
                 }
             };
-
-            if (!configuration.configuration) {
-                //acquire connection configuration from the server
-                pushAPI.getConfiguration();
-            }
 
             //purge discarded pushIDs from the notification list
             function purgeNonRegisteredPushIDs(ids) {
@@ -467,6 +466,9 @@ if (!window.ice.icepush) {
                     disposeBroadcast(notificationBroadcaster);
                 } finally {
                     shutdown(asyncConnection);
+                    if (onShutdown) {
+                        onShutdown();
+                    }
                 }
             }
 
@@ -528,10 +530,20 @@ if (!window.ice.icepush) {
 
             info(logger, 'bridge loaded!');
 
-            //start blocking connection only on document load
-//          onLoad(window, function(){
-            startConnection(asyncConnection);
-//          });
+            function finishStartup() {
+                startConnection(asyncConnection);
+                if (onStartup) {
+                    onStartup();
+                }
+            }
+
+            //make sure the bridge has the configuration and browserID to work with
+            if (configuration.configuration && existsCookie(BrowserIDName)) {
+                finishStartup();
+            } else {
+                //acquire connection configuration from the server
+                pushAPI.getConfiguration(finishStartup);
+            }
         }
     })(window.ice);
 }

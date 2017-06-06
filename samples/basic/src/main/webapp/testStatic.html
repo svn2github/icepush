@@ -36,11 +36,11 @@
                 account: 'icesoft_technologies',
                 realm: 'icesoft.com',
                 access_token: token.value
+            }, function() {
+                document.getElementById('start').disabled = false;
+                document.getElementById('setup').disabled = true;
+                log('push is connected to ' + host.value);
             });
-
-            document.getElementById('start').disabled = false;
-            document.getElementById('setup').disabled = true;
-            log('push is connected to ' + host.value);
         } else {
             log('access token required');
         }
