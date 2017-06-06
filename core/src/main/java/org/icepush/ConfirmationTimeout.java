@@ -217,7 +217,7 @@ implements DatabaseEntity, Serializable {
                 getModifiableCloudPushNotificationSet().iterator();
             while (_cloudPushNotificationSetIterator.hasNext()) {
                 CloudPushNotification _cloudPushNotification = _cloudPushNotificationSetIterator.next();
-                if (_cloudPushNotification.cancel(ignoreForced)) {
+                if (_cloudPushNotification.cancel(ignoreForced, internalPushGroupManager)) {
                     _cloudPushNotificationSetIterator.remove();
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(
