@@ -262,12 +262,12 @@ implements Serializable {
             putPushNotificationAttribute(
                 "global", "targetURI", request.getParameter("targetURI"), _pushConfiguration
             );
-        String _forced = request.getParameter("forced");
-        if (isNotNullAndIsNotEmpty(_forced)) {
+        String _cloudNotificationForced = request.getParameter("cloudNotificationForced");
+        if (isNotNullAndIsNotEmpty(_cloudNotificationForced)) {
             if (_pushConfiguration == null) {
                 _pushConfiguration = new PushConfiguration();
             }
-            _pushConfiguration.putAttribute("forced", Boolean.parseBoolean(_forced));
+            _pushConfiguration.putAttribute("cloudNotificationForced", Boolean.parseBoolean(_cloudNotificationForced));
         }
         return _pushConfiguration;
     }

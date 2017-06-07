@@ -42,7 +42,7 @@ implements /*DatabaseEntity, */Serializable {
 
     private final Map<String, Object> propertyMap = new HashMap<String, Object>();
 
-    private boolean forced;
+    private boolean cloudNotificationForced;
 
 //    @Id
 //    private String databaseID = UUID.randomUUID().toString();
@@ -69,13 +69,13 @@ implements /*DatabaseEntity, */Serializable {
 
     public NotificationEntry(
         final String pushID, final String groupName, final String payload, final Map<String, Object> propertyMap,
-        final boolean forced) {
+        final boolean cloudNotificationForced) {
 
         setPushID(pushID);
         setGroupName(groupName);
         setPayload(payload);
         setPropertyMap(propertyMap);
-        setForced(forced);
+        setCloudNotificationForced(cloudNotificationForced);
     }
 
     @Override
@@ -93,7 +93,7 @@ implements /*DatabaseEntity, */Serializable {
                 ) &&
                 ((NotificationEntry)object).getModifiablePropertyMap().entrySet().containsAll(getModifiablePropertyMap().entrySet()) &&
                 ((NotificationEntry)object).getModifiablePropertyMap().size() == getModifiablePropertyMap().size() &&
-                ((NotificationEntry)object).isForced() == isForced();
+                ((NotificationEntry)object).isCloudNotificationForced() == isCloudNotificationForced();
     }
 
 //    public String getDatabaseID() {
@@ -126,12 +126,12 @@ implements /*DatabaseEntity, */Serializable {
         _hashCode = 31 * _hashCode + (getGroupName() != null ? getGroupName().hashCode() : 0);
         _hashCode = 31 * _hashCode + (getPayload() != null ? getPayload().hashCode() : 0);
         _hashCode = 31 * _hashCode + (getModifiablePropertyMap() != null ? getModifiablePropertyMap().hashCode() : 0);
-        _hashCode = 31 * _hashCode + (isForced() ? 1 : 0);
+        _hashCode = 31 * _hashCode + (isCloudNotificationForced() ? 1 : 0);
         return _hashCode;
     }
 
-    public boolean isForced() {
-        return forced;
+    public boolean isCloudNotificationForced() {
+        return cloudNotificationForced;
     }
 
 //    public void save() {
@@ -154,7 +154,7 @@ implements /*DatabaseEntity, */Serializable {
     protected String classMembersToString() {
         return
             new StringBuilder().
-                append("forced: '").append(isForced()).append("', ").
+                append("cloudNotificationForced: '").append(isCloudNotificationForced()).append("', ").
                 append("groupName: '").append(getGroupName()).append("', ").
                 append("payload: '").append(getPayload()).append("', ").
                 append("propertyMap: '").append(getModifiablePropertyMap()).append("', ").
@@ -166,10 +166,10 @@ implements /*DatabaseEntity, */Serializable {
         return propertyMap;
     }
 
-    protected boolean setForced(final boolean forced) {
+    protected boolean setCloudNotificationForced(final boolean cloudNotificationForced) {
         boolean _modified;
-        if (isNotEqual(isForced(), forced)) {
-            this.forced = forced;
+        if (isNotEqual(isCloudNotificationForced(), cloudNotificationForced)) {
+            this.cloudNotificationForced = cloudNotificationForced;
             _modified = true;
 //            save();
         } else {

@@ -25,7 +25,7 @@ implements DatabaseEntity, Runnable, Serializable {
 
     private Map<String, Object> propertyMap = new HashMap<String, Object>();
 
-    private boolean forced;
+    private boolean cloudNotificationForced;
 
     public OutOfBandNotification() {
         super();
@@ -40,10 +40,11 @@ implements DatabaseEntity, Runnable, Serializable {
     }
 
     public OutOfBandNotification(
-        final String groupName, final String payload, final Map<String, Object> propertyMap, final boolean forced,
-        final long duration, final long scheduledAt, final Set<String> exemptPushIDSet) {
+        final String groupName, final String payload, final Map<String, Object> propertyMap,
+        final boolean cloudNotificationForced, final long duration, final long scheduledAt,
+        final Set<String> exemptPushIDSet) {
 
-        this(groupName, payload, propertyMap, forced, duration, scheduledAt, exemptPushIDSet, true);
+        this(groupName, payload, propertyMap, cloudNotificationForced, duration, scheduledAt, exemptPushIDSet, true);
     }
 
     public OutOfBandNotification(
@@ -53,12 +54,13 @@ implements DatabaseEntity, Runnable, Serializable {
     }
 
     protected OutOfBandNotification(
-        final String groupName, final String payload, final Map<String, Object> propertyMap, final boolean forced,
-        final long duration, final long scheduledAt, final Set<String> exemptPushIDSet, final boolean save) {
+        final String groupName, final String payload, final Map<String, Object> propertyMap,
+        final boolean cloudNotificationForced, final long duration, final long scheduledAt,
+        final Set<String> exemptPushIDSet, final boolean save) {
 
         super(groupName, payload, duration, scheduledAt, exemptPushIDSet, false);
         setPropertyMap(propertyMap, false);
-        setForced(forced, false);
+        setCloudNotificationForced(cloudNotificationForced, false);
         if (save) {
             save();
         }
@@ -69,20 +71,20 @@ implements DatabaseEntity, Runnable, Serializable {
 
         super(groupName, payload, pushConfiguration, false);
         Map<String, Object> _propertyMap = new HashMap<String, Object>();
-        Boolean _forced = false;
+        Boolean _cloudNotificationForced = false;
         for (final Map.Entry<String, Object> _attributeEntry : pushConfiguration.getAttributeMap().entrySet()) {
             // TODO: Actually filter the properties supported by the Cloud Notification Service.
             if (_attributeEntry.getValue() instanceof Boolean) {
-                if (_attributeEntry.getKey().equals("forced")) {
-                    _forced = (Boolean)_attributeEntry.getValue();
+                if (_attributeEntry.getKey().equals("cloudNotificationForced")) {
+                    _cloudNotificationForced = (Boolean)_attributeEntry.getValue();
                 }
             } else {
                 _propertyMap.put(_attributeEntry.getKey(), _attributeEntry.getValue());
             }
         }
         setPropertyMap(_propertyMap, false);
-        if (_forced != null) {
-            setForced(_forced, false);
+        if (_cloudNotificationForced != null) {
+            setCloudNotificationForced(_cloudNotificationForced, false);
         }
         if (save) {
             save();
@@ -112,8 +114,8 @@ implements DatabaseEntity, Runnable, Serializable {
         return Collections.unmodifiableMap(getModifiablePropertyMap());
     }
 
-    public final boolean isForced() {
-        return forced;
+    public final boolean isCloudNotificationForced() {
+        return cloudNotificationForced;
     }
 
     public Object putProperty(final String key, final Object value) {
@@ -150,7 +152,7 @@ implements DatabaseEntity, Runnable, Serializable {
     protected String classMembersToString() {
         return
             new StringBuilder().
-                append("forced: '").append(isForced()).append("', ").
+                append("cloudNotificationForced: '").append(isCloudNotificationForced()).append("', ").
                 append("propertyMap: '").append(getModifiablePropertyMap()).append("', ").
                 append(super.classMembersToString()).
                     toString();
@@ -166,21 +168,23 @@ implements DatabaseEntity, Runnable, Serializable {
 
         return
             getInternalPushGroupManager().
-                newNotificationEntry(pushID, getGroupName(), getPayload(), getPropertyMap(), isForced());
+                newNotificationEntry(
+                    pushID, getGroupName(), getPayload(), getPropertyMap(), isCloudNotificationForced()
+                );
     }
 
-    protected final boolean setForced(final boolean forced) {
-        return setForced(forced, true);
+    protected final boolean setCloudNotificationForced(final boolean cloudNotificationForced) {
+        return setCloudNotificationForced(cloudNotificationForced, true);
     }
 
     protected final boolean setPropertyMap(final Map<String, Object> propertyMap) {
         return setPropertyMap(propertyMap, true);
     }
 
-    private boolean setForced(final boolean forced, final boolean save) {
+    private boolean setCloudNotificationForced(final boolean cloudNotificationForced, final boolean save) {
         boolean _modified;
-        if (this.forced != forced) {
-            this.forced = forced;
+        if (this.cloudNotificationForced != cloudNotificationForced) {
+            this.cloudNotificationForced = cloudNotificationForced;
             _modified = true;
             if (save) {
                 save();

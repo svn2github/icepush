@@ -82,16 +82,16 @@ implements DatabaseEntity, Serializable {
         cancel(pushIDSet, false);
     }
 
-    public void cancel(final Set<String> pushIDSet, final boolean ignoreForced) {
-        cancel(pushIDSet, ignoreForced, getInternalPushGroupManager());
+    public void cancel(final Set<String> pushIDSet, final boolean ignoreCloudNotificationForced) {
+        cancel(pushIDSet, ignoreCloudNotificationForced, getInternalPushGroupManager());
     }
 
     public void cancelAll() {
         cancelAll(false);
     }
 
-    public void cancelAll(final boolean ignoreForced) {
-        cancelAll(ignoreForced, getInternalPushGroupManager());
+    public void cancelAll(final boolean ignoreCloudNotificationForced) {
+        cancelAll(ignoreCloudNotificationForced, getInternalPushGroupManager());
     }
 
     protected final String getBrowserID() {
@@ -126,10 +126,11 @@ implements DatabaseEntity, Serializable {
     }
 
     public void schedule(
-        final String pushID, final Map<String, Object> propertyMap, final boolean forced, final long timeout) {
+        final String pushID, final Map<String, Object> propertyMap, final boolean cloudNotificationForced,
+        final long timeout) {
 
         CloudPushNotification _cloudPushNotification =
-            newCloudPushNotification(getBrowserID(), pushID, propertyMap, forced, timeout);
+            newCloudPushNotification(getBrowserID(), pushID, propertyMap, cloudNotificationForced, timeout);
         addCloudPushNotification(_cloudPushNotification);
         _cloudPushNotification.schedule();
         if (LOGGER.isLoggable(Level.FINE)) {
@@ -165,7 +166,7 @@ implements DatabaseEntity, Serializable {
     }
 
     protected void cancel(
-        final Set<String> pushIDSet, final boolean ignoreForced,
+        final Set<String> pushIDSet, final boolean ignoreCloudNotificationForced,
         final InternalPushGroupManager internalPushGroupManager) {
 
         lockCloudPushNotificationSet();
@@ -175,7 +176,7 @@ implements DatabaseEntity, Serializable {
             while (_cloudPushNotificationSetIterator.hasNext()) {
                 CloudPushNotification _cloudPushNotification = _cloudPushNotificationSetIterator.next();
                 if (pushIDSet.contains(_cloudPushNotification.getPushID())) {
-                    if (_cloudPushNotification.cancel(ignoreForced)) {
+                    if (_cloudPushNotification.cancel(ignoreCloudNotificationForced)) {
                         _cloudPushNotificationSetIterator.remove();
                         if (LOGGER.isLoggable(Level.FINE)) {
                             LOGGER.log(
@@ -202,7 +203,7 @@ implements DatabaseEntity, Serializable {
     }
 
     protected void cancelAll(
-        final boolean ignoreForced, final InternalPushGroupManager internalPushGroupManager) {
+        final boolean ignoreCloudNotificationForced, final InternalPushGroupManager internalPushGroupManager) {
 
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
@@ -217,7 +218,7 @@ implements DatabaseEntity, Serializable {
                 getModifiableCloudPushNotificationSet().iterator();
             while (_cloudPushNotificationSetIterator.hasNext()) {
                 CloudPushNotification _cloudPushNotification = _cloudPushNotificationSetIterator.next();
-                if (_cloudPushNotification.cancel(ignoreForced, internalPushGroupManager)) {
+                if (_cloudPushNotification.cancel(ignoreCloudNotificationForced, internalPushGroupManager)) {
                     _cloudPushNotificationSetIterator.remove();
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.log(
@@ -270,10 +271,10 @@ implements DatabaseEntity, Serializable {
     }
 
     protected CloudPushNotification newCloudPushNotification(
-        final String browserID, final String pushID, final Map<String, Object> propertyMap, final boolean forced,
-        final long timeout) {
+        final String browserID, final String pushID, final Map<String, Object> propertyMap,
+        final boolean cloudNotificationForced, final long timeout) {
 
-        return new CloudPushNotification(browserID, pushID, propertyMap, forced, timeout);
+        return new CloudPushNotification(browserID, pushID, propertyMap, cloudNotificationForced, timeout);
     }
 
     protected boolean removeCloudPushNotification(
@@ -381,7 +382,7 @@ implements DatabaseEntity, Serializable {
         private final Map<String, Object> propertyMap = new HashMap<String, Object>();
 
         private String browserID;
-        private boolean forced;
+        private boolean cloudNotificationForced;
         private String pushID;
         private long scheduledTime;
         private long timeout;
@@ -404,20 +405,20 @@ implements DatabaseEntity, Serializable {
         }
 
         public CloudPushNotification(
-            final String browserID, final String pushID, final Map<String, Object> propertyMap, final boolean forced,
-            final long timeout) {
+            final String browserID, final String pushID, final Map<String, Object> propertyMap,
+            final boolean cloudNotificationForced, final long timeout) {
 
-            this(browserID, pushID, propertyMap, forced, timeout, true);
+            this(browserID, pushID, propertyMap, cloudNotificationForced, timeout, true);
         }
 
         protected CloudPushNotification(
-            final String browserID, final String pushID, final Map<String, Object> propertyMap, final boolean forced,
-            final long timeout, final boolean save) {
+            final String browserID, final String pushID, final Map<String, Object> propertyMap,
+            final boolean cloudNotificationForced, final long timeout, final boolean save) {
 
             setBrowserID(browserID, false);
             setPushID(pushID, false);
             setPropertyMap(propertyMap, false);
-            setForced(forced, false);
+            setCloudNotificationForced(cloudNotificationForced, false);
             setTimeout(timeout, false);
             if (save) {
                 getConfirmationTimeout().save();
@@ -428,8 +429,8 @@ implements DatabaseEntity, Serializable {
             return cancel(false);
         }
 
-        public boolean cancel(final boolean ignoreForced) {
-            return cancel(ignoreForced, getInternalPushGroupManager());
+        public boolean cancel(final boolean ignoreCloudNotificationForced) {
+            return cancel(ignoreCloudNotificationForced, getInternalPushGroupManager());
         }
 
         public void execute() {
@@ -456,8 +457,8 @@ implements DatabaseEntity, Serializable {
             return timeout;
         }
 
-        public final boolean isForced() {
-            return forced;
+        public final boolean isCloudNotificationForced() {
+            return cloudNotificationForced;
         }
 
         public void schedule() {
@@ -490,9 +491,11 @@ implements DatabaseEntity, Serializable {
                         toString();
         }
 
-        protected boolean cancel(final boolean ignoreForced, final InternalPushGroupManager internalPushGroupManager) {
+        protected boolean cancel(
+            final boolean ignoreCloudNotificationForced, final InternalPushGroupManager internalPushGroupManager) {
+
             boolean _result;
-            if (ignoreForced || !isForced()) {
+            if (ignoreCloudNotificationForced || !isCloudNotificationForced()) {
                 getTimerTask().cancel();
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
@@ -513,7 +516,7 @@ implements DatabaseEntity, Serializable {
             return
                 new StringBuilder().
                     append("browserID: '").append(getBrowserID()).append("', ").
-                    append("forced: '").append(isForced()).append("', ").
+                    append("cloudNotificationForced: '").append(isCloudNotificationForced()).append("', ").
                     append("propertyMap: '").append(getPropertyMap()).append("', ").
                     append("pushID: '").append(getPushID()).append("', ").
                     append("scheduledTime: '").append(getScheduledTime()).append("', ").
@@ -686,8 +689,8 @@ implements DatabaseEntity, Serializable {
             return setBrowserID(browserID, true);
         }
 
-        protected final boolean setForced(final boolean forced) {
-            return setForced(forced, true);
+        protected final boolean setCloudNotificationForced(final boolean cloudNotificationForced) {
+            return setCloudNotificationForced(cloudNotificationForced, true);
         }
 
         protected final boolean setPropertyMap(final Map<String, Object> propertyMap) {
@@ -727,10 +730,10 @@ implements DatabaseEntity, Serializable {
             return _modified;
         }
 
-        private boolean setForced(final boolean forced, final boolean save) {
+        private boolean setCloudNotificationForced(final boolean cloudNotificationForced, final boolean save) {
             boolean _modified;
-            if (this.forced != forced) {
-                this.forced = forced;
+            if (this.cloudNotificationForced != cloudNotificationForced) {
+                this.cloudNotificationForced = cloudNotificationForced;
                 _modified = true;
                 if (save) {
                     getConfirmationTimeout().save();

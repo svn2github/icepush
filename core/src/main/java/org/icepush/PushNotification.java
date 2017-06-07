@@ -62,9 +62,6 @@ implements Serializable {
     /** The PushNotification attribute name for expireTime. */
     public static final String EXPIRE_TIME = "expireTime";
 
-    /** The PushNotification attribute name for forced. */
-    public static final String FORCED = "forced";
-
     /** The PushNotification attribute name for icon. */
     public static final String ICON = "icon";
 
@@ -122,36 +119,9 @@ implements Serializable {
      */
     public PushNotification(final String subject, final String detail, final URI targetURI)
     throws IllegalArgumentException {
-        this(subject, detail, targetURI, false);
-    }
-
-    /**
-     * <p>
-     *     Constructs a new PushNotification with the specified <code>subject</code>, <code>detail</code>,
-     *     <code>targetURI</code> and <code>forced</code>.
-     * </p>
-     *
-     * @param      subject
-     *                 The subject of the new PushNotification to be constructed.
-     * @param      detail
-     *                 The detail of the new PushNotification to be constructed.
-     * @param      targetURI
-     *                 The targetURI of the new PushNotification to be constructed.
-     * @param      forced
-     *                 If <code>true</code> the new PushNotification to be constructed will force a Cloud Push
-     *                 Notification.  (default: <code>false</code>)
-     * @see        #PushNotification(String, URI)
-     * @see        #PushNotification(Map)
-     * @throws     IllegalArgumentException
-     *                 If the specified <code>subject</code> and/or <code>targetURI</code> is <code>null</code> or
-     *                 empty.
-     */
-    public PushNotification(final String subject, final String detail, final URI targetURI, final boolean forced)
-    throws IllegalArgumentException {
         setSubject(subject);
         setDetail(detail);
         setTargetURI(targetURI);
-        setForced(forced);
     }
 
     /**
@@ -171,33 +141,8 @@ implements Serializable {
      */
     public PushNotification(final String subject, final URI targetURI)
     throws IllegalArgumentException {
-        this(subject, targetURI, false);
-    }
-
-    /**
-     * <p>
-     *     Constructs a new PushNotification with the specified <code>subject</code>, <code>targetURI</code> and
-     *     <code>forced</code>.
-     * </p>
-     *
-     * @param      subject
-     *                 The subject of the new PushNotification to be constructed.
-     * @param      targetURI
-     *                 The targetURI of the new PushNotification to be constructed.
-     * @param      forced
-     *                 If <code>true</code> the new PushNotification to be constructed will force a Cloud Push
-     *                 Notification.  (default: <code>false</code>)
-     * @see        #PushNotification(String, String, URI)
-     * @see        #PushNotification(Map)
-     * @throws     IllegalArgumentException
-     *                 If the specified <code>subject</code> and/or <code>targetURI</code> is <code>null</code> or
-     *                 empty.
-     */
-    public PushNotification(final String subject, final URI targetURI, final boolean forced)
-    throws IllegalArgumentException {
         setSubject(subject);
         setTargetURI(targetURI);
-        setForced(forced);
     }
 
     /**
@@ -305,10 +250,6 @@ implements Serializable {
         return (String)getAttribute(getPrefixedKey(category, TARGET_URI));
     }
 
-    public boolean isForced() {
-        return (Boolean)getAttribute(FORCED);
-    }
-
     public void setDetail(final String detail)
     throws IllegalArgumentException {
         checkArgument(
@@ -343,10 +284,6 @@ implements Serializable {
             "Illegal argument expireTime: '" + expireTime + "'.  Argument cannot be null or empty."
         );
         putAttribute(category, EXPIRE_TIME, expireTime);
-    }
-
-    public void setForced(final boolean forced) {
-        putAttribute(FORCED, forced);
     }
 
     public void setIcon(final String icon)

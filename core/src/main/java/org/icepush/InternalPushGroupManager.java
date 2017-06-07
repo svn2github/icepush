@@ -51,7 +51,8 @@ extends PushGroupManager {
         String pushID, String groupName, String payload);
 
     NotificationEntry newNotificationEntry(
-        String pushID, String groupName, String payload, Map<String, Object> propertyMap, boolean forced);
+        String pushID, String groupName, String payload, Map<String, Object> propertyMap,
+        boolean cloudNotificationForced);
 
     boolean removeConfirmationTimeout(ConfirmationTimeout confirmationTimeout);
 

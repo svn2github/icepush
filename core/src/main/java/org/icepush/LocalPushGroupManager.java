@@ -279,22 +279,22 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
 //    public boolean cancelConfirmationTimeout(
-//        final String browserID, final boolean ignoreForced) {
+//        final String browserID, final boolean ignoreCloudNotificationForced) {
 //
 //        ConfirmationTimeout _confirmationTimeout = getConfirmationTimeout(browserID);
 //        if (_confirmationTimeout != null) {
-//            _confirmationTimeout.cancel(ignoreForced);
+//            _confirmationTimeout.cancel(ignoreCloudNotificationForced);
 //            return getConfirmationTimeout(browserID) == null;
 //        }
 //        return false;
 //    }
 
     public boolean cancelConfirmationTimeouts(
-        final String browserID, final Set<String> pushIDSet, final boolean ignoreForced) {
+        final String browserID, final Set<String> pushIDSet, final boolean ignoreCloudNotificationForced) {
 
         ConfirmationTimeout _confirmationTimeout = getConfirmationTimeout(browserID);
         if (_confirmationTimeout != null) {
-            _confirmationTimeout.cancel(pushIDSet, ignoreForced);
+            _confirmationTimeout.cancel(pushIDSet, ignoreCloudNotificationForced);
             return getConfirmationTimeout(browserID) == null;
         }
         return false;
@@ -450,9 +450,9 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public NotificationEntry newNotificationEntry(
         final String pushID, final String groupName, final String payload, final Map<String, Object> propertyMap,
-        final boolean forced) {
+        final boolean cloudNotificationForced) {
 
-        return new NotificationEntry(pushID, groupName, payload, propertyMap, forced);
+        return new NotificationEntry(pushID, groupName, payload, propertyMap, cloudNotificationForced);
     }
 
     public NotifyBackURI newNotifyBackURI(final String uri) {
@@ -584,17 +584,18 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public boolean startConfirmationTimeout(
         final String browserID, final String pushID, final String groupName, final Map<String, Object> propertyMap,
-        final boolean forced) {
+        final boolean cloudNotificationForced) {
 
         return
             startConfirmationTimeout(
-                browserID, pushID, groupName, propertyMap, forced, getBrowser(browserID).getSequenceNumber()
+                browserID, pushID, groupName, propertyMap, cloudNotificationForced,
+                getBrowser(browserID).getSequenceNumber()
             );
     }
 
     public boolean startConfirmationTimeout(
         final String browserID, final String pushID, final String groupName, final Map<String, Object> propertyMap,
-        final boolean forced, final long sequenceNumber) {
+        final boolean cloudNotificationForced, final long sequenceNumber) {
 
         Browser browser = getBrowser(browserID);
         if (browser.isCloudPushEnabled()) {
@@ -605,7 +606,7 @@ implements InternalPushGroupManager, PushGroupManager {
                 LOGGER.log(Level.FINE, "Calculated confirmation timeout: '" + timeout + "'");
                 return
                     startConfirmationTimeout(
-                        browserID, pushID, groupName, propertyMap, forced, sequenceNumber, timeout
+                        browserID, pushID, groupName, propertyMap, cloudNotificationForced, sequenceNumber, timeout
                     );
             }
         }
@@ -614,7 +615,7 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public boolean startConfirmationTimeout(
         final String browserID, final String pushID, final String groupName, final Map<String, Object> propertyMap,
-        final boolean forced, final long sequenceNumber, final long timeout) {
+        final boolean cloudNotificationForced, final long sequenceNumber, final long timeout) {
 
         Browser browser = getBrowser(browserID);
         if (browser.isCloudPushEnabled()) {
@@ -637,7 +638,7 @@ implements InternalPushGroupManager, PushGroupManager {
                     getConfirmationTimeoutMap().put(browserID, _confirmationTimeout);
                 }
                 try {
-                    _confirmationTimeout.schedule(pushID, propertyMap, forced, timeout);
+                    _confirmationTimeout.schedule(pushID, propertyMap, cloudNotificationForced, timeout);
                     return true;
                 } catch (final IllegalStateException exception) {
                     // timeoutTimer was cancelled or its timer thread terminated.
@@ -1861,7 +1862,7 @@ implements InternalPushGroupManager, PushGroupManager {
             startConfirmationTimeout(
                 _pushID.getBrowserID(),
                 notificationEntry.getPushID(), notificationEntry.getGroupName(), notificationEntry.getPropertyMap(),
-                notificationEntry.isForced()
+                notificationEntry.isCloudNotificationForced()
             );
         }
     }
