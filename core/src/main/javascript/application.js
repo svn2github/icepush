@@ -272,11 +272,12 @@ if (!window.ice.icepush) {
                     }));
                 },
 
-                deletePushId: function (id) {
+                deletePushId: function (id, resultCallback) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/push-ids/' + encodeURIComponent(id);
                     deleteAsynchronously(apiChannel, uri, function (query) {
                         addNameValue(query, "access_token", configuration.access_token);
                     }, JSONRequest, $witch(function (condition) {
+                        condition(NOCONTENT, resultCallback || noop);
                         condition(ServerInternalError, throwServerError);
                     }));
                 },
@@ -327,12 +328,13 @@ if (!window.ice.icepush) {
                     }));
                 },
 
-                removeGroupMember: function (group, id) {
+                removeGroupMember: function (group, id, resultCallback) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/groups/' + group + '/push-ids/' + id;
                     deleteAsynchronously(apiChannel, uri, function (query) {
                         addNameValue(query, "access_token", configuration.access_token);
                         addNameValue(query, "op", "delete");
                     }, JSONRequest, $witch(function (condition) {
+                        condition(NOCONTENT, resultCallback || noop);
                         condition(ServerInternalError, throwServerError);
                     }));
                 },
@@ -350,12 +352,13 @@ if (!window.ice.icepush) {
                     }));
                 },
 
-                removeNotifyBackURI: function () {
+                removeNotifyBackURI: function (resultCallback) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/browsers/' + browserID() + '/notify-back-uris';
                     deleteAsynchronously(apiChannel, uri, function (query) {
                         addNameValue(query, "access_token", configuration.access_token);
                         addNameValue(query, "op", "remove");
                     }, JSONRequest, $witch(function (condition) {
+                        condition(NOCONTENT, resultCallback || noop);
                         condition(ServerInternalError, throwServerError);
                     }));
                 },
