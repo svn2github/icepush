@@ -311,7 +311,7 @@ if (!window.ice.icepush) {
                     }));
                 },
 
-                addGroupMember: function (group, id, option) {
+                addGroupMember: function (group, id, option, resultCallback) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/groups/' + group + '/push-ids/' + id + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=add';
                     var body = JSON.stringify({
                         'access_token': configuration.access_token,
@@ -322,6 +322,7 @@ if (!window.ice.icepush) {
                         }
                     });
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
+                        condition(NOCONTENT, resultCallback || noop);
                         condition(ServerInternalError, throwServerError);
                     }));
                 },
@@ -336,7 +337,7 @@ if (!window.ice.icepush) {
                     }));
                 },
 
-                addNotifyBackURI: function (notifyBackURI) {
+                addNotifyBackURI: function (notifyBackURI, resultCallback) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/browsers/' + browserID() + '/notify-back-uris/' + notifyBackURI + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=add';
                     var body = JSON.stringify({
                         'access_token': configuration.access_token,
@@ -344,6 +345,7 @@ if (!window.ice.icepush) {
                         'op': 'add'
                     });
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
+                        condition(NOCONTENT, resultCallback || noop);
                         condition(ServerInternalError, throwServerError);
                     }));
                 },
