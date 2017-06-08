@@ -1566,13 +1566,19 @@ implements InternalPushGroupManager, PushGroupManager {
     protected boolean isOutOfBandNotification(final Map<String, Object> propertyMap) {
         return
             isNotNullAndIsNotEmpty(propertyMap) &&
-            containsEndingWith(propertyMap.keySet(), "$subject");
+            (
+                containsEndingWith(propertyMap.keySet(), "$silent") ||
+                containsEndingWith(propertyMap.keySet(), "$subject")
+            );
     }
 
     protected boolean isOutOfBandNotification(final PushConfiguration pushConfiguration) {
         return
             isNotNull(pushConfiguration) &&
-            containsEndingWith(pushConfiguration.getAttributeMap().keySet(), "$subject");
+            (
+                containsEndingWith(pushConfiguration.getAttributeMap().keySet(), "$silent") ||
+                containsEndingWith(pushConfiguration.getAttributeMap().keySet(), "$subject")
+            );
     }
 
     protected Browser newBrowser(final String browserID) {
