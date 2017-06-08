@@ -339,12 +339,17 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public boolean createPushID(final String pushID) {
         return
-            createPushID(getModifiablePushIDMap(), pushID, getDefaultPushIDTimeout(), getDefaultCloudPushIDTimeout());
+            createPushID(
+                getModifiablePushIDMap(), getModifiableBrowserMap(), pushID, getDefaultPushIDTimeout(),
+                getDefaultCloudPushIDTimeout()
+            );
     }
 
     public boolean createPushID(final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
         return
-            createPushID(getModifiablePushIDMap(), pushID, pushIDTimeout, cloudPushIDTimeout);
+            createPushID(
+                getModifiablePushIDMap(), getModifiableBrowserMap(), pushID, pushIDTimeout, cloudPushIDTimeout
+            );
     }
 
     public boolean deletePushID(final String pushID) {
@@ -922,14 +927,16 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected boolean createPushID(
-        final ConcurrentMap<String, PushID> pushIDMap, final String pushID, final long pushIDTimeout,
-        final long cloudPushIDTimeout) {
+        final ConcurrentMap<String, PushID> pushIDMap, final ConcurrentMap<String, Browser> browserMap,
+        final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
 
         boolean _modified;
         if (!pushIDMap.containsKey(pushID)) {
             PushID _pushID = newPushID(pushID, pushIDTimeout, cloudPushIDTimeout);
             pushIDMap.put(pushID, _pushID);
-            addBrowser(newBrowser(_pushID.getBrowserID()));
+            if (!browserMap.containsKey(_pushID.getBrowserID())) {
+                addBrowser(newBrowser(_pushID.getBrowserID()));
+            }
             _pushID.startExpiryTimeout(getInitialPushIDTimeout());
             _modified = true;
         } else {
