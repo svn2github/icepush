@@ -312,16 +312,19 @@ if (!window.ice.icepush) {
                     }));
                 },
 
-                addGroupMember: function (group, id, option, resultCallback) {
+                addGroupMember: function (group, id, cloudEnabled, resultCallback) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/groups/' + group + '/push-ids/' + id + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=add';
-                    var body = JSON.stringify({
+                    var parameters = {
                         'access_token': configuration.access_token,
                         'browser': browserID(),
-                        'op': 'add',
-                        'push_configuration': {
-                            'cloud_push': !!option
+                        'op': 'add'
+                    };
+                    if (cloudEnabled) {
+                        parameters.push_configuration = {
+                            'cloud_notification_enabled': true
                         }
-                    });
+                    }
+                    var body = JSON.stringify(parameters);
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
                         condition(NOCONTENT, resultCallback || noop);
                         condition(ServerInternalError, throwServerError);
