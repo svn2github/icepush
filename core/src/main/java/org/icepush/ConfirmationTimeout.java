@@ -309,7 +309,7 @@ implements DatabaseEntity, Serializable {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
                 Level.FINE,
-                "Scheduling, executing or cancelling Configuration Timeouts for Browser '" + getBrowserID() + "'...  " +
+                "Scheduling, executing or cancelling Confirmation Timeouts for Browser '" + getBrowserID() + "'...  " +
                     "[now: '" + new Date(System.currentTimeMillis()) + "']"
             );
         }
@@ -470,7 +470,7 @@ implements DatabaseEntity, Serializable {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE,
-                    "Rescheduling Configuration Timeouts for Browser '" + getBrowserID() + "'...  " +
+                    "Rescheduling Confirmation Timeouts for Browser '" + getBrowserID() + "'...  " +
                         "[now: '" + new Date(System.currentTimeMillis()) + "']"
                 );
             }
@@ -558,7 +558,7 @@ implements DatabaseEntity, Serializable {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE,
-                    "Executing Configuration Timeouts for Browser '" + getBrowserID() + "'...  " +
+                    "Executing Confirmation Timeouts for Browser '" + getBrowserID() + "'...  " +
                         "[now: '" + new Date(System.currentTimeMillis()) + "']"
                 );
             }
@@ -668,7 +668,7 @@ implements DatabaseEntity, Serializable {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE,
-                    "Executing or cancelling Configuration Timeouts for Browser '" + getBrowserID() + "'...  " +
+                    "Executing or cancelling Confirmation Timeouts for Browser '" + getBrowserID() + "'...  " +
                         "[now: '" + new Date(System.currentTimeMillis()) + "']"
                 );
             }
