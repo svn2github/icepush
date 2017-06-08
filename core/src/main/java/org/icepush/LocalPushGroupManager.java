@@ -339,17 +339,12 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public boolean createPushID(final String pushID) {
         return
-            createPushID(
-                getModifiablePushIDMap(), getModifiableBrowserMap(), pushID, getDefaultPushIDTimeout(),
-                getDefaultCloudPushIDTimeout()
-            );
+            createPushID(getModifiablePushIDMap(), pushID, getDefaultPushIDTimeout(), getDefaultCloudPushIDTimeout());
     }
 
     public boolean createPushID(final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
         return
-            createPushID(
-                getModifiablePushIDMap(), getModifiableBrowserMap(), pushID, pushIDTimeout, cloudPushIDTimeout
-            );
+            createPushID(getModifiablePushIDMap(), pushID, pushIDTimeout, cloudPushIDTimeout);
     }
 
     public boolean deletePushID(final String pushID) {
@@ -603,25 +598,6 @@ implements InternalPushGroupManager, PushGroupManager {
         final boolean cloudNotificationForced, final long sequenceNumber) {
 
         Browser browser = getBrowser(browserID);
-        LOGGER.info(
-            "[Jack] --==> " +
-                "LocalPushGroupManager.startConfirmationTimeout(" +
-                    "browserID: '" + browserID + "', " +
-                    "pushID: '" + pushID + "', " +
-                    "groupName: '" + groupName + "', " +
-                    "propertyMap: '" + propertyMap + "', " +
-                    "cloudNotificationForced: '" + cloudNotificationForced + "', " +
-                    "sequenceNumber: '" + sequenceNumber + "'" +
-                ") :: " +
-                    "Browser: '" + browser + "', " +
-                    "Cloud-Push: '" + browser.isCloudPushEnabled() + "', " +
-                    "Notify-Back-URI: '" + getNotifyBackURI(browser.getNotifyBackURI()) + "'"
-        );
-        LOGGER.info("[Jack] --==> Browser Map:");
-        for (final Map.Entry<String, Browser> _browserEntry : browserMap.entrySet()) {
-            LOGGER.info("[Jack] --==> * Browser Entry :: Key: '" + _browserEntry.getKey() + "', Value: '" + _browserEntry.getValue() + "'");
-        }
-        LOGGER.info("[Jack] --==> Notify-Back-URI Map: '" + notifyBackURIMap + "'");
         if (browser.isCloudPushEnabled()) {
             NotifyBackURI notifyBackURI = getNotifyBackURI(browser.getNotifyBackURI());
             if (notifyBackURI != null) {
@@ -642,22 +618,6 @@ implements InternalPushGroupManager, PushGroupManager {
         final boolean cloudNotificationForced, final long sequenceNumber, final long timeout) {
 
         Browser browser = getBrowser(browserID);
-        LOGGER.info(
-            "[Jack] --==> " +
-                "LocalPushGroupManager.startConfirmationTimeout(" +
-                    "browserID: '" + browserID + "', " +
-                    "pushID: '" + pushID + "', " +
-                    "groupName: '" + groupName + "', " +
-                    "propertyMap: '" + propertyMap + "', " +
-                    "cloudNotificationForced: '" + cloudNotificationForced + "', " +
-                    "sequenceNumber: '" + sequenceNumber + "', " +
-                    "timeout: '" + timeout + "'" +
-                ") :: " +
-                    "Browser: '" + browser + "', " +
-                    "Cloud-Push: '" + browser.isCloudPushEnabled() + "', " +
-                    "Notify-Back-URI: '" + getNotifyBackURI(browser.getNotifyBackURI()) + "', " +
-                    "Confirmation Timeout: '" + getConfirmationTimeoutMap().get(browserID) + "'"
-        );
         if (browser.isCloudPushEnabled()) {
             NotifyBackURI notifyBackURI = getNotifyBackURI(browser.getNotifyBackURI());
             if (notifyBackURI != null &&
@@ -861,10 +821,6 @@ implements InternalPushGroupManager, PushGroupManager {
                 }
             }
         }
-        LOGGER.info("[Jack] --==> Browser Map:");
-        for (final Map.Entry<String, Browser> _browserEntry : this.browserMap.entrySet()) {
-            LOGGER.info("[Jack] --==> * Browser Entry :: Key: '" + _browserEntry.getKey() + "', Value: '" + _browserEntry.getValue() + "'");
-        }
         return _modified;
     }
 
@@ -886,7 +842,6 @@ implements InternalPushGroupManager, PushGroupManager {
         final ConcurrentMap<String, PushID> pushIDMap, final String browserID, final URI notifyBackURI) {
 
         boolean _modified;
-        LOGGER.info("[Jack] --==> Browser-ID: '" + browserID + "', Notify-Back-URI: '" + notifyBackURI + "'");
         NotifyBackURI _notifyBackURI = notifyBackURIMap.get(notifyBackURI.toString());
         if (_notifyBackURI == null) {
             _notifyBackURI = newNotifyBackURI(notifyBackURI.toString());
@@ -900,11 +855,6 @@ implements InternalPushGroupManager, PushGroupManager {
             addBrowser(newBrowser(browserID));
         }
         browserMap.get(browserID).setNotifyBackURI(_notifyBackURI.getURI(), true);
-        LOGGER.info("[Jack] --==> Browser Map:");
-        for (final Map.Entry<String, Browser> _browserEntry : this.browserMap.entrySet()) {
-            LOGGER.info("[Jack] --==> * Browser Entry :: Key: '" + _browserEntry.getKey() + "', Value: '" + _browserEntry.getValue() + "'");
-        }
-        LOGGER.info("[Jack] --==> Notify-Back-URI Map: '" + notifyBackURIMap + "'");
         for (final String _pushID : pushIDMap.keySet()) {
             if (isEqual(pushIDMap.get(_pushID).getBrowserID(), browserID)) {
                 cancelExpiryTimeout(_pushID);
@@ -972,16 +922,14 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     protected boolean createPushID(
-        final ConcurrentMap<String, PushID> pushIDMap, final ConcurrentMap<String, Browser> browserMap,
-        final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
+        final ConcurrentMap<String, PushID> pushIDMap, final String pushID, final long pushIDTimeout,
+        final long cloudPushIDTimeout) {
 
         boolean _modified;
         if (!pushIDMap.containsKey(pushID)) {
             PushID _pushID = newPushID(pushID, pushIDTimeout, cloudPushIDTimeout);
             pushIDMap.put(pushID, _pushID);
-            if (!browserMap.containsKey(_pushID.getBrowserID())) {
-                addBrowser(newBrowser(_pushID.getBrowserID()));
-            }
+            addBrowser(newBrowser(_pushID.getBrowserID()));
             _pushID.startExpiryTimeout(getInitialPushIDTimeout());
             _modified = true;
         } else {
@@ -1916,13 +1864,6 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected void startConfirmationTimeout(final NotificationEntry notificationEntry) {
         PushID _pushID = getPushID(notificationEntry.getPushID());
-        LOGGER.info(
-            "[Jack] --==> " +
-                "LocalPushGroupManager.startConfirmationTimeout(" +
-                    "notificationEntry: '" + notificationEntry + "'" +
-                ") :: " +
-                    "Push-ID '" + _pushID + "'"
-        );
         if (_pushID != null) {
             startConfirmationTimeout(
                 _pushID.getBrowserID(),
