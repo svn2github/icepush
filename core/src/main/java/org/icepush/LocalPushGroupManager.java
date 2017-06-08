@@ -598,6 +598,20 @@ implements InternalPushGroupManager, PushGroupManager {
         final boolean cloudNotificationForced, final long sequenceNumber) {
 
         Browser browser = getBrowser(browserID);
+        LOGGER.info(
+            "[Jack] --==> " +
+                "LocalPushGroupManager.startConfirmationTimeout(" +
+                    "browserID: '" + browserID + "', " +
+                    "pushID: '" + pushID + "', " +
+                    "groupName: '" + groupName + "', " +
+                    "propertyMap: '" + propertyMap + "', " +
+                    "cloudNotificationForced: '" + cloudNotificationForced + "', " +
+                    "sequenceNumber: '" + sequenceNumber + "'" +
+                ") :: " +
+                    "Browser: '" + browser + "', " +
+                    "Cloud-Push: '" + browser.isCloudPushEnabled() + "', " +
+                    "Notify-Back-URI: '" + getNotifyBackURI(browser.getNotifyBackURI()) + "'"
+        );
         if (browser.isCloudPushEnabled()) {
             NotifyBackURI notifyBackURI = getNotifyBackURI(browser.getNotifyBackURI());
             if (notifyBackURI != null) {
@@ -618,6 +632,22 @@ implements InternalPushGroupManager, PushGroupManager {
         final boolean cloudNotificationForced, final long sequenceNumber, final long timeout) {
 
         Browser browser = getBrowser(browserID);
+        LOGGER.info(
+            "[Jack] --==> " +
+                "LocalPushGroupManager.startConfirmationTimeout(" +
+                    "browserID: '" + browserID + "', " +
+                    "pushID: '" + pushID + "', " +
+                    "groupName: '" + groupName + "', " +
+                    "propertyMap: '" + propertyMap + "', " +
+                    "cloudNotificationForced: '" + cloudNotificationForced + "', " +
+                    "sequenceNumber: '" + sequenceNumber + "', " +
+                    "timeout: '" + timeout + "'" +
+                ") :: " +
+                    "Browser: '" + browser + "', " +
+                    "Cloud-Push: '" + browser.isCloudPushEnabled() + "', " +
+                    "Notify-Back-URI: '" + getNotifyBackURI(browser.getNotifyBackURI()) + "', " +
+                    "Confirmation Timeout: '" + getConfirmationTimeoutMap().get(browserID) + "'"
+        );
         if (browser.isCloudPushEnabled()) {
             NotifyBackURI notifyBackURI = getNotifyBackURI(browser.getNotifyBackURI());
             if (notifyBackURI != null &&
@@ -1864,6 +1894,13 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected void startConfirmationTimeout(final NotificationEntry notificationEntry) {
         PushID _pushID = getPushID(notificationEntry.getPushID());
+        LOGGER.info(
+            "[Jack] --==> " +
+                "LocalPushGroupManager.startConfirmationTimeout(" +
+                    "notificationEntry: '" + notificationEntry + "'" +
+                ") :: " +
+                    "Push-ID '" + _pushID + "'"
+        );
         if (_pushID != null) {
             startConfirmationTimeout(
                 _pushID.getBrowserID(),
