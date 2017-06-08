@@ -892,7 +892,7 @@ implements InternalPushGroupManager, PushGroupManager {
         }
         browserMap.get(browserID).setNotifyBackURI(_notifyBackURI.getURI(), true);
         LOGGER.info("[Jack] --==> Browser Map:");
-        for (final Map.Entry<String, Browser> _browserEntry : browserMap.entrySet()) {
+        for (final Map.Entry<String, Browser> _browserEntry : this.browserMap.entrySet()) {
             LOGGER.info("[Jack] --==> * Browser Entry :: Key: '" + _browserEntry.getKey() + "', Value: '" + _browserEntry.getValue() + "'");
         }
         LOGGER.info("[Jack] --==> Notify-Back-URI Map: '" + notifyBackURIMap + "'");
