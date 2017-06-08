@@ -612,7 +612,10 @@ implements InternalPushGroupManager, PushGroupManager {
                     "Cloud-Push: '" + browser.isCloudPushEnabled() + "', " +
                     "Notify-Back-URI: '" + getNotifyBackURI(browser.getNotifyBackURI()) + "'"
         );
-        LOGGER.info("[Jack] --==> Browser Map: '" + browserMap + "'");
+        LOGGER.info("[Jack] --==> Browser Map:");
+        for (final Map.Entry<String, Browser> _browserEntry : browserMap.entrySet()) {
+            LOGGER.info("[Jack] --==> * Browser Entry :: Key: '" + _browserEntry.getKey() + "', Value: '" + _browserEntry.getValue() + "'");
+        }
         LOGGER.info("[Jack] --==> Notify-Back-URI Map: '" + notifyBackURIMap + "'");
         if (browser.isCloudPushEnabled()) {
             NotifyBackURI notifyBackURI = getNotifyBackURI(browser.getNotifyBackURI());
@@ -888,7 +891,10 @@ implements InternalPushGroupManager, PushGroupManager {
             addBrowser(newBrowser(browserID));
         }
         browserMap.get(browserID).setNotifyBackURI(_notifyBackURI.getURI(), true);
-        LOGGER.info("[Jack] --==> Browser Map: '" + browserMap + "'");
+        LOGGER.info("[Jack] --==> Browser Map:");
+        for (final Map.Entry<String, Browser> _browserEntry : browserMap.entrySet()) {
+            LOGGER.info("[Jack] --==> * Browser Entry :: Key: '" + _browserEntry.getKey() + "', Value: '" + _browserEntry.getValue() + "'");
+        }
         LOGGER.info("[Jack] --==> Notify-Back-URI Map: '" + notifyBackURIMap + "'");
         for (final String _pushID : pushIDMap.keySet()) {
             if (isEqual(pushIDMap.get(_pushID).getBrowserID(), browserID)) {
