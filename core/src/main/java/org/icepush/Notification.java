@@ -162,6 +162,7 @@ implements DatabaseEntity, Runnable, Serializable {
                 for (final String pushID : _pushIDSet) {
                     _notificationEntrySet.add(newNotificationEntry(pushID));
                 }
+                fireOnBeforeBroadcast(new NotificationEvent(this, _notificationEntrySet));
                 filterNotificationEntrySet(_notificationEntrySet);
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
@@ -171,7 +172,6 @@ implements DatabaseEntity, Runnable, Serializable {
                     );
                 }
                 getInternalPushGroupManager().addAllNotificationEntries(_notificationEntrySet);
-                fireOnBeforeBroadcast(new NotificationEvent(this, _notificationEntrySet));
                 getInternalPushGroupManager().
                     broadcastNotificationEntries(_notificationEntrySet, getDuration(), getGroupName());
             }

@@ -21,6 +21,7 @@ import static org.icesoft.util.ObjectUtilities.isNotEqual;
 import static org.icesoft.util.StringUtilities.containsEndingWith;
 
 import java.io.Serializable;
+import java.io.StringReader;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -43,6 +44,8 @@ import org.mongodb.morphia.annotations.Embedded;
 import org.mongodb.morphia.annotations.Entity;
 import org.mongodb.morphia.annotations.Id;
 import org.mongodb.morphia.annotations.Transient;
+
+import javax.json.Json;
 
 @Entity(value = "confirmation_timeouts")
 public class ConfirmationTimeout
@@ -538,6 +541,10 @@ implements DatabaseEntity, Serializable {
                     } else {
                         _propertyMap = new HashMap<String, Object>();
                         _categoryToPropertyMap.put(_category, _propertyMap);
+                    }
+                    if (_value instanceof String && ((String)_value).startsWith("json:")) {
+                        _value =
+                            Json.createReader(new StringReader(((String)_value).substring("json:".length()))).read();
                     }
                     _propertyMap.put(_key.substring(_key.indexOf("$") + 1), _value);
                 } else {

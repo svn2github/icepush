@@ -16,9 +16,12 @@
 package org.icepush;
 
 import static org.icesoft.util.MapUtilities.isNotNullAndIsNotEmpty;
+import static org.icesoft.util.MapUtilities.isNullOrIsEmpty;
 import static org.icesoft.util.ObjectUtilities.isEqual;
 import static org.icesoft.util.ObjectUtilities.isNotNull;
+import static org.icesoft.util.ObjectUtilities.isNull;
 import static org.icesoft.util.StringUtilities.containsEndingWith;
+import static org.icesoft.util.StringUtilities.getEndingWith;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
 import java.net.URI;
@@ -1570,16 +1573,33 @@ implements InternalPushGroupManager, PushGroupManager {
         return browserMap.containsKey(browserID) && browserMap.get(browserID).hasNotifyBackURI();
     }
 
+    protected boolean isNotification(final Map<String, Object> propertyMap) {
+        return
+            isNullOrIsEmpty(propertyMap) ||
+            (
+                !containsEndingWith(propertyMap.keySet(), "$silent") ||
+                !getEndingWith(propertyMap, "$silent").contains(Boolean.TRUE)
+            );
+    }
+
+    protected boolean isNotification(final PushConfiguration pushConfiguration) {
+        return isNull(pushConfiguration) || isNotification(pushConfiguration.getAttributeMap());
+    }
+
     protected boolean isOutOfBandNotification(final Map<String, Object> propertyMap) {
         return
             isNotNullAndIsNotEmpty(propertyMap) &&
-            containsEndingWith(propertyMap.keySet(), "$subject");
+            (
+                (
+                    containsEndingWith(propertyMap.keySet(), "$silent") &&
+                    getEndingWith(propertyMap, "$silent").contains(Boolean.TRUE)
+                ) ||
+                containsEndingWith(propertyMap.keySet(), "$subject")
+            );
     }
 
     protected boolean isOutOfBandNotification(final PushConfiguration pushConfiguration) {
-        return
-            isNotNull(pushConfiguration) &&
-            containsEndingWith(pushConfiguration.getAttributeMap().keySet(), "$subject");
+        return isNotNull(pushConfiguration) && isOutOfBandNotification(pushConfiguration.getAttributeMap());
     }
 
     protected Browser newBrowser(final String browserID) {

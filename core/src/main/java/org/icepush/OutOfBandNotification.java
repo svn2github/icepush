@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -77,6 +78,8 @@ implements DatabaseEntity, Runnable, Serializable {
             if (_attributeEntry.getValue() instanceof Boolean) {
                 if (_attributeEntry.getKey().equals("cloudNotificationForced")) {
                     _cloudNotificationForced = (Boolean)_attributeEntry.getValue();
+                } else {
+                    _propertyMap.put(_attributeEntry.getKey(), _attributeEntry.getValue());
                 }
             } else {
                 _propertyMap.put(_attributeEntry.getKey(), _attributeEntry.getValue());
@@ -95,9 +98,27 @@ implements DatabaseEntity, Runnable, Serializable {
     public boolean equals(final Object object) {
         return
             object instanceof OutOfBandNotification &&
-                ((OutOfBandNotification)object).getModifiablePropertyMap().entrySet().containsAll(getModifiablePropertyMap().entrySet()) &&
-                ((OutOfBandNotification)object).getModifiablePropertyMap().size() == getModifiablePropertyMap().size() &&
+                ((OutOfBandNotification)object).
+                    getModifiablePropertyMap().entrySet().containsAll(getModifiablePropertyMap().entrySet()) &&
+                ((OutOfBandNotification)object).
+                    getModifiablePropertyMap().size() == getModifiablePropertyMap().size() &&
                 super.equals(object);
+    }
+
+    @Override
+    protected void filterNotificationEntrySet(final Set<NotificationEntry> notificationEntrySet) {
+        super.filterNotificationEntrySet(notificationEntrySet);
+        Iterator<NotificationEntry> _notificationEntryIterator = notificationEntrySet.iterator();
+        while (_notificationEntryIterator.hasNext()) {
+            NotificationEntry _notificationEntry = _notificationEntryIterator.next();
+            if (((LocalPushGroupManager)getInternalPushGroupManager()).
+                    isOutOfBandNotification(_notificationEntry.getPropertyMap()) &&
+                !((LocalPushGroupManager)getInternalPushGroupManager()).
+                    isNotification(_notificationEntry.getPropertyMap())) {
+
+                _notificationEntryIterator.remove();
+            }
+        }
     }
 
     public Object getProperty(final String key) {
