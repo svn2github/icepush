@@ -610,7 +610,8 @@ implements InternalPushGroupManager, PushGroupManager {
             NotifyBackURI notifyBackURI = getNotifyBackURI(browser.getNotifyBackURI());
             if (notifyBackURI != null) {
                 long now = System.currentTimeMillis();
-                long timeout = browser.getStatus().getConnectionRecreationTimeout() * 2;
+                long timeout =
+                    cloudNotificationForced ? 0L : browser.getStatus().getConnectionRecreationTimeout() * 2;
                 LOGGER.log(Level.FINE, "Calculated confirmation timeout: '" + timeout + "'");
                 return
                     startConfirmationTimeout(
