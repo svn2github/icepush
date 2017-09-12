@@ -48,8 +48,6 @@ import org.icesoft.util.servlet.ExtensionRegistry;
 public class MainServlet implements PseudoServlet {
     private static final Logger LOGGER = Logger.getLogger(MainServlet.class.getName());
 
-    private final static HashSet<TraceListener> TRACE_LISTENERS = new HashSet<TraceListener>();
-
     private final PathDispatcher pathDispatcher;
     private final Timer monitoringScheduler;
     private final PushContext pushContext;
@@ -140,10 +138,6 @@ public class MainServlet implements PseudoServlet {
         addDispatches();
     }
 
-    public static void addTraceListener(TraceListener listener)  {
-        TRACE_LISTENERS.add(listener);
-    }
-
     public void dispatchOn(final String pattern, final PseudoServlet servlet) {
         getPathDispatcher().dispatchOn(pattern, servlet);
     }
@@ -180,12 +174,6 @@ public class MainServlet implements PseudoServlet {
         getPathDispatcher().shutdown();
         ((PushGroupManager)PushInternalContext.getInstance().getAttribute(PushGroupManager.class.getName())).shutdown();
         getMonitoringScheduler().cancel();
-    }
-
-    public static void trace(final String message)  {
-        for (TraceListener listener : TRACE_LISTENERS)  {
-            listener.handleTrace(message);
-        }
     }
 
     protected void addBrowserBoundDispatch() {
@@ -288,12 +276,6 @@ public class MainServlet implements PseudoServlet {
 
     protected PseudoServlet newNotifyPushID() {
         return new NotifyPushID(getPushContext());
-    }
-
-    //Application can add itself as a TraceListener to receive
-    //diagnostic message callbacks when cloud push occurs
-    public interface TraceListener  {
-        public void handleTrace(String message);
     }
 
     public static class ExtensionRegistration

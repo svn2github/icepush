@@ -38,7 +38,6 @@ implements PushRequest, Request {
     private String cachedBrowserID;
     private Long cachedHeartbeatInterval;
     private Long cachedHeartbeatTimestamp;
-    private String cachedNotifyBackURI;
     private Set<String> cachedPushIDSet;
     private Long cachedSequenceNumber;
     private String cachedWindowID;

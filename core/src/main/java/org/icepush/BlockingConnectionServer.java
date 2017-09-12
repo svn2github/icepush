@@ -228,7 +228,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
                 "ICEpush metric:" +
                     " IP: " + pushRequest.getRemoteAddr() +
                     " pushIds: " + browser.getPushIDSet() +
-                    " Cloud Push ID: " + browser.getNotifyBackURI() +
                     " Browser: " + browser.getID() +
                     " last request: " + elapsed +
                     " Latency: " + currentResponseDelay);
@@ -482,15 +481,8 @@ implements NotificationBroadcaster.Receiver, PushServer {
                 boolean resend = !lastWindow.equals(currentWindow);
                 lastWindow = currentWindow;
                 getPushGroupManager().scan(getPushGroupManager().getBrowser(getBrowserID()).getPushIDSet());
-                getPushGroupManager().getBrowser(getBrowserID()).cancelConfirmationTimeout(false);
                 getPushGroupManager().cancelExpiryTimeouts(getPushGroupManager().getBrowser(getBrowserID()).getID());
                 getPushGroupManager().startExpiryTimeouts(getPushGroupManager().getBrowser(getBrowserID()).getID());
-                if (null != getPushGroupManager().getBrowser(getBrowserID()).getNotifyBackURI())  {
-                    getPushGroupManager().
-                        pruneParkedIDs(
-                            getPushGroupManager().getBrowser(getBrowserID()).getNotifyBackURI(),
-                            getPushGroupManager().getBrowser(getBrowserID()).getPushIDSet());
-                }
                 if (!respondToIfBackOffRequested(pushRequest)) {
                     // No response has been sent to the request.
                     if (!sendNotificationsTo(pushRequest, getPushGroupManager().getPendingNotificationSet())) {

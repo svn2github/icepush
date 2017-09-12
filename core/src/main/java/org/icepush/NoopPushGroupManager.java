@@ -15,14 +15,11 @@
  */
 package org.icepush;
 
-import java.net.URI;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.icesoft.notify.cloud.core.CloudNotificationService;
 
 public class NoopPushGroupManager
 implements PushGroupManager {
@@ -44,19 +41,7 @@ implements PushGroupManager {
         return false;
     }
 
-    public boolean addMember(final String groupName, final String pushID, final PushConfiguration pushConfiguration) {
-        return false;
-    }
-
     public void addNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
-    }
-
-    public boolean addNotifyBackURI(final NotifyBackURI notifyBackURI) {
-        return false;
-    }
-
-    public boolean addNotifyBackURI(final String browserID, final URI notifyBackURI) {
-        return false;
     }
 
     public void addPushGroupListener(final PushGroupListener listener) {
@@ -78,7 +63,7 @@ implements PushGroupManager {
         return false;
     }
 
-    public boolean createPushID(final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
+    public boolean createPushID(final String pushID, final long pushIDTimeout) {
         return false;
     }
 
@@ -94,31 +79,12 @@ implements PushGroupManager {
         return Collections.EMPTY_MAP;
     }
 
-    public CloudNotificationService getCloudNotificationService() {
-        return null;
-    }
-
-    public NotifyBackURI getNotifyBackURI(final String notifyBackURI) {
-        return null;
-    }
-
     public Set<NotificationEntry> getPendingNotificationSet() {
         return Collections.emptySet();
     }
 
     public PushID getPushID(final String pushIDString) {
         return null;
-    }
-
-    public boolean hasNotifyBackURI(final String browserID) {
-        return false;
-    }
-
-    public NotifyBackURI newNotifyBackURI(final String uri) {
-        return null;
-    }
-
-    public void park(final String pushID, final String notifyBackURI) {
     }
 
     public void push(final String groupName) {
@@ -133,9 +99,6 @@ implements PushGroupManager {
     public void push(final String groupName, final String payload, final PushConfiguration pushConfiguration) {
     }
 
-    public void pruneParkedIDs(final String notifyBackURI, final Set<String> listenedPushIDSet)  {
-    }
-
     public void removeBlockingConnectionServer(final String browserID) {
     }
 
@@ -148,10 +111,6 @@ implements PushGroupManager {
     }
 
     public void removeNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
-    }
-
-    public boolean removeNotifyBackURI(final String browserID) {
-        return false;
     }
 
     public void removePushGroupListener(final PushGroupListener listener) {

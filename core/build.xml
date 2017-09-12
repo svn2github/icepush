@@ -93,7 +93,6 @@
             <fileset dir="${java.dir}" defaultexcludes="yes">
                 <include name="org/icepush/PushConfiguration.java"/>
                 <include name="org/icepush/PushContext.java"/>
-                <include name="org/icepush/PushNotification.java"/>
             </fileset>
             <classpath>
                 <fileset dir="${root.offset}/${lib.dir}">

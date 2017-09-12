@@ -13,7 +13,6 @@ import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 
 import org.icepush.util.AnnotationScanner;
-import org.icesoft.notify.cloud.core.CloudNotificationService;
 
 @WebListener
 public class AutoSystemConfigurator
@@ -68,6 +67,5 @@ implements ServletContextListener {
             }
             // Do nothing.
         }
-        CloudNotificationService.wakeUpAllAsSetUpIsComplete(_servletContext);
     }
 }

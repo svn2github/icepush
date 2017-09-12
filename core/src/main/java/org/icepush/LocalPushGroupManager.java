@@ -15,16 +15,12 @@
  */
 package org.icepush;
 
-import static org.icesoft.util.MapUtilities.isNotNullAndIsNotEmpty;
 import static org.icesoft.util.MapUtilities.isNullOrIsEmpty;
-import static org.icesoft.util.ObjectUtilities.isEqual;
-import static org.icesoft.util.ObjectUtilities.isNotNull;
 import static org.icesoft.util.ObjectUtilities.isNull;
 import static org.icesoft.util.StringUtilities.containsEndingWith;
 import static org.icesoft.util.StringUtilities.getEndingWith;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
-import java.net.URI;
 import java.util.AbstractCollection;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -55,8 +51,6 @@ import javax.servlet.ServletContextListener;
 import org.icepush.servlet.ServletContextConfiguration;
 import org.icepush.util.DatabaseBackedConcurrentMap;
 import org.icepush.util.DatabaseBackedQueue;
-import org.icesoft.notify.cloud.core.CloudNotificationService;
-import org.icesoft.notify.cloud.core.LocalCloudNotificationService;
 import org.icesoft.util.servlet.ExtensionRegistry;
 
 import org.mongodb.morphia.Datastore;
@@ -70,12 +64,9 @@ implements InternalPushGroupManager, PushGroupManager {
     private final ConcurrentMap<String, Group> groupMap;
     private final ConcurrentMap<String, PushID> pushIDMap;
     private final ConcurrentMap<String, ExpiryTimeout> expiryTimeoutMap;
-    private final ConcurrentMap<String, ConfirmationTimeout> confirmationTimeoutMap;
-    private final ConcurrentMap<String, NotifyBackURI> notifyBackURIMap;
     private final Set<NotificationEntry> pendingNotificationEntrySet;
 
     static final int DEFAULT_NOTIFICATIONQUEUE_SIZE = 1000;
-    static final int DEFAULT_CLOUD_PUSHID_TIMEOUT = 30 * 60 * 1000;
     static final int DEFAULT_INITIAL_PUSHID_TIMEOUT = 1 * 60 * 1000;
     static final int DEFAULT_PUSHID_TIMEOUT = 2 * 60 * 1000;
     static final int DEFAULT_GROUP_TIMEOUT = 2 * 60 * 1000;
@@ -87,7 +78,6 @@ implements InternalPushGroupManager, PushGroupManager {
     };
     private final Map<String, BlockingConnectionServer> blockingConnectionServerMap =
         new ConcurrentHashMap<String, BlockingConnectionServer>();
-    private final ConcurrentMap<String, String> parkedPushIDs = new ConcurrentHashMap<String, String>();
 
     /*
         There is no ConcurrentSet or ConcurrentHashSet.  As of JDK 1.6 there is a static method in the Collections class
@@ -104,7 +94,6 @@ implements InternalPushGroupManager, PushGroupManager {
     private final long groupTimeout;
     private final long initialPushIDTimeout;
     private final long defaultPushIDTimeout;
-    private final long defaultCloudPushIDTimeout;
     private final ServletContext servletContext;
 
     private long lastTouchScan = System.currentTimeMillis();
@@ -112,8 +101,7 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public LocalPushGroupManager(final ServletContext servletContext) {
         this(
-            servletContext, Browser.class, Group.class, PushID.class, ExpiryTimeout.class, ConfirmationTimeout.class,
-            NotifyBackURI.class, Notification.class/*, NotificationEntry.class*/
+            servletContext, Browser.class, Group.class, PushID.class, ExpiryTimeout.class, Notification.class/*, NotificationEntry.class*/
         );
     }
 
@@ -123,15 +111,10 @@ implements InternalPushGroupManager, PushGroupManager {
         final Class<? extends Group> groupClass,
         final Class<? extends PushID> pushIDClass,
         final Class<? extends ExpiryTimeout> expiryTimeoutClass,
-        final Class<? extends ConfirmationTimeout> confirmationTimeoutClass,
-        final Class<? extends NotifyBackURI> notifyBackURIClass,
         final Class<? extends Notification> notificationClass/*,
         final Class<? extends NotificationEntry> notificationEntryClass*/) {
 
         this.servletContext = servletContext;
-        getServletContext().setAttribute(
-            CloudNotificationService.class.getName(), newCloudNotificationService(getServletContext())
-        );
         Configuration configuration = new ServletContextConfiguration("org.icepush", getServletContext());
         this.groupTimeout =
             configuration.getAttributeAsLong("groupTimeout", DEFAULT_GROUP_TIMEOUT);
@@ -139,12 +122,8 @@ implements InternalPushGroupManager, PushGroupManager {
             configuration.getAttributeAsLong("initialPushIDTimeout", DEFAULT_INITIAL_PUSHID_TIMEOUT);
         this.defaultPushIDTimeout =
             configuration.getAttributeAsLong("pushIdTimeout", DEFAULT_PUSHID_TIMEOUT);
-        this.defaultCloudPushIDTimeout =
-            configuration.getAttributeAsLong("cloudPushIdTimeout", DEFAULT_CLOUD_PUSHID_TIMEOUT);
         PushInternalContext.getInstance().
             setAttribute(Timer.class.getName() + "$expiry", new Timer("Expiry Timeout timer", true));
-        PushInternalContext.getInstance().
-            setAttribute(Timer.class.getName() + "$confirmation", new Timer("Confirmation Timeout timer", true));
         // The Pending Notification Entry set must be initiated before the potential database-backed collections.
         this.pendingNotificationEntrySet = new HashSet<NotificationEntry>();
         Datastore datastore = (Datastore)PushInternalContext.getInstance().getAttribute(Datastore.class.getName());
@@ -157,10 +136,6 @@ implements InternalPushGroupManager, PushGroupManager {
                 new DatabaseBackedConcurrentMap<PushID>(pushIDClass, datastore);
             this.expiryTimeoutMap =
                 new DatabaseBackedConcurrentMap<ExpiryTimeout>(expiryTimeoutClass, datastore);
-            this.confirmationTimeoutMap =
-                new DatabaseBackedConcurrentMap<ConfirmationTimeout>(confirmationTimeoutClass, datastore);
-            this.notifyBackURIMap =
-                new DatabaseBackedConcurrentMap<NotifyBackURI>(notifyBackURIClass, datastore);
             this.notificationQueue =
                 new DatabaseBackedQueue<Notification>(
                     configuration.getAttributeAsInteger("notificationQueueSize", DEFAULT_NOTIFICATIONQUEUE_SIZE),
@@ -178,10 +153,6 @@ implements InternalPushGroupManager, PushGroupManager {
                 new ConcurrentHashMap<String, PushID>();
             this.expiryTimeoutMap =
                 new ConcurrentHashMap<String, ExpiryTimeout>();
-            this.confirmationTimeoutMap =
-                new ConcurrentHashMap<String, ConfirmationTimeout>();
-            this.notifyBackURIMap =
-                new ConcurrentHashMap<String, NotifyBackURI>();
             this.notificationQueue =
                 new LinkedBlockingQueue<Notification>(
                     configuration.getAttributeAsInteger("notificationQueueSize", DEFAULT_NOTIFICATIONQUEUE_SIZE)
@@ -193,8 +164,6 @@ implements InternalPushGroupManager, PushGroupManager {
         PushInternalContext.getInstance().setAttribute("groupMap", this.groupMap);
         PushInternalContext.getInstance().setAttribute("pushIDMap", this.pushIDMap);
         PushInternalContext.getInstance().setAttribute("expiryTimeoutMap", this.expiryTimeoutMap);
-        PushInternalContext.getInstance().setAttribute("confirmationTimeoutMap", this.confirmationTimeoutMap);
-        PushInternalContext.getInstance().setAttribute("notifyBackURIMap", this.notifyBackURIMap);
         PushInternalContext.getInstance().setAttribute("notificationQueue", this.notificationQueue);
         if (datastore != null) {
             long _browserTimeout = Browser.getTimeout(servletContext);
@@ -207,9 +176,6 @@ implements InternalPushGroupManager, PushGroupManager {
             }
             for (final String _pushID : this.expiryTimeoutMap.keySet()) {
                 this.expiryTimeoutMap.get(_pushID).scheduleOrExecute(this);
-            }
-            for (final String _browserID : this.confirmationTimeoutMap.keySet()) {
-                this.confirmationTimeoutMap.get(_browserID).scheduleExecuteOrCancel(this);
             }
             for (final Notification _notification : this.notificationQueue) {
                 if (_notification instanceof NoopNotification) {
@@ -243,28 +209,8 @@ implements InternalPushGroupManager, PushGroupManager {
         return addMember(getModifiableGroupMap(), getModifiablePushIDMap(), groupName, pushID);
     }
 
-    public boolean addMember(final String groupName, final String pushID, final PushConfiguration pushConfiguration) {
-        return addMember(getModifiableGroupMap(), getModifiablePushIDMap(), groupName, pushID, pushConfiguration);
-    }
-
     public void addNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
         outboundNotifier.addReceiver(observer);
-    }
-
-    public boolean addNotifyBackURI(final NotifyBackURI notifyBackURI) {
-        return
-            addNotifyBackURI(
-                getModifiableNotifyBackURIMap(),
-                notifyBackURI
-            );
-    }
-
-    public boolean addNotifyBackURI(final String browserID, final URI notifyBackURI) {
-        return
-            addNotifyBackURI(
-                getModifiableBrowserMap(), getModifiableNotifyBackURIMap(), getModifiablePushIDMap(),
-                browserID, notifyBackURI
-            );
     }
 
     public void backOff(final String browserID, final long delay) {
@@ -279,28 +225,6 @@ implements InternalPushGroupManager, PushGroupManager {
 
         outboundNotifier.broadcast(notificationEntrySet, duration);
         pushed(groupName);
-    }
-
-//    public boolean cancelConfirmationTimeout(
-//        final String browserID, final boolean ignoreCloudNotificationForced) {
-//
-//        ConfirmationTimeout _confirmationTimeout = getConfirmationTimeout(browserID);
-//        if (_confirmationTimeout != null) {
-//            _confirmationTimeout.cancel(ignoreCloudNotificationForced);
-//            return getConfirmationTimeout(browserID) == null;
-//        }
-//        return false;
-//    }
-
-    public boolean cancelConfirmationTimeouts(
-        final String browserID, final Set<String> pushIDSet, final boolean ignoreCloudNotificationForced) {
-
-        ConfirmationTimeout _confirmationTimeout = getConfirmationTimeout(browserID);
-        if (_confirmationTimeout != null) {
-            _confirmationTimeout.cancel(pushIDSet, ignoreCloudNotificationForced);
-            return getConfirmationTimeout(browserID) == null;
-        }
-        return false;
     }
 
     public boolean cancelExpiryTimeout(final String pushID) {
@@ -343,15 +267,14 @@ implements InternalPushGroupManager, PushGroupManager {
     public boolean createPushID(final String pushID) {
         return
             createPushID(
-                getModifiablePushIDMap(), getModifiableBrowserMap(), pushID, getDefaultPushIDTimeout(),
-                getDefaultCloudPushIDTimeout()
+                getModifiablePushIDMap(), getModifiableBrowserMap(), pushID, getDefaultPushIDTimeout()
             );
     }
 
-    public boolean createPushID(final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
+    public boolean createPushID(final String pushID, final long pushIDTimeout) {
         return
             createPushID(
-                getModifiablePushIDMap(), getModifiableBrowserMap(), pushID, pushIDTimeout, cloudPushIDTimeout
+                getModifiablePushIDMap(), getModifiableBrowserMap(), pushID, pushIDTimeout
             );
     }
 
@@ -368,17 +291,6 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public Map<String, Browser> getBrowserMap() {
         return Collections.unmodifiableMap(getModifiableBrowserMap());
-    }
-
-    public CloudNotificationService getCloudNotificationService() {
-        return (CloudNotificationService)getServletContext().getAttribute(CloudNotificationService.class.getName());
-    }
-
-    public ConfirmationTimeout getConfirmationTimeout(final String browserID) {
-        if (browserID == null) {
-            return null;
-        }
-        return getConfirmationTimeoutMap().get(browserID);
     }
 
     public ExpiryTimeout getExpiryTimeout(final String pushID) {
@@ -410,17 +322,6 @@ implements InternalPushGroupManager, PushGroupManager {
         return _pushGroupManager;
     }
 
-    public NotifyBackURI getNotifyBackURI(final String notifyBackURI) {
-        if (notifyBackURI == null) {
-            return null;
-        }
-        return getNotifyBackURIMap().get(notifyBackURI);
-    }
-
-    public Map<String, NotifyBackURI> getNotifyBackURIMap() {
-        return Collections.unmodifiableMap(getModifiableNotifyBackURIMap());
-    }
-
     public Set<NotificationEntry> getPendingNotificationSet() {
         getPendingNotifiedPushIDSetLock().lock();
         try {
@@ -442,14 +343,6 @@ implements InternalPushGroupManager, PushGroupManager {
         return Collections.unmodifiableMap(getModifiablePushIDMap());
     }
 
-    public boolean hasNotifyBackURI(final String browserID) {
-        return hasNotifyBackURI(getBrowserMap(), browserID);
-    }
-
-    public boolean isParked(final String pushID) {
-        return parkedPushIDs.containsKey(pushID);
-    }
-
     public NotificationEntry newNotificationEntry(
         final String pushID, final String groupName, final String payload) {
 
@@ -457,48 +350,13 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public NotificationEntry newNotificationEntry(
-        final String pushID, final String groupName, final String payload, final Map<String, Object> propertyMap,
-        final boolean cloudNotificationForced) {
+        final String pushID, final String groupName, final String payload, final Map<String, Object> propertyMap) {
 
-        return new NotificationEntry(pushID, groupName, payload, propertyMap, cloudNotificationForced);
-    }
-
-    public NotifyBackURI newNotifyBackURI(final String uri) {
-        return new NotifyBackURI(uri);
-    }
-
-    public void park(final String pushID, final String notifyBackURI) {
-        PushID _pushID = getPushID(pushID);
-        if (_pushID != null) {
-            if (_pushID.isCloudPushEnabled()) {
-                parkedPushIDs.put(pushID, notifyBackURI);
-            }
-        } else {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, "Unknown Push-ID '" + pushID + "' not eligible for parking.");
-            }
-        }
-    }
-
-    public void pruneParkedIDs(final String notifyBackURI, final Set<String> listenedPushIDSet) {
-        for (final Map.Entry<String, String> parkedPushIDEntry : parkedPushIDs.entrySet()) {
-            String parkedPushID = parkedPushIDEntry.getKey();
-            if (parkedPushIDEntry.getValue().equals(notifyBackURI) &&
-                !listenedPushIDSet.contains(parkedPushID)) {
-
-                parkedPushIDs.remove(parkedPushID);
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Removed unlistened parked Push-ID '" + parkedPushID + "' for " +
-                            "NotifyBackURI '" + notifyBackURI + "'.");
-                }
-            }
-        }
+        return new NotificationEntry(pushID, groupName, payload, propertyMap);
     }
 
     public void push(final String groupName) {
-        push(groupName, (String) null);
+        push(groupName, (String)null);
     }
 
     public void push(final String groupName, final String payload) {
@@ -506,7 +364,7 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public void push(final String groupName, final PushConfiguration pushConfiguration) {
-        push(groupName, (String) null, pushConfiguration);
+        push(groupName, (String)null, pushConfiguration);
     }
 
     public void push(final String groupName, final String payload, final PushConfiguration pushConfiguration) {
@@ -519,10 +377,6 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public boolean removeBrowser(final String browserID) {
         return removeBrowser(getModifiableBrowserMap(), browserID);
-    }
-
-    public boolean removeConfirmationTimeout(final ConfirmationTimeout confirmationTimeout) {
-        return removeConfirmationTimeout(getModifiableConfirmationTimeoutMap(), confirmationTimeout);
     }
 
     public boolean removeExpiryTimeout(final ExpiryTimeout expiryTimeout) {
@@ -539,14 +393,6 @@ implements InternalPushGroupManager, PushGroupManager {
 
     public void removeNotificationReceiver(final NotificationBroadcaster.Receiver observer) {
         outboundNotifier.removeReceiver(observer);
-    }
-
-    public boolean removeNotifyBackURI(final String browserID) {
-        return
-            removeNotifyBackURI(
-                getModifiableBrowserMap(), getModifiableNotifyBackURIMap(), getModifiablePushIDMap(),
-                browserID
-            );
     }
 
     public void removePendingNotification(final String pushID) {
@@ -580,88 +426,11 @@ implements InternalPushGroupManager, PushGroupManager {
     }
 
     public void shutdown() {
-        getCloudNotificationService().tearDown();
         outboundNotifier.shutdown();
-        ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$confirmation")).cancel();
-        PushInternalContext.getInstance().removeAttribute(Timer.class.getName() + "$confirmation");
         ((Timer)PushInternalContext.getInstance().getAttribute(Timer.class.getName() + "$expiry")).cancel();
         PushInternalContext.getInstance().removeAttribute(Timer.class.getName() + "$expiry");
         queueConsumer.cancel();
         timer.cancel();
-    }
-
-    public boolean startConfirmationTimeout(
-        final String browserID, final String pushID, final String groupName, final Map<String, Object> propertyMap,
-        final boolean cloudNotificationForced) {
-
-        return
-            startConfirmationTimeout(
-                browserID, pushID, groupName, propertyMap, cloudNotificationForced,
-                getBrowser(browserID).getSequenceNumber()
-            );
-    }
-
-    public boolean startConfirmationTimeout(
-        final String browserID, final String pushID, final String groupName, final Map<String, Object> propertyMap,
-        final boolean cloudNotificationForced, final long sequenceNumber) {
-
-        Browser browser = getBrowser(browserID);
-        if (browser.isCloudPushEnabled()) {
-            NotifyBackURI notifyBackURI = getNotifyBackURI(browser.getNotifyBackURI());
-            if (notifyBackURI != null) {
-                long now = System.currentTimeMillis();
-                long timeout =
-                    cloudNotificationForced ? 0L : browser.getStatus().getConnectionRecreationTimeout() * 2;
-                LOGGER.log(Level.FINE, "Calculated confirmation timeout: '" + timeout + "'");
-                return
-                    startConfirmationTimeout(
-                        browserID, pushID, groupName, propertyMap, cloudNotificationForced, sequenceNumber, timeout
-                    );
-            }
-        }
-        return false;
-    }
-
-    public boolean startConfirmationTimeout(
-        final String browserID, final String pushID, final String groupName, final Map<String, Object> propertyMap,
-        final boolean cloudNotificationForced, final long sequenceNumber, final long timeout) {
-
-        Browser browser = getBrowser(browserID);
-        if (browser.isCloudPushEnabled()) {
-            NotifyBackURI notifyBackURI = getNotifyBackURI(browser.getNotifyBackURI());
-            if (notifyBackURI != null &&
-                isOutOfBandNotification(propertyMap)) {
-
-                ConfirmationTimeout _confirmationTimeout = getConfirmationTimeoutMap().get(browserID);
-                if (_confirmationTimeout == null) {
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        LOGGER.log(
-                            Level.FINE,
-                            "Start confirmation timeout for Browser '" + browserID + "' (" +
-                                "URI: '" + notifyBackURI + "', " +
-                                "timeout: '" + timeout + "', " +
-                                "sequence number: '" + sequenceNumber + "'" +
-                            ").");
-                    }
-                    _confirmationTimeout = newConfirmationTimeout(browserID);
-                    getConfirmationTimeoutMap().put(browserID, _confirmationTimeout);
-                }
-                try {
-                    _confirmationTimeout.schedule(pushID, propertyMap, cloudNotificationForced, timeout);
-                    return true;
-                } catch (final IllegalStateException exception) {
-                    // timeoutTimer was cancelled or its timer thread terminated.
-                    return false;
-                }
-            }
-        }
-        return false;
-    }
-
-    public void startConfirmationTimeouts(final Set<NotificationEntry> notificationSet) {
-        for (final NotificationEntry _notificationEntry : notificationSet) {
-            startConfirmationTimeout(_notificationEntry);
-        }
     }
 
     public boolean startExpiryTimeout(
@@ -737,29 +506,19 @@ implements InternalPushGroupManager, PushGroupManager {
         final String pushID, final String browserID, final long sequenceNumber) {
 
         PushID _pushID = getPushID(pushID);
-        boolean _isCloudPushID = browserID != null && getBrowser(browserID).getNotifyBackURI() != null;
-        if ((
-                (!_isCloudPushID && _pushID.getPushIDTimeout() > 0) ||
-                (_isCloudPushID && _pushID.getCloudPushIDTimeout() > 0)
-            ) &&
-            !getExpiryTimeoutMap().containsKey(pushID)) {
-
+        if (_pushID.getPushIDTimeout() > 0 && !getExpiryTimeoutMap().containsKey(pushID)) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE,
-                    "Start expiry timeout for PushID '" + pushID + "' (" +
-                        "timeout: '" +
-                            (!_isCloudPushID ? _pushID.getPushIDTimeout() : _pushID.getCloudPushIDTimeout()) +
-                        "', " +
-                        "sequence number: '" + sequenceNumber + "'" +
-                    ").");
+                    "Start expiry timeout for PushID '" + pushID + "'  " +
+                        "(" +
+                            "timeout: '" + _pushID.getPushIDTimeout() + "', " +
+                            "sequence number: '" + sequenceNumber + "'" +
+                        ").");
             }
             try {
                 ExpiryTimeout _expiryTimeout = newExpiryTimeout(pushID);
-                _expiryTimeout.schedule(
-                    System.currentTimeMillis() +
-                        (!_isCloudPushID ? _pushID.getPushIDTimeout() : _pushID.getCloudPushIDTimeout())
-                );
+                _expiryTimeout.schedule(System.currentTimeMillis() + _pushID.getPushIDTimeout());
                 getExpiryTimeoutMap().put(pushID, _expiryTimeout);
                 return true;
             } catch (final IllegalStateException exception) {
@@ -770,11 +529,8 @@ implements InternalPushGroupManager, PushGroupManager {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
                 Level.FINE,
-                "Expiry timeout already scheduled for PushID '" + pushID + "' (" +
-                    "timeout: '" +
-                        (!_isCloudPushID ? _pushID.getPushIDTimeout() : _pushID.getCloudPushIDTimeout()) +
-                    "'" +
-                ").");
+                "Expiry timeout already scheduled for PushID '" + pushID + "'  " +
+                    "(timeout: '" + _pushID.getPushIDTimeout() + "').");
         }
         return false;
     }
@@ -804,20 +560,13 @@ implements InternalPushGroupManager, PushGroupManager {
         final ConcurrentMap<String, Group> groupMap, final ConcurrentMap<String, PushID> pushIDMap,
         final String groupName, final String pushID) {
 
-        return addMember(groupMap, pushIDMap, groupName, pushID, (PushConfiguration)null);
-    }
-
-    protected boolean addMember(
-        final ConcurrentMap<String, Group> groupMap, final ConcurrentMap<String, PushID> pushIDMap,
-        final String groupName, final String pushID, final PushConfiguration pushConfiguration) {
-
         boolean _modified = false;
         if (groupMap != null && pushIDMap != null &&
             isNotNullAndIsNotEmpty(groupName) && isNotNullAndIsNotEmpty(pushID)) {
 
             if (pushIDMap.containsKey(pushID)) {
                 PushID _pushID = pushIDMap.get(pushID);
-                _modified = _pushID.addToGroup(groupName, pushConfiguration);
+                _modified = _pushID.addToGroup(groupName);
                 _modified |= addToGroup(groupMap, groupName, pushID);
                 cancelExpiryTimeout(pushID);
                 startExpiryTimeout(pushID);
@@ -825,55 +574,9 @@ implements InternalPushGroupManager, PushGroupManager {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.log(
                         Level.FINE,
-                        "Added Push-ID '" + pushID + "' to Group '" + groupName + "' with " +
-                            "Push Configuration '" + pushConfiguration + "'.");
+                        "Added Push-ID '" + pushID + "' to Group '" + groupName + "'.");
                 }
             }
-        }
-        return _modified;
-    }
-
-    protected boolean addNotifyBackURI(
-        final ConcurrentMap<String, NotifyBackURI> notifyBackURIMap, final NotifyBackURI notifyBackURI) {
-
-        boolean _modified;
-        if (!notifyBackURIMap.containsKey(notifyBackURI.getURI())) {
-            notifyBackURIMap.put(notifyBackURI.getURI(), notifyBackURI);
-            _modified = true;
-        } else {
-            _modified = false;
-        }
-        return _modified;
-    }
-
-    protected boolean addNotifyBackURI(
-        final ConcurrentMap<String, Browser> browserMap, final ConcurrentMap<String, NotifyBackURI> notifyBackURIMap,
-        final ConcurrentMap<String, PushID> pushIDMap, final String browserID, final URI notifyBackURI) {
-
-        boolean _modified;
-        NotifyBackURI _notifyBackURI = notifyBackURIMap.get(notifyBackURI.toString());
-        if (_notifyBackURI == null) {
-            _notifyBackURI = newNotifyBackURI(notifyBackURI.toString());
-            notifyBackURIMap.put(_notifyBackURI.getURI(), _notifyBackURI);
-            _modified = true;
-        } else {
-            _modified = false;
-        }
-        _notifyBackURI.setBrowserID(browserID);
-        if (!browserMap.containsKey(browserID)) {
-            addBrowser(newBrowser(browserID));
-        }
-        browserMap.get(browserID).setNotifyBackURI(_notifyBackURI.getURI(), true);
-        for (final String _pushID : pushIDMap.keySet()) {
-            if (isEqual(pushIDMap.get(_pushID).getBrowserID(), browserID)) {
-                cancelExpiryTimeout(_pushID);
-                startExpiryTimeout(_pushID);
-            }
-        }
-        if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(
-                Level.FINE,
-                "Added Notify-Back-URI '" + notifyBackURI + "' to Browser '" + browserID + "'.");
         }
         return _modified;
     }
@@ -932,11 +635,11 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected boolean createPushID(
         final ConcurrentMap<String, PushID> pushIDMap, final ConcurrentMap<String, Browser> browserMap,
-        final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
+        final String pushID, final long pushIDTimeout) {
 
         boolean _modified;
         if (!pushIDMap.containsKey(pushID)) {
-            PushID _pushID = newPushID(pushID, pushIDTimeout, cloudPushIDTimeout);
+            PushID _pushID = newPushID(pushID, pushIDTimeout);
             pushIDMap.put(pushID, _pushID);
             if (!browserMap.containsKey(_pushID.getBrowserID())) {
                 addBrowser(newBrowser(_pushID.getBrowserID()));
@@ -958,99 +661,6 @@ implements InternalPushGroupManager, PushGroupManager {
             }
         }
         return _modified;
-    }
-
-    protected Map<String, ConfirmationTimeout> getConfirmationTimeoutMap() {
-        return
-            new ConcurrentMap<String, ConfirmationTimeout>() {
-                public void clear() {
-                    getModifiableConfirmationTimeoutMap().clear();
-                }
-
-                public boolean containsKey(final Object objectKey) {
-                    return getModifiableConfirmationTimeoutMap().containsKey(objectKey);
-                }
-
-                public boolean containsValue(final Object objectValue) {
-                    return getModifiableConfirmationTimeoutMap().containsValue(objectValue);
-                }
-
-                public Set<Entry<String, ConfirmationTimeout>> entrySet()
-                throws UnsupportedOperationException {
-                    throw new UnsupportedOperationException();
-                }
-
-                @Override
-                public boolean equals(final Object object) {
-                    return getModifiableConfirmationTimeoutMap().equals(object);
-                }
-
-                public ConfirmationTimeout get(final Object objectKey) {
-                    return getModifiableConfirmationTimeoutMap().get(objectKey);
-                }
-
-                @Override
-                public int hashCode() {
-                    return getModifiableConfirmationTimeoutMap().hashCode();
-                }
-
-                public boolean isEmpty() {
-                    return getModifiableConfirmationTimeoutMap().isEmpty();
-                }
-
-                public Set<String> keySet() {
-                    return getModifiableConfirmationTimeoutMap().keySet();
-                }
-
-                public ConfirmationTimeout put(final String key, final ConfirmationTimeout confirmationTimeout) {
-                    return getModifiableConfirmationTimeoutMap().put(key, confirmationTimeout);
-                }
-
-                public void putAll(final Map<? extends String, ? extends ConfirmationTimeout> map)
-                throws UnsupportedOperationException {
-                    throw new UnsupportedOperationException();
-                }
-
-                public ConfirmationTimeout putIfAbsent(
-                    final String key, final ConfirmationTimeout confirmationTimeout) {
-
-                    return getModifiableConfirmationTimeoutMap().putIfAbsent(key, confirmationTimeout);
-                }
-
-                public ConfirmationTimeout remove(final Object objectKey) {
-                    return getModifiableConfirmationTimeoutMap().remove(objectKey);
-                }
-
-                public boolean remove(final Object objectKey, final Object objectValue) {
-                    return getModifiableConfirmationTimeoutMap().remove(objectKey, objectValue);
-                }
-
-                public ConfirmationTimeout replace(
-                    final String key, final ConfirmationTimeout confirmationTimeout) {
-
-                    return getModifiableConfirmationTimeoutMap().replace(key, confirmationTimeout);
-                }
-
-                public boolean replace(
-                    final String key, final ConfirmationTimeout oldConfirmationTimeout,
-                    final ConfirmationTimeout newConfirmationTimeout) {
-
-                    return getModifiableConfirmationTimeoutMap().replace(key, oldConfirmationTimeout, newConfirmationTimeout);
-                }
-
-                public int size() {
-                    return getModifiableConfirmationTimeoutMap().size();
-                }
-
-                public Collection<ConfirmationTimeout> values()
-                throws UnsupportedOperationException {
-                    throw new UnsupportedOperationException();
-                }
-            };
-    }
-
-    protected long getDefaultCloudPushIDTimeout() {
-        return defaultCloudPushIDTimeout;
     }
 
     protected long getDefaultPushIDTimeout() {
@@ -1308,10 +918,6 @@ implements InternalPushGroupManager, PushGroupManager {
             };
     }
 
-    protected ConcurrentMap<String, ConfirmationTimeout> getModifiableConfirmationTimeoutMap() {
-        return confirmationTimeoutMap;
-    }
-
     protected ConcurrentMap<String, ExpiryTimeout> getModifiableExpiryTimeoutMap() {
         return expiryTimeoutMap;
     }
@@ -1464,10 +1070,6 @@ implements InternalPushGroupManager, PushGroupManager {
         return notificationQueue;
     }
 
-    protected ConcurrentMap<String, NotifyBackURI> getModifiableNotifyBackURIMap() {
-        return notifyBackURIMap;
-    }
-
     protected Set<NotificationEntry> getModifiablePendingNotificationEntrySet() {
         return pendingNotificationEntrySet;
     }
@@ -1570,10 +1172,6 @@ implements InternalPushGroupManager, PushGroupManager {
         return servletContext;
     }
 
-    protected boolean hasNotifyBackURI(final Map<String, Browser> browserMap, final String browserID) {
-        return browserMap.containsKey(browserID) && browserMap.get(browserID).hasNotifyBackURI();
-    }
-
     protected boolean isNotification(final Map<String, Object> propertyMap) {
         return
             isNullOrIsEmpty(propertyMap) ||
@@ -1587,32 +1185,8 @@ implements InternalPushGroupManager, PushGroupManager {
         return isNull(pushConfiguration) || isNotification(pushConfiguration.getAttributeMap());
     }
 
-    protected boolean isOutOfBandNotification(final Map<String, Object> propertyMap) {
-        return
-            isNotNullAndIsNotEmpty(propertyMap) &&
-            (
-                (
-                    containsEndingWith(propertyMap.keySet(), "$silent") &&
-                    getEndingWith(propertyMap, "$silent").contains(Boolean.TRUE)
-                ) ||
-                containsEndingWith(propertyMap.keySet(), "$subject")
-            );
-    }
-
-    protected boolean isOutOfBandNotification(final PushConfiguration pushConfiguration) {
-        return isNotNull(pushConfiguration) && isOutOfBandNotification(pushConfiguration.getAttributeMap());
-    }
-
     protected Browser newBrowser(final String browserID) {
         return new Browser(browserID);
-    }
-
-    protected CloudNotificationService newCloudNotificationService(final ServletContext servletContext) {
-        return new LocalCloudNotificationService(servletContext);
-    }
-
-    protected ConfirmationTimeout newConfirmationTimeout(final String browserID) {
-        return new ConfirmationTimeout(browserID);
     }
 
     protected ExpiryTimeout newExpiryTimeout(final String pushID) {
@@ -1635,42 +1209,12 @@ implements InternalPushGroupManager, PushGroupManager {
         return new Notification(groupName, payload, pushConfiguration);
     }
 
-    protected OutOfBandNotification newOutOfBandNotification(
-        final String groupName, final String payload, final PushConfiguration pushConfiguration) {
-
-        OutOfBandNotification _outOfBandNotification = new OutOfBandNotification(groupName, payload, pushConfiguration);
-        _outOfBandNotification.addNotificationListener(
-            new NotificationListener() {
-                public void onBeforeBroadcast(final NotificationEvent event) {
-                    // Only needed for Cloud Push
-                    Set<String> _browserIDSet = new HashSet<String>();
-                    Set<NotificationEntry> _notificationEntrySet = new HashSet<NotificationEntry>();
-                    for (final NotificationEntry _notificationEntry : event.getNotificationEntrySet()) {
-                        String _browserID =
-                            OutOfBandNotification.
-                                getInternalPushGroupManager().getPushID(_notificationEntry.getPushID()).getBrowserID();
-                        if (_browserIDSet.add(_browserID)) {
-                            _notificationEntrySet.add(_notificationEntry);
-                        }
-                    }
-                    OutOfBandNotification.
-                        getInternalPushGroupManager().startConfirmationTimeouts(_notificationEntrySet);
-                }
-
-                public void onBeforeExecution(final NotificationEvent event) {
-                    // Do nothing.
-                }
-            }
-        );
-        return _outOfBandNotification;
-    }
-
     protected PushConfiguration newPushConfiguration() {
         return new PushConfiguration();
     }
 
-    protected PushID newPushID(final String pushID, final long pushIDTimeout, final long cloudPushIDTimeout) {
-        return new PushID(pushID, pushIDTimeout, cloudPushIDTimeout);
+    protected PushID newPushID(final String pushID, final long pushIDTimeout) {
+        return new PushID(pushID, pushIDTimeout);
     }
 
     protected QueueConsumerTask newQueueConsumerTask() {
@@ -1742,12 +1286,7 @@ implements InternalPushGroupManager, PushGroupManager {
                 );
             }
         }
-        Notification _notification;
-        if (isOutOfBandNotification(pushConfiguration)) {
-            _notification = newOutOfBandNotification(groupName, payload, pushConfiguration);
-        } else {
-            _notification = newNotification(groupName, payload, pushConfiguration);
-        }
+        Notification _notification = newNotification(groupName, payload, pushConfiguration);
         getNotificationQueueLock().lock();
         try {
             if (!notificationQueue.contains(_notification)) {
@@ -1770,13 +1309,6 @@ implements InternalPushGroupManager, PushGroupManager {
 
     protected boolean removeBrowser(final ConcurrentMap<String, Browser> browserMap, final String browserID) {
         return browserMap.remove(browserID) != null;
-    }
-
-    protected boolean removeConfirmationTimeout(
-        final ConcurrentMap<String, ConfirmationTimeout> confirmationTimeoutMap,
-        final ConfirmationTimeout confirmationTimeout) {
-
-        return confirmationTimeoutMap.remove(confirmationTimeout.getBrowserID()) != null;
     }
 
     protected boolean removeExpiryTimeout(
@@ -1810,39 +1342,6 @@ implements InternalPushGroupManager, PushGroupManager {
                     LOGGER.log(Level.FINE, "Removed Push-ID '" + pushID + "' from Group '" + groupName + "'.");
                 }
             }
-        }
-        return _modified;
-    }
-
-    protected boolean removeNotifyBackURI(
-        final ConcurrentMap<String, Browser> browserMap, final ConcurrentMap<String, NotifyBackURI> notifyBackURIMap,
-        final ConcurrentMap<String, PushID> pushIDMap, final String browserID) {
-
-        boolean _modified;
-        if (browserMap.containsKey(browserID)) {
-            if (browserMap.get(browserID).hasNotifyBackURI()) {
-                String _notifyBackURI = browserMap.get(browserID).getNotifyBackURI();
-                browserMap.get(browserID).setNotifyBackURI((String)null, true);
-                if (notifyBackURIMap.containsKey(_notifyBackURI)) {
-                    notifyBackURIMap.remove(_notifyBackURI);
-                }
-                _modified = true;
-                for (final String _pushID : pushIDMap.keySet()) {
-                    if (isEqual(pushIDMap.get(_pushID).getBrowserID(), browserID)) {
-                        cancelExpiryTimeout(_pushID);
-                        startExpiryTimeout(_pushID);
-                    }
-                }
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Removed Notify-Back-URI '" + _notifyBackURI + "' from Browser '" + browserID + "'.");
-                }
-            } else {
-                _modified = false;
-            }
-        } else {
-            _modified = false;
         }
         return _modified;
     }
@@ -1881,17 +1380,6 @@ implements InternalPushGroupManager, PushGroupManager {
             } finally {
                 lastExpiryScan = now;
             }
-        }
-    }
-
-    protected void startConfirmationTimeout(final NotificationEntry notificationEntry) {
-        PushID _pushID = getPushID(notificationEntry.getPushID());
-        if (_pushID != null) {
-            startConfirmationTimeout(
-                _pushID.getBrowserID(),
-                notificationEntry.getPushID(), notificationEntry.getGroupName(), notificationEntry.getPropertyMap(),
-                notificationEntry.isCloudNotificationForced()
-            );
         }
     }
 

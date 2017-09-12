@@ -17,8 +17,9 @@
 package org.icepush;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -36,7 +37,7 @@ implements DatabaseEntity, Serializable {
 
     private static final Logger LOGGER = Logger.getLogger(PushID.class.getName());
 
-    private final Map<String, Boolean> groupMembershipMap = new HashMap<String, Boolean>();
+    private final Set<String> groupSet = new HashSet<String>();
 
     @Id
     private String databaseID;
@@ -45,7 +46,6 @@ implements DatabaseEntity, Serializable {
     private String browserID;
     private String subID;
 
-    private long cloudPushIDTimeout;
     private long pushIDTimeout;
 
     public PushID() {
@@ -53,52 +53,46 @@ implements DatabaseEntity, Serializable {
     }
 
     public PushID(
-        final String id, final long pushIDTimeout, final long cloudPushIDTimeout) {
+        final String id, final long pushIDTimeout) {
 
         this(
             id,
             pushIDTimeout,
-            cloudPushIDTimeout,
             true
         );
     }
 
     public PushID(
-        final String id, final String browserID, final String subID, final long pushIDTimeout,
-        final long cloudPushIDTimeout) {
+        final String id, final String browserID, final String subID, final long pushIDTimeout) {
 
         this(
             id,
             browserID,
             subID,
             pushIDTimeout,
-            cloudPushIDTimeout,
             true
         );
     }
 
     protected PushID(
-        final String id, final long pushIDTimeout, final long cloudPushIDTimeout, final boolean save) {
+        final String id, final long pushIDTimeout, final boolean save) {
 
         this(
             id,
             id.substring(0, id.indexOf(':')),
             id.substring(id.indexOf(':') + 1),
             pushIDTimeout,
-            cloudPushIDTimeout,
             save
         );
     }
 
     protected PushID(
-        final String id, final String browserID, final String subID, final long pushIDTimeout,
-        final long cloudPushIDTimeout, final boolean save) {
+        final String id, final String browserID, final String subID, final long pushIDTimeout, final boolean save) {
 
         setID(id, false);
         setBrowserID(browserID, false);
         setSubID(subID, false);
         setPushIDTimeout(pushIDTimeout, false);
-        setCloudPushIDTimeout(cloudPushIDTimeout, false);
         // Let the databaseID be the pushID.
         setDatabaseID(getID());
         if (save) {
@@ -107,22 +101,8 @@ implements DatabaseEntity, Serializable {
     }
 
     public boolean addToGroup(final String groupName) {
-        return addToGroup(groupName, (PushConfiguration)null);
-    }
-
-    public boolean addToGroup(final String groupName, final PushConfiguration pushConfiguration) {
-        boolean _modified = false;
-        Boolean _currentCloudPush;
-        if (pushConfiguration != null) {
-            _currentCloudPush = (Boolean)pushConfiguration.getAttribute("cloudPush");
-            if (_currentCloudPush == null) {
-                _currentCloudPush = Boolean.TRUE;
-            }
-        } else {
-            _currentCloudPush = Boolean.TRUE;
-        }
-        Boolean _previousCloudPush = groupMembershipMap.put(groupName, _currentCloudPush);
-        if (_previousCloudPush == null || !_previousCloudPush.equals(_currentCloudPush)) {
+        boolean _modified;
+        if (getModifiableGroupSet().add(groupName)) {
             _modified = true;
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
@@ -131,6 +111,8 @@ implements DatabaseEntity, Serializable {
                 );
             }
             save();
+        } else {
+            _modified = false;
         }
         return _modified;
     }
@@ -147,12 +129,12 @@ implements DatabaseEntity, Serializable {
         return browserID;
     }
 
-    public long getCloudPushIDTimeout() {
-        return cloudPushIDTimeout;
-    }
-
     public String getDatabaseID() {
         return databaseID;
+    }
+
+    public Set<String> getGroupSet() {
+        return Collections.unmodifiableSet(getModifiableGroupSet());
     }
 
     public String getID() {
@@ -171,21 +153,8 @@ implements DatabaseEntity, Serializable {
         return subID;
     }
 
-    public boolean isCloudPushEnabled() {
-        for (final boolean _cloudPush : groupMembershipMap.values()) {
-            if (_cloudPush) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public boolean isCloudPushEnabled(final String groupName) {
-        return groupMembershipMap.get(groupName);
-    }
-
     public boolean removeFromGroup(final String groupName) {
-        boolean _modified = groupMembershipMap.remove(groupName) != null;
+        boolean _modified = getModifiableGroupSet().remove(groupName);
         if (_modified) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
@@ -195,7 +164,7 @@ implements DatabaseEntity, Serializable {
             }
             save();
         }
-        if (groupMembershipMap.isEmpty()) {
+        if (getModifiableGroupSet().isEmpty()) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(
                     Level.FINE, "Disposed PushID '" + getID() + "' since it no longer belongs to any Group.");
@@ -219,10 +188,6 @@ implements DatabaseEntity, Serializable {
                 }
             }
         }
-    }
-
-    public boolean setCloudPushIDTimeout(final long cloudPushIDTimeout) {
-        return setCloudPushIDTimeout(cloudPushIDTimeout, true);
     }
 
     public boolean setPushIDTimeout(final long pushIDTimeout) {
@@ -259,8 +224,7 @@ implements DatabaseEntity, Serializable {
         return
             new StringBuilder().
                 append("browserID: '").append(getBrowserID()).append(", ").
-                append("cloudPushIDTimeout: '").append(getCloudPushIDTimeout()).append("', ").
-                append("groupMembershipMap: '").append(getGroupMembershipMap()).append("', ").
+                append("groupSet: '").append(getModifiableGroupSet()).append("', ").
                 append("id: '").append(getID()).append("', ").
                 append("pushIDTimeout: '").append(getPushIDTimeout()).append("', ").
                 append("subID: '").append(getSubID()).append("'").
@@ -268,24 +232,22 @@ implements DatabaseEntity, Serializable {
     }
 
     protected void discard(final InternalPushGroupManager internalPushGroupManager) {
-        if (!internalPushGroupManager.isParked(getID())) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(Level.FINE, "PushID '" + getID() + "' discarded.");
             }
             internalPushGroupManager.removePushID(getID());
             internalPushGroupManager.removePendingNotification(getID());
-            for (final String _groupName : getGroupMembershipMap().keySet()) {
+            for (final String _groupName : getModifiableGroupSet()) {
                 Group _group =
                     internalPushGroupManager.getGroup(_groupName);
                 if (_group != null) {
                     _group.removePushID(getID(), internalPushGroupManager);
                 }
             }
-        }
     }
 
-    protected Map<String, Boolean> getGroupMembershipMap() {
-        return groupMembershipMap;
+    protected Set<String> getModifiableGroupSet() {
+        return groupSet;
     }
 
     protected static InternalPushGroupManager getInternalPushGroupManager() {
@@ -333,20 +295,6 @@ implements DatabaseEntity, Serializable {
             (this.browserID != null && !this.browserID.equals(browserID))) {
 
             this.browserID = browserID;
-            _modified = true;
-            if (save) {
-                save();
-            }
-        } else {
-            _modified = false;
-        }
-        return _modified;
-    }
-
-    private boolean setCloudPushIDTimeout(final long cloudPushIDTimeout, final boolean save) {
-        boolean _modified;
-        if (this.cloudPushIDTimeout != cloudPushIDTimeout) {
-            this.cloudPushIDTimeout = cloudPushIDTimeout;
             _modified = true;
             if (save) {
                 save();

@@ -25,13 +25,9 @@ extends PushGroupManager {
 
     void broadcastNotificationEntries(Set<NotificationEntry> notificationEntrySet, long duration, String groupName);
 
-    boolean cancelConfirmationTimeouts(String browserID, Set<String> pushIDSet, boolean ignoreForced);
-
     boolean cancelExpiryTimeout(String pushID);
 
     Map<String, Browser> getBrowserMap();
-
-    ConfirmationTimeout getConfirmationTimeout(String browserID);
 
     ExpiryTimeout getExpiryTimeout(String pushID);
 
@@ -39,22 +35,15 @@ extends PushGroupManager {
 
     Map<String, Group> getGroupMap();
 
-    Map<String, NotifyBackURI> getNotifyBackURIMap();
-
     Map<String, PushID> getPushIDMap();
 
     void groupTouched(String groupName, long lastAccess);
-
-    boolean isParked(String pushID);
 
     NotificationEntry newNotificationEntry(
         String pushID, String groupName, String payload);
 
     NotificationEntry newNotificationEntry(
-        String pushID, String groupName, String payload, Map<String, Object> propertyMap,
-        boolean cloudNotificationForced);
-
-    boolean removeConfirmationTimeout(ConfirmationTimeout confirmationTimeout);
+        String pushID, String groupName, String payload, Map<String, Object> propertyMap);
 
     boolean removeExpiryTimeout(ExpiryTimeout expiryTimeout);
 
@@ -67,19 +56,6 @@ extends PushGroupManager {
     boolean removePushID(String pushID);
 
     void scanForExpiry();
-
-    boolean startConfirmationTimeout(
-        String browserID, String pushID, String groupName, Map<String, Object> propertyMap, boolean forced);
-
-    boolean startConfirmationTimeout(
-        String browserID, String pushID, String groupName, Map<String, Object> propertyMap, boolean forced,
-        long sequenceNumber);
-
-    boolean startConfirmationTimeout(
-        String browserID, String pushID, String groupName, Map<String, Object> propertyMap, boolean forced,
-        long sequenceNumber, long timeout);
-
-    void startConfirmationTimeouts(Set<NotificationEntry> notificationEntrySet);
 
     boolean startExpiryTimeout(String pushID);
 

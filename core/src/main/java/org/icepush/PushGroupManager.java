@@ -15,11 +15,8 @@
  */
 package org.icepush;
 
-import java.net.URI;
 import java.util.Map;
 import java.util.Set;
-
-import org.icesoft.notify.cloud.core.CloudNotificationService;
 
 public interface PushGroupManager {
     void addBlockingConnectionServer(String browserID, BlockingConnectionServer server);
@@ -27,12 +24,6 @@ public interface PushGroupManager {
     boolean addBrowser(Browser browser);
 
     boolean addMember(String groupName, String pushID);
-
-    boolean addMember(String groupName, String pushID, PushConfiguration pushConfiguration);
-
-    boolean addNotifyBackURI(NotifyBackURI notifyBackURI);
-
-    boolean addNotifyBackURI(String browserID, URI notifyBackURI);
 
     void addNotificationReceiver(NotificationBroadcaster.Receiver receiver);
 
@@ -48,25 +39,17 @@ public interface PushGroupManager {
 
     boolean createPushID(String pushID);
 
-    boolean createPushID(String pushID, long pushIDTimeout, long cloudPushIDTimeout);
+    boolean createPushID(String pushID, long pushIDTimeout);
 
     boolean deletePushID(String pushID);
 
     Browser getBrowser(String browserID);
 
-    CloudNotificationService getCloudNotificationService();
-
     Map<String, String[]> getGroupPushIDsMap();
-
-    NotifyBackURI getNotifyBackURI(String notifyBackURI);
 
     Set<NotificationEntry> getPendingNotificationSet();
 
     PushID getPushID(String pushIDString);
-
-    boolean hasNotifyBackURI(String browserID);
-
-    void park(String pushID, String notifyBackURI);
 
     void push(String groupName);
 
@@ -76,15 +59,11 @@ public interface PushGroupManager {
 
     void push(String groupName, String payload, PushConfiguration pushConfiguration);
 
-    void pruneParkedIDs(String notifyBackURI, Set<String> listenedPushIDSet);
-
     void removeBlockingConnectionServer(String browserID);
 
     boolean removeBrowser(String browserID);
 
     boolean removeMember(String groupName, String pushID);
-
-    boolean removeNotifyBackURI(String browserID);
 
     void removeNotificationReceiver(NotificationBroadcaster.Receiver observer);
 
@@ -95,6 +74,4 @@ public interface PushGroupManager {
     void shutdown();
 
     void startExpiryTimeouts(String browserID);
-
-    NotifyBackURI newNotifyBackURI(String uri);
 }

@@ -237,7 +237,7 @@ if (!window.ice.icepush) {
 
                 deregister: delistPushIDsWithWindow,
 
-                createPushId: function createPushId(callback, pushIdTimeout, cloudPushIdTimeout, retries) {
+                createPushId: function createPushId(callback, pushIdTimeout, retries) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/push-ids?access_token=' + encodeURIComponent(configuration.access_token);
                     retries = retries == null ? 3 : retries;
                     var parameters = {
@@ -247,9 +247,6 @@ if (!window.ice.icepush) {
                     };
                     if (pushIdTimeout) {
                         parameters.push_id_timeout = pushIdTimeout
-                    }
-                    if (cloudPushIdTimeout) {
-                        parameters.cloud_push_id_timeout = cloudPushIdTimeout
                     }
                     var body = JSON.stringify(parameters);
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
@@ -312,18 +309,13 @@ if (!window.ice.icepush) {
                     }));
                 },
 
-                addGroupMember: function (group, id, cloudEnabled, resultCallback) {
+                addGroupMember: function (group, id, resultCallback) {
                     var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/groups/' + group + '/push-ids/' + id + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=add';
                     var parameters = {
                         'access_token': configuration.access_token,
                         'browser': browserID(),
                         'op': 'add'
                     };
-                    if (cloudEnabled) {
-                        parameters.push_configuration = {
-                            'cloud_notification_enabled': true
-                        }
-                    }
                     var body = JSON.stringify(parameters);
                     postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
                         condition(NOCONTENT, resultCallback || noop);

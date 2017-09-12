@@ -76,9 +76,6 @@ implements PseudoServlet {
         dispatchOn(".*create-push-id\\.icepush", newCreatePushID());
         dispatchOn(".*add-group-member\\.icepush", newAddGroupMember());
         dispatchOn(".*remove-group-member\\.icepush", newRemoveGroupMember());
-        dispatchOn(".*add-notify-back-uri\\.icepush", newAddNotifyBackURI());
-        dispatchOn(".*has-notify-back-uri\\.icepush", newHasNotifyBackURI());
-        dispatchOn(".*remove-notify-back-uri\\.icepush", newRemoveNotifyBackURI());
         setUp = true;
     }
 
@@ -145,10 +142,6 @@ implements PseudoServlet {
         return new AddGroupMember(getPushContext());
     }
 
-    protected PseudoServlet newAddNotifyBackURI() {
-        return new AddNotifyBackURI(getPushContext());
-    }
-
     protected BlockingConnectionServer newBlockingConnectionServer() {
         BlockingConnectionServer _blockBlockingConnectionServer =
             new BlockingConnectionServer(
@@ -166,10 +159,6 @@ implements PseudoServlet {
         return new CreatePushID(getPushContext());
     }
 
-    protected PseudoServlet newHasNotifyBackURI() {
-        return new HasNotifyBackURI(getPushContext());
-    }
-
     protected PseudoServlet newListen() {
         return
             new EnvironmentAdaptingServlet(
@@ -179,9 +168,5 @@ implements PseudoServlet {
 
     protected PseudoServlet newRemoveGroupMember() {
         return new RemoveGroupMember(getPushContext());
-    }
-
-    protected PseudoServlet newRemoveNotifyBackURI() {
-        return new RemoveNotifyBackURI(getPushContext());
     }
 }

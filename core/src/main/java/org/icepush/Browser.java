@@ -15,8 +15,6 @@
  */
 package org.icepush;
 
-import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
-
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
@@ -80,7 +78,6 @@ implements DatabaseEntity, Serializable {
 
     private Set<String> pushIDSet = Collections.emptySet();
 
-    private String notifyBackURI;
     private Status status;
 
     public Browser() {
@@ -97,7 +94,6 @@ implements DatabaseEntity, Serializable {
 
     protected Browser(final Browser browser, final boolean save) {
         this(browser.getID(), false);
-        setNotifyBackURI(browser.getNotifyBackURI(), false);
         setLastAccessTimestamp(browser.getLastAccessTimestamp(), false);
         setPushIDSet(browser.getPushIDSet(), false);
         setStatus(newStatus(browser.getStatus(), this), false);
@@ -127,10 +123,6 @@ implements DatabaseEntity, Serializable {
         } finally {
             unlockNotifiedPushIDSet();
         }
-    }
-
-    public boolean cancelConfirmationTimeout(final boolean ignoreForced) {
-        return cancelConfirmationTimeout(ignoreForced, getInternalPushGroupManager());
     }
 
     public boolean clearLastNotifiedPushIDSet() {
@@ -197,10 +189,6 @@ implements DatabaseEntity, Serializable {
         }
     }
 
-    public String getNotifyBackURI() {
-        return notifyBackURI;
-    }
-
     public Set<String> getPushIDSet() {
         return Collections.unmodifiableSet(pushIDSet);
     }
@@ -252,21 +240,6 @@ implements DatabaseEntity, Serializable {
         }
     }
 
-    public boolean hasNotifyBackURI() {
-        return isNotNullAndIsNotEmpty(getNotifyBackURI());
-    }
-
-    public boolean isCloudPushEnabled() {
-        InternalPushGroupManager _internalPushGroupManager = getInternalPushGroupManager();
-        for (final String _pushIDString : pushIDSet) {
-            PushID _pushID = _internalPushGroupManager.getPushID(_pushIDString);
-            if (_pushID != null && _pushID.isCloudPushEnabled()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public boolean removeNotifiedPushIDs(final Collection<NotificationEntry> notifiedPushIDCollection) {
         lockNotifiedPushIDSet();
         try {
@@ -314,10 +287,6 @@ implements DatabaseEntity, Serializable {
         return setLastAccessTimestamp(lastAccessTimestamp, true);
     }
 
-    public boolean setNotifyBackURI(final String notifyBackURI, final boolean broadcastIfIsNew) {
-        return setNotifyBackURI(notifyBackURI, broadcastIfIsNew, true);
-    }
-
     @Override
     public String toString() {
         return
@@ -328,12 +297,6 @@ implements DatabaseEntity, Serializable {
                     toString();
     }
 
-    protected boolean cancelConfirmationTimeout(
-        final boolean ignoreForced, final InternalPushGroupManager pushGroupManager) {
-
-        return pushGroupManager.cancelConfirmationTimeouts(getID(), getPushIDSet(), ignoreForced);
-    }
-
     protected String classMembersToString() {
         return
             new StringBuilder().
@@ -341,7 +304,6 @@ implements DatabaseEntity, Serializable {
                 append("lastAccessTimestamp: '").append(new Date(getLastAccessTimestamp())).append("', ").
                 append("lastNotifiedPushIDSet: '").append(getLastNotifiedPushIDSet()).append("', ").
                 append("notifiedPushIDSet: '").append(getNotifiedPushIDSet()).append("', ").
-                append("notifyBackURI: '").append(getNotifyBackURI()).append("', ").
                 append("pushIDSet: '").append(getPushIDSet()).append("', ").
                 append("status: '").append(getStatus()).append(", '").
                 append("databaseID: '").append(getDatabaseID()).append("'").
@@ -513,28 +475,6 @@ implements DatabaseEntity, Serializable {
         } finally {
             unlockLastNotifiedPushIDSet();
         }
-    }
-
-    private boolean setNotifyBackURI(final String notifyBackURI, final boolean broadcastIfIsNew, final boolean save) {
-        boolean _modified;
-        if ((this.notifyBackURI == null && notifyBackURI != null) ||
-            (this.notifyBackURI != null && !this.notifyBackURI.equals(notifyBackURI))) {
-
-            this.notifyBackURI = notifyBackURI;
-            _modified = true;
-            if (this.notifyBackURI != null) {
-                getInternalPushGroupManager().getNotifyBackURI(this.notifyBackURI).setBrowserID(getID());
-            }
-            if (save) {
-                save();
-            }
-        } else {
-            if (this.notifyBackURI != null) {
-                getInternalPushGroupManager().getNotifyBackURI(this.notifyBackURI).touch();
-            }
-            _modified = false;
-        }
-        return _modified;
     }
 
     private boolean setPushIDSet(final Set<String> pushIDSet, final boolean save) {

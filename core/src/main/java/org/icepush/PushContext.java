@@ -15,13 +15,11 @@
  */
 package org.icepush;
 
-import org.icesoft.util.servlet.ServletContextConfiguration;
-
-import static org.icesoft.util.ObjectUtilities.*;
+import static org.icesoft.util.ObjectUtilities.isNull;
+import static org.icesoft.util.ObjectUtilities.isNotNull;
 import static org.icesoft.util.PreCondition.checkArgument;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
-import java.net.URI;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -72,45 +70,6 @@ public class PushContext {
             "Illegal argument pushID: '" + pushID + "'.  Argument cannot be null or empty."
         );
         getPushGroupManager().addMember(groupName, pushID);
-    }
-
-    /**
-     * <p>
-     *     Adds the specified <code>pushID</code> to the group with the specified <code>groupName</code>.
-     * </p>
-     *
-     * @param      groupName
-     *                 The name of the group the specified <code>pushID</code> needs to be added to.
-     * @param      pushID
-     *                 The Push ID that needs to be added.
-     * @param      pushConfiguration
-     *                 The Push configuration.
-     * @throws     IllegalArgumentException
-     *                 If the specified <code>groupName</code> and/or the specified <code>pushID</code> is
-     *                 <code>null</code> or empty.
-     */
-    public void addGroupMember(final String groupName, final String pushID, final PushConfiguration pushConfiguration) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(groupName),
-            "Illegal argument groupName: '" + groupName + "'.  Argument cannot be null or empty."
-        );
-        checkArgument(
-            isNotNullAndIsNotEmpty(pushID),
-            "Illegal argument pushID: '" + pushID + "'.  Argument cannot be null or empty."
-        );
-        getPushGroupManager().addMember(groupName, pushID, pushConfiguration);
-    }
-
-    public void addNotifyBackURI(final String browserID, final URI notifyBackURI) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(browserID),
-            "Illegal argument browserID: '" + browserID + "'.  Argument cannot be null or empty."
-        );
-        checkArgument(
-            isNotNull(notifyBackURI),
-            "Illegal argument notifyBackURI: '" + notifyBackURI + "'.  Argument cannot be null."
-        );
-        getPushGroupManager().addNotifyBackURI(browserID, notifyBackURI);
     }
 
     /**
@@ -186,8 +145,7 @@ public class PushContext {
     }
 
     public synchronized String createPushId(
-        final HttpServletRequest request, final HttpServletResponse response, final long pushIDTimeout,
-        final long cloudPushIDTimeout) {
+        final HttpServletRequest request, final HttpServletResponse response, final long pushIDTimeout) {
 
         checkArgument(
             isNotNull(request),
@@ -215,7 +173,7 @@ public class PushContext {
         if (LOGGER.isLoggable(Level.FINEST)) {
             LOGGER.finest("Created new Push-ID '" + _pushID + "'.");
         }
-        getPushGroupManager().createPushID(_pushID, pushIDTimeout, cloudPushIDTimeout);
+        getPushGroupManager().createPushID(_pushID, pushIDTimeout);
         return _pushID;
     }
 
@@ -225,14 +183,6 @@ public class PushContext {
             "Illegal argument pushID: '" + pushID + "'.  Argument cannot be null or empty."
         );
         getPushGroupManager().deletePushID(pushID);
-    }
-
-    public boolean hasNotifyBackURI(final String browserID) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(browserID),
-            "Illegal argument browserID: '" + browserID + "'.  Argument cannot be null or empty."
-        );
-        return getPushGroupManager().hasNotifyBackURI(browserID);
     }
 
     /**
@@ -362,14 +312,6 @@ public class PushContext {
             "Illegal argument pushID: '" + pushID + "'.  Argument cannot be null or empty."
         );
         getPushGroupManager().removeMember(groupName, pushID);
-    }
-
-    public void removeNotifyBackURI(final String browserID) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(browserID),
-            "Illegal argument browserID: '" + browserID + "'.  Argument cannot be null or empty."
-        );
-        getPushGroupManager().removeNotifyBackURI(browserID);
     }
 
     /**
