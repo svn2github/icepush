@@ -332,46 +332,6 @@ if (!window.ice.icepush) {
                         condition(NOCONTENT, resultCallback || noop);
                         condition(ServerInternalError, throwServerError);
                     }));
-                },
-
-                addNotifyBackURI: function (notifyBackURI, resultCallback) {
-                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/browsers/' + browserID() + '/notify-back-uris/' + notifyBackURI + '?access_token=' + encodeURIComponent(configuration.access_token) + '&op=add';
-                    var body = JSON.stringify({
-                        'access_token': configuration.access_token,
-                        'browser': browserID(),
-                        'op': 'add'
-                    });
-                    postAsynchronously(apiChannel, uri, body, JSONRequest, $witch(function (condition) {
-                        condition(NOCONTENT, resultCallback || noop);
-                        condition(ServerInternalError, throwServerError);
-                    }));
-                },
-
-                removeNotifyBackURI: function (resultCallback) {
-                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/browsers/' + browserID() + '/notify-back-uris';
-                    deleteAsynchronously(apiChannel, uri, function (query) {
-                        addNameValue(query, "access_token", configuration.access_token);
-                        addNameValue(query, "op", "remove");
-                    }, JSONRequest, $witch(function (condition) {
-                        condition(NOCONTENT, resultCallback || noop);
-                        condition(ServerInternalError, throwServerError);
-                    }));
-                },
-
-                hasNotifyBackURI: function (resultCallback) {
-                    var uri = configuration.uri + configuration.account + '/realms/' + configuration.realm + '/browsers/' + browserID() + '/notify-back-uris';
-                    getAsynchronously(apiChannel, uri, function (query) {
-                        addNameValue(query, "access_token", configuration.access_token);
-                        addNameValue(query, "op", "has");
-                    }, JSONRequest, $witch(function (condition) {
-                        condition(NOCONTENT, function (response) {
-                            resultCallback(true);
-                        });
-                        condition(NOTFOUND, function (response) {
-                            resultCallback(false);
-                        });
-                        condition(ServerInternalError, throwServerError);
-                    }));
                 }
             };
 
