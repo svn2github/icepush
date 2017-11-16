@@ -26,6 +26,8 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+
 import org.icepush.http.PushResponse;
 import org.icepush.http.PushResponseHandler;
 import org.icepush.http.standard.FixedXMLContentHandler;
@@ -68,7 +70,7 @@ implements PushResponseHandler {
     throws IOException {
         Map<String, Set<String>> _payloadPushIDSetMap = new HashMap<String, Set<String>>();
         for (final NotificationEntry _notificationEntry : getNotificationEntrySet()) {
-            String _payload = _notificationEntry.getPayload();
+            String _payload = StringEscapeUtils.escapeXml10(_notificationEntry.getPayload());
             Set<String> _pushIDSet;
             if (_payloadPushIDSetMap.containsKey(_payload)) {
                 _pushIDSet = _payloadPushIDSetMap.get(_payload);
