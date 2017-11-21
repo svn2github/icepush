@@ -69,12 +69,19 @@ implements DatabaseEntity, Serializable {
     public boolean addPushID(final String pushID) {
         boolean _modified;
         if (!getModifiablePushIDSet().contains(pushID)) {
+            LOGGER.info("[Jack] Push-ID String (new): '" + pushID + "'");
             PushID _pushID = getInternalPushGroupManager().getPushID(pushID);
+            LOGGER.info("[Jack] Push-ID (new): '" + _pushID + "'");
             if (_pushID != null) {
                 String _browserID = _pushID.getBrowserID();
+                LOGGER.info("[Jack] Browser-ID (new): '" + _browserID + "'");
                 Iterator<String> _pushIDSetIterator = getModifiablePushIDSet().iterator();
                 while (_pushIDSetIterator.hasNext()) {
                     String _pushIDString = _pushIDSetIterator.next();
+                    LOGGER.info("[Jack] Push-ID String: '" + _pushIDString + "'");
+                    LOGGER.info("[Jack] Internal PushGroupManager: '" + getInternalPushGroupManager() + "'");
+                    LOGGER.info("[Jack] Push-ID: '" + (getInternalPushGroupManager() != null ? getInternalPushGroupManager().getPushID(_pushIDString) : "[N/A]") + "'");
+                    LOGGER.info("[Jack] Browser-ID: '" + (getInternalPushGroupManager() != null && getInternalPushGroupManager().getPushID(_pushIDString) != null ? getInternalPushGroupManager().getPushID(_pushIDString).getBrowserID() : "[N/A]") + "'");
                     if (getInternalPushGroupManager().getPushID(_pushIDString).
                             getBrowserID().equals(_browserID)) {
 
