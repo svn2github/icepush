@@ -1,6 +1,9 @@
 package org.icepush;
 
+import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
+
 import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.logging.Level;
@@ -11,6 +14,7 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
 import org.icesoft.util.Configuration;
+import org.icesoft.util.SystemConfiguration;
 import org.icesoft.util.servlet.ExtensionRegistry;
 import org.icesoft.util.servlet.ServletContextConfiguration;
 
@@ -29,6 +33,7 @@ implements ServletContextListener {
             private static final String DB_NAME = "org.icepush.dbName";
             private static final String DB_PORT = "org.icepush.dbPort";
             private static final String DB_TRACE_ENABLED = "org.icepush.dbTraceEnabled";
+            private static final String DB_URI = "org.icepush.dbURI";
         }
         private static final class DefaultValue {
             private static final boolean DB_ENABLED = false;
@@ -37,6 +42,7 @@ implements ServletContextListener {
             private static final String DB_NAME = "icesoft_technologies";
             private static final int DB_PORT = 27017;
             private static final boolean DB_TRACE_ENABLED = false;
+            private static final String DB_URI = null;
         }
     }
 
@@ -64,7 +70,7 @@ implements ServletContextListener {
 
     public void contextInitialized(final ServletContextEvent event) {
         ServletContext _servletContext = event.getServletContext();
-        setConfiguration(new ServletContextConfiguration(_servletContext));
+        setConfiguration(new SystemConfiguration(new ServletContextConfiguration(_servletContext)));
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
                 Level.FINE,
@@ -82,28 +88,47 @@ implements ServletContextListener {
                 "-    " + Property.Name.DB_PORT + " = " +
                     getDBPort() + (isDBPortDefault() ? " [default]" : "") + "\r\n" +
                 "-    " + Property.Name.DB_NAME + " = " +
-                    getDBName() + (isDBNameDefault() ? " [default]" : "") + "\r\n"
+                    getDBName() + (isDBNameDefault() ? " [default]" : "") + "\r\n" +
+                "-    " + Property.Name.DB_URI + " = " +
+                    getDBURI() + (isDBURIDefault()? " [default]" : "") + "\r\n"
             );
         }
         if (isDBEnabled()) {
             System.setProperty("DEBUG.MONGO", Boolean.toString(isDBDebugEnabled()));
             System.setProperty("DB.TRACE", Boolean.toString(isDBTraceEnabled()));
-            String _dbHost = getDBHost();
-            int _dbPort = getDBPort();
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Trying to connect to database at '" + _dbHost + ":" + _dbPort + "'."
-                );
+            if (isNotNullAndIsNotEmpty(getDBURI())) {
+                MongoClientURI _mongoClientURI = new MongoClientURI(getDBURI());
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Trying to connect to database at '" + _mongoClientURI.getHosts() + "'."
+                    );
+                }
+                setMongoClient(new MongoClient(_mongoClientURI));
+                if (LOGGER.isLoggable(Level.INFO)) {
+                    LOGGER.log(
+                        Level.INFO,
+                        "Connected to database at '" + _mongoClientURI.getHosts() + "'."
+                    );
+                }
+            } else {
+                String _dbHost = getDBHost();
+                int _dbPort = getDBPort();
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    LOGGER.log(
+                        Level.FINE,
+                        "Trying to connect to database at '" + _dbHost + ":" + _dbPort + "'."
+                    );
+                }
+                setMongoClient(new MongoClient(_dbHost, _dbPort));
+                if (LOGGER.isLoggable(Level.INFO)) {
+                    LOGGER.log(
+                        Level.INFO,
+                        "Connected to database at '" + _dbHost + ":" + _dbPort + "'."
+                    );
+                }
             }
-            setMongoClient(new MongoClient(_dbHost, _dbPort));
             setDatastore(new Morphia().createDatastore(getMongoClient(), getDBName()));
-            if (LOGGER.isLoggable(Level.INFO)) {
-                LOGGER.log(
-                    Level.INFO,
-                    "Connected to database at '" + _dbHost + ":" + _dbPort + "'."
-                );
-            }
             try {
                 PushInternalContext.getInstance().setAttribute(
                     PushGroupManager.class.getName(),
@@ -152,6 +177,12 @@ implements ServletContextListener {
                 getAttributeAsInteger(Property.Name.DB_PORT, Property.DefaultValue.DB_PORT);
     }
 
+    protected final String getDBURI() {
+        return
+            getConfiguration().
+                getAttribute(Property.Name.DB_URI, Property.DefaultValue.DB_URI);
+    }
+
     protected final MongoClient getMongoClient() {
         return (MongoClient)PushInternalContext.getInstance().getAttribute(MongoClient.class.getName());
     }
@@ -196,6 +227,10 @@ implements ServletContextListener {
 
     protected final boolean isDBTraceEnabledDefault() {
         return isDBTraceEnabled() == Property.DefaultValue.DB_TRACE_ENABLED;
+    }
+
+    protected final boolean isDBURIDefault() {
+        return getDBURI() == Property.DefaultValue.DB_URI;
     }
 
     private void setConfiguration(final Configuration configuration) {
