@@ -70,8 +70,8 @@
 		<attribute name="src.copy.excludes" default="**/*.java" />
 		<attribute name="failonerror" default="true" />
 		<attribute name="src.javac.excludes" default="" />
-		<attribute name="compile.target" default="1.5" />
-		<attribute name="compile.source" default="1.5" />
+		<attribute name="compile.target" default="1.8" />
+		<attribute name="compile.source" default="1.8" />
 		<attribute name="compile.debug" default="true" />
 		<attribute name="compile.debuglevel" default="lines,vars,source"/>
 		<attribute name="src.dir" default="${java.dir}"/>
