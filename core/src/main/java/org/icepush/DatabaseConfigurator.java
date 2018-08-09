@@ -162,7 +162,8 @@ implements ServletContextListener {
     protected final String getDBHost() {
         return
             getConfiguration().
-                getAttribute(Property.Name.DB_HOST, Property.DefaultValue.DB_HOST);
+                getAttribute(Property.Name.DB_HOST, Property.DefaultValue.DB_HOST).
+                    trim();
     }
 
     protected final String getDBName() {
@@ -180,7 +181,8 @@ implements ServletContextListener {
     protected final String getDBURI() {
         return
             getConfiguration().
-                getAttribute(Property.Name.DB_URI, Property.DefaultValue.DB_URI);
+                getAttribute(Property.Name.DB_URI, Property.DefaultValue.DB_URI).
+                    trim();
     }
 
     protected final MongoClient getMongoClient() {
