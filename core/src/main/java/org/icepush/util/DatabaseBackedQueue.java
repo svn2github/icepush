@@ -1,7 +1,7 @@
 package org.icepush.util;
 
-import static org.icesoft.util.ObjectUtilities.isNotNull;
-import static org.icesoft.util.PreCondition.checkArgument;
+import static org.icesoft.util.PreCondition.checkIfIsGreaterThan;
+import static org.icesoft.util.PreCondition.checkIfIsNotNull;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -36,12 +36,12 @@ implements Collection<E>, Iterable<E>, Queue<E> {
 
     public DatabaseBackedQueue(final Class<? extends E> elementClass, final Datastore datastore)
     throws IllegalArgumentException {
-        checkArgument(
-            isNotNull(elementClass),
+        checkIfIsNotNull(
+            elementClass,
             "Illegal argument elementClass: '" + elementClass + "'.  Argument cannot be null."
         );
-        checkArgument(
-            isNotNull(datastore),
+        checkIfIsNotNull(
+            datastore,
             "Illegal argument datastore: '" + datastore + "'.  Argument cannot be null."
         );
         this.timestampedElementContainerQueue =
@@ -53,16 +53,17 @@ implements Collection<E>, Iterable<E>, Queue<E> {
 
     public DatabaseBackedQueue(final int capacity, final Class<? extends E> elementClass, final Datastore datastore)
     throws IllegalArgumentException {
-        checkArgument(
-            capacity > 0,
+        checkIfIsGreaterThan(
+            capacity,
+            0,
             "Illegal argument capacity: '" + capacity + "'.  Argument cannot be equal to or lesser than 0."
         );
-        checkArgument(
-            isNotNull(elementClass),
+        checkIfIsNotNull(
+            elementClass,
             "Illegal argument elementClass: '" + elementClass + "'.  Argument cannot be null."
         );
-        checkArgument(
-            isNotNull(datastore),
+        checkIfIsNotNull(
+            datastore,
             "Illegal argument datastore: '" + datastore + "'.  Argument cannot be null."
         );
         this.timestampedElementContainerQueue =
@@ -74,14 +75,17 @@ implements Collection<E>, Iterable<E>, Queue<E> {
 
     public boolean add(final E element)
     throws ClassCastException, IllegalArgumentException, IllegalStateException, NullPointerException {
-        checkArgument(
-            isNotNull(element),
+        checkIfIsNotNull(
+            element,
             "Illegal argument element: '" + element + "'.  Argument cannot be null."
         );
-        checkArgument(
-            getElementClass().isInstance(element),
-            "Illegal argument element: '" + element + "'.  Argument is not instance of '" + getElementClass() + "'."
-        );
+        if (!getElementClass().isInstance(element)) {
+            throw
+                new IllegalArgumentException(
+                    "Illegal argument element: '" + element + "'.  " +
+                        "Argument is not instance of '" + getElementClass() + "'."
+                );
+        }
         TimestampedElementContainer<E> _timestampedElementContainer =
             new TimestampedElementContainer<E>(element, element.getClass());
         // throws ClassCastException, IllegalArgumentException, IllegalStateException, NullPointerException
@@ -169,14 +173,17 @@ implements Collection<E>, Iterable<E>, Queue<E> {
 
     public boolean offer(final E element)
     throws ClassCastException, IllegalArgumentException, NullPointerException {
-        checkArgument(
-            isNotNull(element),
+        checkIfIsNotNull(
+            element,
             "Illegal argument element: '" + element + "'.  Argument cannot be null."
         );
-        checkArgument(
-            getElementClass().isInstance(element),
-            "Illegal argument element: '" + element + "'.  Argument is not instance of '" + getElementClass() + "'."
-        );
+        if (!getElementClass().isInstance(element)) {
+            throw
+                new IllegalArgumentException(
+                    "Illegal argument element: '" + element + "'.  " +
+                        "Argument is not instance of '" + getElementClass() + "'."
+                );
+        }
         getPutLock().lock();
         try {
             TimestampedElementContainer<E> _timestampedElementContainer =

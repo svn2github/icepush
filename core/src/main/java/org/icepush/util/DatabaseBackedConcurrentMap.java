@@ -1,7 +1,7 @@
 package org.icepush.util;
 
 import static org.icesoft.util.ObjectUtilities.isNotNull;
-import static org.icesoft.util.PreCondition.checkArgument;
+import static org.icesoft.util.PreCondition.checkIfIsNotNull;
 
 import java.util.Collection;
 import java.util.List;
@@ -25,12 +25,12 @@ implements ConcurrentMap<String, V>, Map<String, V> {
 
     public DatabaseBackedConcurrentMap(final Class<? extends V> valueClass, final Datastore datastore)
     throws IllegalArgumentException {
-        checkArgument(
-            isNotNull(valueClass),
+        checkIfIsNotNull(
+            valueClass,
             "Illegal argument elementClass: '" + valueClass + "'.  Argument cannot be null."
         );
-        checkArgument(
-            isNotNull(datastore),
+        checkIfIsNotNull(
+            datastore,
             "Illegal argument datastore: '" + datastore + "'.  Argument cannot be null."
         );
         this.valueClass = valueClass;

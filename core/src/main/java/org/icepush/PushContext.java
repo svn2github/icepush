@@ -15,10 +15,10 @@
  */
 package org.icepush;
 
-import static org.icesoft.util.ObjectUtilities.isNull;
 import static org.icesoft.util.ObjectUtilities.isNotNull;
-import static org.icesoft.util.PreCondition.checkArgument;
-import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
+import static org.icesoft.util.PreCondition.checkIfIsNotNull;
+import static org.icesoft.util.PreCondition.checkIfIsNotNullAndIsNotEmpty;
+import static org.icesoft.util.PreCondition.checkIfIsGreaterThanOrEqualTo;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -61,12 +61,12 @@ public class PushContext {
      *                 <code>null</code> or empty.
      */
     public void addGroupMember(final String groupName, final String pushID) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(groupName),
+        checkIfIsNotNullAndIsNotEmpty(
+            groupName,
             "Illegal argument groupName: '" + groupName + "'.  Argument cannot be null or empty."
         );
-        checkArgument(
-            isNotNullAndIsNotEmpty(pushID),
+        checkIfIsNotNullAndIsNotEmpty(
+            pushID,
             "Illegal argument pushID: '" + pushID + "'.  Argument cannot be null or empty."
         );
         getPushGroupManager().addMember(groupName, pushID);
@@ -86,12 +86,13 @@ public class PushContext {
      *                 <code>delay</code> is less than <code>0</code>.
      */
     public void backOff(final String browserID, final long delay) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(browserID),
+        checkIfIsNotNullAndIsNotEmpty(
+            browserID,
             "Illegal argument browserID: '" + browserID + "'.  Argument cannot be null or empty."
         );
-        checkArgument(
-            delay >= 0,
+        checkIfIsGreaterThanOrEqualTo(
+            delay,
+            0,
             "Illegal argument delay: " + delay + ".  Argument cannot be less than 0."
         );
         getPushGroupManager().backOff(browserID, delay);
@@ -114,12 +115,12 @@ public class PushContext {
      */
 
     public synchronized String createPushId(final HttpServletRequest request, final HttpServletResponse response) {
-        checkArgument(
-            isNotNull(request),
+        checkIfIsNotNull(
+            request,
             "Illegal argument request: '" + request + "'.  Argument cannot be null."
         );
-        checkArgument(
-            isNotNull(response),
+        checkIfIsNotNull(
+            response,
             "Illegal argument response: '" + response + "'.  Argument cannot be null."
         );
         String browserID = Browser.getBrowserID(request);
@@ -147,12 +148,12 @@ public class PushContext {
     public synchronized String createPushId(
         final HttpServletRequest request, final HttpServletResponse response, final long pushIDTimeout) {
 
-        checkArgument(
-            isNotNull(request),
+        checkIfIsNotNull(
+            request,
             "Illegal argument request: '" + request + "'.  Argument cannot be null."
         );
-        checkArgument(
-            isNotNull(response),
+        checkIfIsNotNull(
+            response,
             "Illegal argument response: '" + response + "'.  Argument cannot be null."
         );
         String browserID = Browser.getBrowserID(request);
@@ -178,8 +179,8 @@ public class PushContext {
     }
 
     public void deletePushID(final String pushID) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(pushID),
+        checkIfIsNotNullAndIsNotEmpty(
+            pushID,
             "Illegal argument pushID: '" + pushID + "'.  Argument cannot be null or empty."
         );
         getPushGroupManager().deletePushID(pushID);
@@ -197,8 +198,8 @@ public class PushContext {
      *                 If the specified <code>groupName</code> is <code>null</code> or empty.
      */
     public void push(final String groupName) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(groupName),
+        checkIfIsNotNullAndIsNotEmpty(
+            groupName,
             "Illegal argument groupName: '" + groupName + "'.  Argument cannot be null or empty."
         );
         getPushGroupManager().push(groupName);
@@ -219,8 +220,8 @@ public class PushContext {
      *                 If the specified <code>groupName</code> is <code>null</code> or empty.
      */
     public void push(final String groupName, final String payload) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(groupName),
+        checkIfIsNotNullAndIsNotEmpty(
+            groupName,
             "Illegal argument groupName: '" + groupName + "'.  Argument cannot be null or empty."
         );
         getPushGroupManager().push(groupName, payload);
@@ -242,17 +243,20 @@ public class PushContext {
      *                 the attribute <i>'targetURI'</i>.
      */
     public void push(final String groupName, final PushConfiguration pushConfiguration) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(groupName),
+        checkIfIsNotNullAndIsNotEmpty(
+            groupName,
             "Illegal argument groupName: '" + groupName + "'.  Argument cannot be null or empty."
         );
-        checkArgument(
-            isNull(pushConfiguration) ||
-                !pushConfiguration.containsAttributeKey("subject") ||
-                pushConfiguration.containsAttributeKey("targetURI"),
-            "Illegal argument pushConfiguration: '" + pushConfiguration + "'.  " +
-                "Argument must contain attribute 'targetURI' when it contains attribute 'subject'."
-        );
+        if (isNotNull(pushConfiguration) &&
+                pushConfiguration.containsAttributeKey("subject") &&
+                !pushConfiguration.containsAttributeKey("targetURI")) {
+
+            throw
+                new IllegalArgumentException(
+                    "Illegal argument pushConfiguration: '" + pushConfiguration + "'.  " +
+                        "Argument must contain attribute 'targetURI' when it contains attribute 'subject'."
+                );
+        }
         getPushGroupManager().push(groupName, pushConfiguration);
     }
 
@@ -275,17 +279,20 @@ public class PushContext {
      *                 the attribute <i>'targetURI'</i>.
      */
     public void push(final String groupName, final String payload, final PushConfiguration pushConfiguration) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(groupName),
+        checkIfIsNotNullAndIsNotEmpty(
+            groupName,
             "Illegal argument groupName: '" + groupName + "'.  Argument cannot be null or empty."
         );
-        checkArgument(
-            isNull(pushConfiguration) ||
-                !pushConfiguration.containsAttributeKey("subject") ||
-                pushConfiguration.containsAttributeKey("targetURI"),
-            "Illegal argument pushConfiguration: '" + pushConfiguration + "'.  " +
-                "Argument must contain attribute 'targetURI' when it contains attribute 'subject'."
-        );
+        if (isNotNull(pushConfiguration) &&
+                pushConfiguration.containsAttributeKey("subject") &&
+                !pushConfiguration.containsAttributeKey("targetURI")) {
+
+            throw
+                new IllegalArgumentException(
+                    "Illegal argument pushConfiguration: '" + pushConfiguration + "'.  " +
+                        "Argument must contain attribute 'targetURI' when it contains attribute 'subject'."
+                );
+        }
         getPushGroupManager().push(groupName, payload, pushConfiguration);
     }
 
@@ -303,12 +310,12 @@ public class PushContext {
      *                 <code>null</code> or empty.
      */
     public void removeGroupMember(final String groupName, final String pushID) {
-        checkArgument(
-            isNotNullAndIsNotEmpty(groupName),
+        checkIfIsNotNullAndIsNotEmpty(
+            groupName,
             "Illegal argument groupName: '" + groupName + "'.  Argument cannot be null or empty."
         );
-        checkArgument(
-            isNotNullAndIsNotEmpty(pushID),
+        checkIfIsNotNullAndIsNotEmpty(
+            pushID,
             "Illegal argument pushID: '" + pushID + "'.  Argument cannot be null or empty."
         );
         getPushGroupManager().removeMember(groupName, pushID);
@@ -326,8 +333,8 @@ public class PushContext {
      *                 If the specified <code>servletContext</code> is <code>null</code>.
      */
     public static synchronized PushContext getInstance(final ServletContext servletContext) {
-        checkArgument(
-            servletContext != null,
+        checkIfIsNotNull(
+            servletContext,
             "Illegal argument servletContext: '" + servletContext + "'.  Argument cannot be null."
         );
         PushContext pushContext = (PushContext)servletContext.getAttribute(PushContext.class.getName());

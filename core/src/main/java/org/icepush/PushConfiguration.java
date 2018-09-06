@@ -15,8 +15,8 @@
  */
 package org.icepush;
 
-import static org.icesoft.util.ObjectUtilities.isNotNull;
-import static org.icesoft.util.PreCondition.checkArgument;
+import static org.icesoft.util.PreCondition.checkIfIsNotNull;
+import static org.icesoft.util.PreCondition.checkIfIsNotNullAndIsNotEmpty;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
 import java.io.Serializable;
@@ -156,11 +156,11 @@ implements Serializable {
 
     public Object putAttribute(final String key, final Object value)
     throws IllegalArgumentException {
-        checkArgument(
-            isNotNullAndIsNotEmpty(key), "Illegal argument key: '" + key + "'.  Argument cannot be null or empty."
+        checkIfIsNotNullAndIsNotEmpty(
+            key, "Illegal argument key: '" + key + "'.  Argument cannot be null or empty."
         );
-        checkArgument(
-            isNotNull(value), "Illegal argument value: '" + value + "'.  Argument cannot be null."
+        checkIfIsNotNull(
+            value, "Illegal argument value: '" + value + "'.  Argument cannot be null."
         );
         return getModifiableAttributeMap().put(key, value);
     }
