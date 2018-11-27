@@ -5,7 +5,9 @@ import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -74,6 +76,17 @@ implements ServletContextListener {
     public void contextInitialized(final ServletContextEvent event) {
         ServletContext _servletContext = event.getServletContext();
         try {
+            for (final Constructor<?> _constructor :
+                    Class.forName("com.icesoft.notify.util.aws.S3Configuration").getDeclaredConstructors()) {
+
+                LOGGER.info("[Jack] Constructor: " + _constructor);
+                for (final Type _genericParameterType : _constructor.getGenericParameterTypes()) {
+                    LOGGER.info("[Jack] Generic Parameter Type: " + _genericParameterType);
+                }
+                for (final Class<?> _parameterType : _constructor.getParameterTypes()) {
+                    LOGGER.info("[Jack] Parameter Type: " + _parameterType);
+                }
+            }
             Class<?>[] _parameterTypes = new Class<?>[4];
             _parameterTypes[0] = String.class;
             _parameterTypes[1] = String.class;
@@ -86,7 +99,7 @@ implements ServletContextListener {
             _arguments[1] =
                 System.getenv("SECRETS_BUCKET_NAME");
             _arguments[2] =
-                new HashSet<?>(
+                new HashSet<String>(
                     Arrays.asList(
                         "common.config"
                     )
