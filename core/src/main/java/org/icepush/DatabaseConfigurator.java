@@ -2,10 +2,16 @@ package org.icepush;
 
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
+import com.icesoft.notify.util.aws.LocalStack.CloudAPI;
+import com.icesoft.notify.util.aws.S3Configuration;
+
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -70,7 +76,41 @@ implements ServletContextListener {
 
     public void contextInitialized(final ServletContextEvent event) {
         ServletContext _servletContext = event.getServletContext();
-        setConfiguration(new SystemConfiguration(new ServletContextConfiguration(_servletContext)));
+        try {
+            setConfiguration(
+                new S3Configuration(
+                    System.getenv("ENVIRONMENT_NAME").equals("local") ?
+                        CloudAPI.S3.getEndpointURL() : null,
+                    System.getenv("SECRETS_BUCKET_NAME"),
+                    new HashSet<String>(
+                        Arrays.asList(
+                            "common.config"
+                        )
+                    ),
+                    new SystemConfiguration(
+                        new ServletContextConfiguration(
+                            _servletContext
+                        )
+                    )
+                )
+            );
+        } catch (final IOException exception) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(
+                    Level.WARNING,
+                    "Unable to read Configuration " +
+                        "from Object 'common.config'" +
+                        "in Bucket '" + System.getenv("SECRETS_BUCKET_NAME") + "'"
+                );
+            }
+            setConfiguration(
+                new SystemConfiguration(
+                    new ServletContextConfiguration(
+                        _servletContext
+                    )
+                )
+            );
+        }
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
                 Level.FINE,
