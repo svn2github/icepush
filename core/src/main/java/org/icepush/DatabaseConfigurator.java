@@ -113,7 +113,8 @@ implements ServletContextListener {
                 LOGGER.log(
                     Level.WARNING,
                     "Constructor 'S3Configuration(String, String, Set<String>, Configuration)' failed.  " +
-                        "(Message: '" + error.getException().getMessage() + "')"
+                        "(Message: '" + error.getException().getMessage() + "')",
+                    error.getException()
                 );
             }
             setConfiguration(
@@ -156,7 +157,8 @@ implements ServletContextListener {
                 LOGGER.log(
                     Level.WARNING,
                     "Constructor 'S3Configuration(String, String, Set<String>, Configuration)' threw an exception.  " +
-                        "(Message: '" + exception.getTargetException().getMessage() + "')"
+                        "(Message: '" + exception.getTargetException().getMessage() + "')",
+                    exception.getTargetException()
                 );
             }
             setConfiguration(
