@@ -2,16 +2,13 @@ package org.icepush;
 
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
-import com.icesoft.notify.util.aws.LocalStack.CloudAPI;
-import com.icesoft.notify.util.aws.S3Configuration;
-
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -78,29 +75,102 @@ implements ServletContextListener {
         ServletContext _servletContext = event.getServletContext();
         try {
             setConfiguration(
-                new S3Configuration(
-                    System.getenv("ENVIRONMENT_NAME").equals("local") ?
-                        CloudAPI.S3.getEndpointURL() : null,
-                    System.getenv("SECRETS_BUCKET_NAME"),
-                    new HashSet<String>(
-                        Arrays.asList(
-                            "common.config"
+                (Configuration)
+                    Class.forName("com.icesoft.notify.util.aws.S3Configuration").
+                        getDeclaredConstructor(String.class, String.class, Set.class, Configuration.class).
+                        newInstance(
+                            System.getenv("ENVIRONMENT_NAME").equals("local") ?
+                                "http://aws:4572" : null,
+                            System.getenv("SECRETS_BUCKET_NAME"),
+                            new HashSet<String>(
+                                Arrays.asList(
+                                    "common.config"
+                                )
+                            ),
+                            new SystemConfiguration(
+                                new ServletContextConfiguration(
+                                    _servletContext
+                                )
+                            )
                         )
-                    ),
-                    new SystemConfiguration(
-                        new ServletContextConfiguration(
-                            _servletContext
-                        )
-                    )
-                )
             );
-        } catch (final IOException exception) {
+        } catch (final ClassNotFoundException exception) {
             if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.log(
                     Level.WARNING,
-                    "Unable to read Configuration " +
-                        "from Object 'common.config'" +
-                        "in Bucket '" + System.getenv("SECRETS_BUCKET_NAME") + "'"
+                    "Class 'S3Configuration' not found."
+                );
+            }
+            setConfiguration(
+                new SystemConfiguration(
+                    new ServletContextConfiguration(
+                        _servletContext
+                    )
+                )
+            );
+        } catch (final ExceptionInInitializerError error) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(
+                    Level.WARNING,
+                    "Constructor 'S3Configuration(String, String, Set<String>, Configuration)' failed.  " +
+                        "(Message: '" + error.getException().getMessage() + "')"
+                );
+            }
+            setConfiguration(
+                new SystemConfiguration(
+                    new ServletContextConfiguration(
+                        _servletContext
+                    )
+                )
+            );
+        } catch (final IllegalAccessException exception) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(
+                    Level.WARNING,
+                    "Constructor 'S3Configuration(String, String, Set<String>, Configuration)' is inaccessible."
+                );
+            }
+            setConfiguration(
+                new SystemConfiguration(
+                    new ServletContextConfiguration(
+                        _servletContext
+                    )
+                )
+            );
+        } catch (final InstantiationException exception) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(
+                    Level.WARNING,
+                    "Class 'S3Configuration' is an abstract class."
+                );
+            }
+            setConfiguration(
+                new SystemConfiguration(
+                    new ServletContextConfiguration(
+                        _servletContext
+                    )
+                )
+            );
+        } catch (final InvocationTargetException exception) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(
+                    Level.WARNING,
+                    "Constructor 'S3Configuration(String, String, Set<String>, Configuration)' threw an exception.  " +
+                        "(Message: '" + exception.getTargetException().getMessage() + "')"
+                );
+            }
+            setConfiguration(
+                new SystemConfiguration(
+                    new ServletContextConfiguration(
+                        _servletContext
+                    )
+                )
+            );
+        } catch (final NoSuchMethodException exception) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(
+                    Level.WARNING,
+                    "Constructor 'S3Configuration(String, String, Set<String>, Configuration)' not found."
                 );
             }
             setConfiguration(
