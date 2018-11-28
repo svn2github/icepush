@@ -76,12 +76,11 @@ implements ServletContextListener {
     public void contextInitialized(final ServletContextEvent event) {
         ServletContext _servletContext = event.getServletContext();
         try {
-            Class<?>[] _parameterTypes = new Class<?>[5];
+            Class<?>[] _parameterTypes = new Class<?>[4];
             _parameterTypes[0] = String.class;
             _parameterTypes[1] = String.class;
             _parameterTypes[2] = Set.class;
-            _parameterTypes[3] = String.class;
-            _parameterTypes[4] = Configuration.class;
+            _parameterTypes[3] = Configuration.class;
             Object[] _arguments = new Object[4];
             _arguments[0] =
                 System.getenv("ENVIRONMENT_NAME").equals("local") ?
