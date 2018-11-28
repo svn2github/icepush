@@ -1,5 +1,6 @@
 package org.icepush;
 
+import static org.icesoft.util.ObjectUtilities.isNotNull;
 import static org.icesoft.util.StringUtilities.isNotNullAndIsNotEmpty;
 
 import com.mongodb.MongoClient;
@@ -54,7 +55,7 @@ implements ServletContextListener {
     private Configuration configuration;
 
     public void contextDestroyed(final ServletContextEvent event) {
-        if (isDBEnabled()) {
+        if (isDBEnabled() && isNotNull(getMongoClient())) {
             String _dbHost = getDBHost();
             int _dbPort = getDBPort();
             if (LOGGER.isLoggable(Level.FINE)) {
@@ -63,7 +64,7 @@ implements ServletContextListener {
                     "Trying to disconnect from database at '" + _dbHost + ":" + _dbPort + "'."
                 );
             }
-            getMongoClient().close();
+                getMongoClient().close();
             if (LOGGER.isLoggable(Level.INFO)) {
                 LOGGER.log(
                     Level.INFO,
