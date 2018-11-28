@@ -76,29 +76,36 @@ implements ServletContextListener {
     public void contextInitialized(final ServletContextEvent event) {
         ServletContext _servletContext = event.getServletContext();
         try {
+            Class<?>[] _parameterTypes = new Class<?>[5];
+            _parameterTypes[0] = String.class;
+            _parameterTypes[1] = String.class;
+            _parameterTypes[2] = Set.class;
+            _parameterTypes[3] = String.class;
+            _parameterTypes[4] = Configuration.class;
+            Object[] _arguments = new Object[4];
+            _arguments[0] =
+                System.getenv("ENVIRONMENT_NAME").equals("local") ?
+                    "http://aws:4572" : null;
+            _arguments[1] =
+                System.getenv("SECRETS_BUCKET_NAME");
+            _arguments[2] =
+                new HashSet<String>(
+                    Arrays.asList(
+                        "common.config"
+                    )
+                );
+            _arguments[3] =
+                new SystemConfiguration(
+                    new ServletContextConfiguration(
+                        _servletContext
+                    )
+                );
             setConfiguration(
                 (Configuration)
                     Class.forName("com.icesoft.notify.util.aws.S3Configuration").
-                        getDeclaredConstructor(
-                            String.class, String.class, Set.class, String.class, Configuration.class
-                        ).
-                        newInstance(
-                            System.getenv("ENVIRONMENT_NAME").equals("local") ?
-                                "http://aws:4572" : null,
-                            System.getenv("SECRETS_BUCKET_NAME"),
-                            new HashSet<String>(
-                                Arrays.asList(
-                                    "common.config"
-                                )
-                            ),
-                            new SystemConfiguration(
-                                new ServletContextConfiguration(
-                                    _servletContext
-                                )
-                            )
-                        )
+                        getDeclaredConstructor(_parameterTypes).
+                        newInstance(_arguments)
             );
-            LOGGER.info("[Jack] Successful!");
         } catch (final ClassNotFoundException exception) {
             if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.log(
