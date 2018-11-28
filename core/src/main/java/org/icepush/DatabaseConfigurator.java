@@ -76,47 +76,29 @@ implements ServletContextListener {
     public void contextInitialized(final ServletContextEvent event) {
         ServletContext _servletContext = event.getServletContext();
         try {
-            for (final Constructor<?> _constructor :
-                    Class.forName("com.icesoft.notify.util.aws.S3Configuration").getDeclaredConstructors()) {
-
-                LOGGER.info("[Jack] Constructor: " + _constructor);
-                for (final Type _genericParameterType : _constructor.getGenericParameterTypes()) {
-                    LOGGER.info("[Jack] Generic Parameter Type: " + _genericParameterType);
-                }
-                for (final Class<?> _parameterType : _constructor.getParameterTypes()) {
-                    LOGGER.info("[Jack] Parameter Type: " + _parameterType);
-                }
-            }
-            Class<?>[] _parameterTypes = new Class<?>[5];
-            _parameterTypes[0] = String.class;
-            _parameterTypes[1] = String.class;
-            _parameterTypes[2] = Set.class;
-            _parameterTypes[3] = String.class;
-            _parameterTypes[4] = Configuration.class;
-            Object[] _arguments = new Object[4];
-            _arguments[0] =
-                System.getenv("ENVIRONMENT_NAME").equals("local") ?
-                    "http://aws:4572" : null;
-            _arguments[1] =
-                System.getenv("SECRETS_BUCKET_NAME");
-            _arguments[2] =
-                new HashSet<String>(
-                    Arrays.asList(
-                        "common.config"
-                    )
-                );
-            _arguments[3] =
-                new SystemConfiguration(
-                    new ServletContextConfiguration(
-                        _servletContext
-                    )
-                );
             setConfiguration(
                 (Configuration)
                     Class.forName("com.icesoft.notify.util.aws.S3Configuration").
-                        getDeclaredConstructor(_parameterTypes).
-                        newInstance(_arguments)
+                        getDeclaredConstructor(
+                            String.class, String.class, Set.class, String.class, Configuration.class
+                        ).
+                        newInstance(
+                            System.getenv("ENVIRONMENT_NAME").equals("local") ?
+                                "http://aws:4572" : null,
+                            System.getenv("SECRETS_BUCKET_NAME"),
+                            new HashSet<String>(
+                                Arrays.asList(
+                                    "common.config"
+                                )
+                            ),
+                            new SystemConfiguration(
+                                new ServletContextConfiguration(
+                                    _servletContext
+                                )
+                            )
+                        )
             );
+            LOGGER.info("[Jack] Successful!");
         } catch (final ClassNotFoundException exception) {
             if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.log(
