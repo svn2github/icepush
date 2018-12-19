@@ -464,9 +464,6 @@ implements NotificationBroadcaster.Receiver, PushServer {
                         "Received listen.icepush request from Browser-ID '" + pushRequest.getBrowserID() + "' " +
                             "for Push-IDs '" + pushRequest.getPushIDSet() + "'.");
                 }
-                LOGGER.info("[Jack] Push Group Manager: " + getPushGroupManager());
-                LOGGER.info("[Jack] Browser-ID: " + getBrowserID());
-                LOGGER.info("[Jack] Browser: " + getPushGroupManager().getBrowser(getBrowserID()));
                 getPushGroupManager().getBrowser(getBrowserID()).setPushIDSet(pushRequest.getPushIDSet());
                 adjustConnectionRecreationTimeout(pushRequest);
                 // Respond only if there is a pending request as it would be considered a duplicate.
