@@ -68,7 +68,9 @@ implements PseudoServlet {
     throws Exception {
         lockBrowserEntryMap();
         try {
+            LOGGER.info("[Jack] Check Session for Browser-ID: " + browserID);
             if (!getModifiableBrowserEntryMap().containsKey(browserID)) {
+                LOGGER.info("[Jack] Creating new Browser for Browser-ID: " + browserID);
                 getPushGroupManager().addBrowser(newBrowser(browserID));
                 getModifiableBrowserEntryMap().
                     put(browserID, new BrowserEntry(browserID, this.newServer(browserID), this));
