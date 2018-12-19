@@ -175,19 +175,20 @@ implements DatabaseEntity, Serializable {
     }
 
     public void save() {
-        if (PushInternalContext.getInstance().getAttribute(Datastore.class.getName()) != null) {
-            ConcurrentMap<String, PushID> _pushIDMap =
-                (ConcurrentMap<String, PushID>)PushInternalContext.getInstance().getAttribute("pushIDMap");
-            if (_pushIDMap.containsKey(getID())) {
-                _pushIDMap.put(getID(), this);
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Saved PushID '" + this + "' to datastore."
-                    );
-                }
-            }
-        }
+        // VRAS-683 : Disable Notification Service's MongoDB usage for icesoft_technologies database and its collections
+//        if (PushInternalContext.getInstance().getAttribute(Datastore.class.getName()) != null) {
+//            ConcurrentMap<String, PushID> _pushIDMap =
+//                (ConcurrentMap<String, PushID>)PushInternalContext.getInstance().getAttribute("pushIDMap");
+//            if (_pushIDMap.containsKey(getID())) {
+//                _pushIDMap.put(getID(), this);
+//                if (LOGGER.isLoggable(Level.FINE)) {
+//                    LOGGER.log(
+//                        Level.FINE,
+//                        "Saved PushID '" + this + "' to datastore."
+//                    );
+//                }
+//            }
+//        }
     }
 
     public boolean setPushIDTimeout(final long pushIDTimeout) {

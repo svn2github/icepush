@@ -267,19 +267,20 @@ implements DatabaseEntity, Serializable {
     }
 
     public void save() {
-        if (PushInternalContext.getInstance().getAttribute(Datastore.class.getName()) != null) {
-            ConcurrentMap<String, Browser> _browserMap =
-                (ConcurrentMap<String, Browser>)PushInternalContext.getInstance().getAttribute("browserMap");
-            if (_browserMap.containsKey(getKey())) {
-                _browserMap.put(getKey(), this);
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(
-                        Level.FINE,
-                        "Saved Browser '" + this + "' to Database."
-                    );
-                }
-            }
-        }
+        // VRAS-683 : Disable Notification Service's MongoDB usage for icesoft_technologies database and its collections
+//        if (PushInternalContext.getInstance().getAttribute(Datastore.class.getName()) != null) {
+//            ConcurrentMap<String, Browser> _browserMap =
+//                (ConcurrentMap<String, Browser>)PushInternalContext.getInstance().getAttribute("browserMap");
+//            if (_browserMap.containsKey(getKey())) {
+//                _browserMap.put(getKey(), this);
+//                if (LOGGER.isLoggable(Level.FINE)) {
+//                    LOGGER.log(
+//                        Level.FINE,
+//                        "Saved Browser '" + this + "' to Database."
+//                    );
+//                }
+//            }
+//        }
     }
 
     // Solely used by BrowserDispatcher

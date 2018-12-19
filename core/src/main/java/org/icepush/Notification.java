@@ -181,16 +181,17 @@ implements DatabaseEntity, Runnable, Serializable {
     }
 
     public void save() {
-        Datastore _datastore = ((Datastore)PushInternalContext.getInstance().getAttribute(Datastore.class.getName()));
-        if (_datastore != null) {
-            _datastore.save(this);
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(
-                    Level.FINE,
-                    "Persisted Notification '" + this + "' to datastore."
-                );
-            }
-        }
+        // VRAS-683 : Disable Notification Service's MongoDB usage for icesoft_technologies database and its collections
+//        Datastore _datastore = ((Datastore)PushInternalContext.getInstance().getAttribute(Datastore.class.getName()));
+//        if (_datastore != null) {
+//            _datastore.save(this);
+//            if (LOGGER.isLoggable(Level.FINE)) {
+//                LOGGER.log(
+//                    Level.FINE,
+//                    "Persisted Notification '" + this + "' to datastore."
+//                );
+//            }
+//        }
     }
 
     @Override

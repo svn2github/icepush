@@ -488,11 +488,11 @@ implements Collection<E>, Iterable<E>, Queue<E> {
         }
 
         public void save() {
-            Datastore _datastore =
-                ((Datastore)PushInternalContext.getInstance().getAttribute(Datastore.class.getName()));
-            if (_datastore != null) {
-                _datastore.save(this);
-            }
+//            Datastore _datastore =
+//                ((Datastore)PushInternalContext.getInstance().getAttribute(Datastore.class.getName()));
+//            if (_datastore != null) {
+//                _datastore.save(this);
+//            }
         }
 
         @Override

@@ -126,25 +126,26 @@ implements InternalPushGroupManager, PushGroupManager {
             setAttribute(Timer.class.getName() + "$expiry", new Timer("Expiry Timeout timer", true));
         // The Pending Notification Entry set must be initiated before the potential database-backed collections.
         this.pendingNotificationEntrySet = new HashSet<NotificationEntry>();
-        Datastore datastore = (Datastore)PushInternalContext.getInstance().getAttribute(Datastore.class.getName());
-        if (datastore != null) {
-            this.browserMap =
-                new DatabaseBackedConcurrentMap<Browser>(browserClass, datastore);
-            this.groupMap =
-                new DatabaseBackedConcurrentMap<Group>(groupClass, datastore);
-            this.pushIDMap =
-                new DatabaseBackedConcurrentMap<PushID>(pushIDClass, datastore);
-            this.expiryTimeoutMap =
-                new DatabaseBackedConcurrentMap<ExpiryTimeout>(expiryTimeoutClass, datastore);
-            this.notificationQueue =
-                new DatabaseBackedQueue<Notification>(
-                    configuration.getAttributeAsInteger("notificationQueueSize", DEFAULT_NOTIFICATIONQUEUE_SIZE),
-                    notificationClass,
-                    datastore
-                );
-//            this.pendingNotificationEntrySet =
-//                new DatabaseBackedSetCollection<NotificationEntry>(notificationEntryClass, datastore);
-        } else {
+        // VRAS-683 : Disable Notification Service's MongoDB usage for icesoft_technologies database and its collections
+//        Datastore datastore = (Datastore)PushInternalContext.getInstance().getAttribute(Datastore.class.getName());
+//        if (datastore != null) {
+//            this.browserMap =
+//                new DatabaseBackedConcurrentMap<Browser>(browserClass, datastore);
+//            this.groupMap =
+//                new DatabaseBackedConcurrentMap<Group>(groupClass, datastore);
+//            this.pushIDMap =
+//                new DatabaseBackedConcurrentMap<PushID>(pushIDClass, datastore);
+//            this.expiryTimeoutMap =
+//                new DatabaseBackedConcurrentMap<ExpiryTimeout>(expiryTimeoutClass, datastore);
+//            this.notificationQueue =
+//                new DatabaseBackedQueue<Notification>(
+//                    configuration.getAttributeAsInteger("notificationQueueSize", DEFAULT_NOTIFICATIONQUEUE_SIZE),
+//                    notificationClass,
+//                    datastore
+//                );
+////            this.pendingNotificationEntrySet =
+////                new DatabaseBackedSetCollection<NotificationEntry>(notificationEntryClass, datastore);
+//        } else {
             this.browserMap =
                 new ConcurrentHashMap<String, Browser>();
             this.groupMap =
@@ -159,30 +160,30 @@ implements InternalPushGroupManager, PushGroupManager {
                 );
 //            this.pendingNotificationEntrySet =
 //                new HashSet<NotificationEntry>();
-        }
+//        }
         PushInternalContext.getInstance().setAttribute("browserMap", this.browserMap);
         PushInternalContext.getInstance().setAttribute("groupMap", this.groupMap);
         PushInternalContext.getInstance().setAttribute("pushIDMap", this.pushIDMap);
         PushInternalContext.getInstance().setAttribute("expiryTimeoutMap", this.expiryTimeoutMap);
         PushInternalContext.getInstance().setAttribute("notificationQueue", this.notificationQueue);
-        if (datastore != null) {
-            long _browserTimeout = Browser.getTimeout(servletContext);
-            for (final String _browserID : this.browserMap.keySet()) {
-                if (this.browserMap.get(_browserID).getLastAccessTimestamp() + _browserTimeout <
-                        System.currentTimeMillis()) {
-
-                    this.browserMap.remove(_browserID);
-                }
-            }
-            for (final String _pushID : this.expiryTimeoutMap.keySet()) {
-                this.expiryTimeoutMap.get(_pushID).scheduleOrExecute(this);
-            }
-            for (final Notification _notification : this.notificationQueue) {
-                if (_notification instanceof NoopNotification) {
-                    this.notificationQueue.remove(_notification);
-                }
-            }
-        }
+//        if (datastore != null) {
+//            long _browserTimeout = Browser.getTimeout(servletContext);
+//            for (final String _browserID : this.browserMap.keySet()) {
+//                if (this.browserMap.get(_browserID).getLastAccessTimestamp() + _browserTimeout <
+//                        System.currentTimeMillis()) {
+//
+//                    this.browserMap.remove(_browserID);
+//                }
+//            }
+//            for (final String _pushID : this.expiryTimeoutMap.keySet()) {
+//                this.expiryTimeoutMap.get(_pushID).scheduleOrExecute(this);
+//            }
+//            for (final Notification _notification : this.notificationQueue) {
+//                if (_notification instanceof NoopNotification) {
+//                    this.notificationQueue.remove(_notification);
+//                }
+//            }
+//        }
 //        PushInternalContext.getInstance().setAttribute("pendingNotificationEntrySet", this.pendingNotificationEntrySet);
         this.queueConsumer = newQueueConsumerTask();
         this.timer.schedule(queueConsumer, 0);
